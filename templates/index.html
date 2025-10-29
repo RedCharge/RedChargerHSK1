@@ -7,7 +7,7 @@
     
 
  <!-- PWA Meta Tags -->
-    <link rel="manifest" href="/static/manifest.json">
+    <link rel="manifest" href="/static/js/manifest.json">
     <meta name="theme-color" content="#5c7cfa">
     
     <!-- Mobile Meta Tags -->
@@ -571,7 +571,7 @@
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 // Register service worker from static directory
-                navigator.serviceWorker.register('/static/service-worker.js', { scope: '/' })
+                navigator.serviceWorker.register('/static/js/service-worker.js', { scope: '/' })
                     .then(function(registration) {
                         console.log('✅ Service Worker registered with scope:', registration.scope);
                         
@@ -614,7 +614,7 @@
             }
             
             // Check icons by testing if manifest loads
-            fetch('/static/manifest.json')
+            fetch('/static/js/manifest.json')
                 .then(response => response.json())
                 .then(manifest => {
                     checks.icons = manifest.icons && manifest.icons.length > 0;
