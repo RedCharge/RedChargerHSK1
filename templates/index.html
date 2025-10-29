@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSK1 Quiz App - Geometric & Sophisticated UI</title>
+    <!-- Load Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind for custom styles and Inter font --><script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        // Define a subtle serif font stack for the founder's name to look 'nicer'
+                        serif: ['Georgia', 'serif'], 
+                    },
+                    colors: {
+                        'primary-blue': '#5c7cfa', /* Primary Accent */
+                        'secondary-cyan': '#33f0e8', /* Secondary Accent */
+                        'main-bg': '#1e293b', /* Sophisticated Dark Blue-Grey */
+                        'card-bg': '#2a3a50', /* Slightly Lighter Card BG */
+                        'text-light': '#e2e8f0', /* Light Text for Contrast */
+                        'text-muted': '#94a3b8', /* Muted Text */
+                    },
+                    // Define custom animations
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        gradientShift: { /* For a subtle gradient animation on buttons */
+                            '0%': { backgroundPosition: '0% 50%' },
+                            '100%': { backgroundPosition: '100% 50%' },
+                        },
+                        floating: { /* Vertical float animation for the image */
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-8px)' }, /* Subtle vertical float */
+                        },
+                        borderShift: { /* New keyframe for the CEO image border gradient */
+                            '0%': { backgroundPosition: '0% 50%' },
+                            '50%': { backgroundPosition: '100% 50%' },
+                            '100%': { backgroundPosition: '0% 50%' },
+                        }
+                    },
+                    animation: {
+                        fadeInUp: 'fadeInUp 0.6s ease-out forwards',
+                        gradientShift: 'gradientShift 3s ease infinite alternate',
+                        floating: 'floating 4s ease-in-out infinite alternate',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Geometric & Sophisticated Design Styling */
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1e293b; /* Deep Blue-Grey */
+            min-height: 100vh;
+            color: #e2e8f0; /* Light text */
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Nav Bar - MADE FULLY TRANSPARENT WITH BLUR EFFECT */
+        .nav-card {
+            background-color: rgba(30, 41, 59, 0.6); /* Semi-transparent dark background (main-bg) */
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px); /* Safari support */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* Subtle shadow for lift */
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
+        }
+
+        /* Card Style - Muted, Geometric, with subtle lift */
+        .sophisticated-card {
+            background-color: #2a3a50; /* Slightly lighter than body */
+            border-radius: 0.75rem; /* Less rounded for geometric feel */
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .sophisticated-card:hover {
+             transform: translateY(-5px) scale(1.01);
+             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(92, 124, 250, 0.3); /* Add subtle glow on hover */
+        }
+
+        /* CTA Buttons with sleek, defined gradients */
+        .cta-button-primary, .cta-button-secondary {
+            border: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cta-button-primary {
+            background: linear-gradient(135deg, #5c7cfa, #3d5ad8);
+            color: white;
+            box-shadow: 0 5px 20px rgba(92, 124, 250, 0.5);
+            background-size: 200% auto;
+            animation: gradientShift 3s ease infinite alternate;
+        }
+        
+        .cta-button-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(92, 124, 250, 0.7);
+        }
+
+        .cta-button-secondary {
+            background: linear-gradient(135deg, #33f0e8, #25c0b8);
+            color: #1e293b;
+            box-shadow: 0 5px 20px rgba(51, 240, 232, 0.4);
+        }
+
+        .cta-button-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(51, 240, 232, 0.6);
+        }
+
+        /* Hero image styling */
+        .hero-image-container {
+            position: relative;
+            transform: rotateY(-10deg) rotateX(5deg) scale(0.95); /* Slight 3D perspective */
+            transform-style: preserve-3d;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 0 3px rgba(92, 124, 250, 0.4); /* Stronger border/shadow */
+        }
+        .hero-image-container::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top right, rgba(92, 124, 250, 0.2), transparent 70%); /* Subtle overlay */
+            z-index: 1;
+        }
+
+        /* Initial state for elements to be animated by JS */
+        .animate-on-scroll {
+            opacity: 0;
+            transition-property: opacity, transform;
+            transition-duration: 0.7s;
+            transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1); /* Ease-out-back */
+            transform: translateY(20px);
+        }
+
+        .animate-on-scroll.animate-fadeInUp {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        /* Name styling for the 'nice font' look */
+        .founder-name {
+            font-family: 'Georgia', 'serif'; 
+            color: #e2e8f0;
+        }
+        
+        /* Floating animation class */
+        .animate-floating {
+            animation: floating 4s ease-in-out infinite alternate;
+        }
+        
+        /* === CEO IMAGE STYLES === */
+        
+        /* Image container for the floating gradient effect */
+        .ceo-image-container {
+            position: relative;
+            padding: 0.5rem; /* Space for the pseudo-element border */
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); /* Soft shadow */
+        }
+
+        /* Pseudo-element to create the animated gradient border effect */
+        .ceo-image-container::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            /* Create a large background gradient that moves */
+            background: linear-gradient(45deg, #5c7cfa, #33f0e8, #5c7cfa, #3d5ad8);
+            background-size: 400% 400%; /* Important for the shifting effect */
+            border-radius: 1rem;
+            z-index: 0;
+            animation: borderShift 6s ease infinite; /* New gradient shift animation */
+            /* Mask the gradient to just the border area (10px wide border effect) */
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            padding: 10px; /* Adjust padding to control border thickness (e.g., 10px = 0.625rem) */
+        }
+
+        /* Image styling to sit on top of the border and maintain shape */
+        .ceo-image {
+            position: relative;
+            z-index: 1; /* Place image above the pseudo-element border */
+            border-radius: 0.75rem; /* Slightly smaller radius than container */
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            background-color: #2a3a50; /* Fallback background for the image content area */
+        }
+        
+        /* === PREMIUM VIDEO STYLES (Dribbble Look) === */
+        .premium-video-shadow {
+            /* Heavy shadow for depth and subtle glow for premium feel */
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.8), 0 0 40px rgba(51, 240, 232, 0.5); /* Dark base + Cyan glow */
+            transition: all 0.5s ease-in-out;
+            border: 1px solid rgba(51, 240, 232, 0.3); /* Thin accent border */
+        }
+        .premium-video-shadow:hover {
+            /* Stronger shadow/glow on hover */
+            box-shadow: 0 20px 70px rgba(0, 0, 0, 0.9), 0 0 60px rgba(92, 124, 250, 0.7); /* Darker shadow + Blue glow */
+            transform: scale(1.005); /* Very slight scale for lift */
+        }
+    </style>
+</head>
+<body class="selection:bg-primary-blue selection:text-white">
+
+    <!-- Navigation Bar (MADE FULLY TRANSPARENT AND RESPONSIVE) -->
+    <nav class="fixed top-0 left-0 right-0 z-50 p-4 lg:p-6 nav-card">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <!-- Logo/Title -->
+            <div class="text-2xl font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-text-light to-secondary-cyan">
+                RedCharger
+            </div>
+
+            <!-- Main Navigation and CTA Container -->
+            <div class="flex items-center space-x-3 md:space-x-8">
+                <!-- Desktop Links (Hidden on small screens) -->
+                <div class="space-x-8 hidden md:flex font-medium">
+                    <a href="#hero" class="text-text-muted hover:text-secondary-cyan transition duration-300">Home</a>
+                    <a href="#features" class="text-text-muted hover:text-secondary-cyan transition duration-300">Features</a>
+                    <a href="#video-learning" class="text-text-muted hover:text-secondary-cyan transition duration-300">Video</a>
+                    <a href="#about" class="text-text-muted hover:text-secondary-cyan transition duration-300">About</a>
+                </div>
+
+                <!-- CTA Button (Desktop version) -->
+                <a href="#hsk-quiz" class="hidden md:flex py-2 px-5 rounded-full cta-button-secondary font-extrabold text-base shadow-xl hover:shadow-2xl transition duration-300">
+                    Start Learning
+                </a>
+                
+                <!-- CTA Button (Mobile version - smaller) -->
+                <a href="#hsk-quiz" class="md:hidden py-1 px-3 rounded-full text-sm cta-button-secondary font-bold shadow-xl transition duration-300">
+                    Start
+                </a>
+
+                <!-- Hamburger Menu Button (Visible on mobile) -->
+                <button id="menu-button" class="md:hidden text-text-light p-2 rounded-lg hover:bg-white/10 transition duration-200 focus:outline-none" aria-label="Toggle menu">
+                    <!-- Hamburger Icon -->
+                    <svg id="menu-icon-open" class="h-6 w-6 block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                    </svg>
+                    <!-- Close Icon -->
+                    <svg id="menu-icon-close" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Mobile Menu (Collapsible Links - initially hidden) -->
+        <div id="mobile-menu" class="hidden md:hidden px-4 pt-4 pb-2 border-t border-white/10 mt-2">
+            <div class="flex flex-col space-y-3 font-medium text-lg">
+                <!-- Added 'mobile-link' class for easy JS handling -->
+                <a href="#hero" class="mobile-link text-text-light hover:text-secondary-cyan transition duration-300 p-2 rounded-lg hover:bg-card-bg/50">Home</a>
+                <a href="#features" class="mobile-link text-text-light hover:text-secondary-cyan transition duration-300 p-2 rounded-lg hover:bg-card-bg/50">Features</a>
+                <a href="#video-learning" class="mobile-link text-text-light hover:text-secondary-cyan transition duration-300 p-2 rounded-lg hover:bg-card-bg/50">Video</a>
+                <a href="#about" class="mobile-link text-text-light hover:text-secondary-cyan transition duration-300 p-2 rounded-lg hover:bg-card-bg/50">About</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="pt-24">
+        <!-- HERO Section (Asymmetrical Layout with Image) --><section id="hero" class="max-w-7xl mx-auto py-20 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-80px)] flex items-center">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                
+                <!-- Left Column: Text Content --><header class="text-center lg:text-left animate-on-scroll" style="transition-delay: 0.1s;">
+                    <span class="inline-block text-sm font-semibold text-primary-blue mb-3 py-1 px-3 rounded-full bg-primary-blue/10 border border-primary-blue/30">
+                        Your Path to Mandarin Fluency
+                    </span>
+                    <h1 class="text-5xl md:text-6xl font-black mb-6 leading-tight tracking-tight text-text-light">
+                        Unlock HSK1 Chinese <span class="text-secondary-cyan">with Confidence.</span>
+                    </h1>
+                    <p class="text-xl md:text-2xl font-light text-text-muted mb-10 max-w-xl lg:mx-0 mx-auto">
+                        A meticulously designed platform focused on essential HSK1 vocabulary and grammar, delivered through a sophisticated and engaging experience.
+                    </p>
+                    
+                    <!-- Main CTA Block --><a href="#hsk-quiz" class="inline-flex items-center justify-center py-4 px-10 rounded-full text-xl font-extrabold cta-button-primary transition duration-300">
+                        Begin Your Learning
+                        <!-- Icon for Arrow/Direction --><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 ml-3 transform -rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
+                    </a>
+                </header>
+
+                <!-- Right Column: App Image Mockup with Perspective --><div class="flex justify-center lg:justify-end animate-on-scroll" style="transition-delay: 0.3s;">
+                    <div class="hero-image-container">
+                        <!-- Placeholder image URL is used here as a mockup --><img src="{{ url_for('static', filename='images/chineseimage.jpg') }}" 
+                             alt="HSK1 Quiz App Interface Screenshot" 
+                             class="rounded-lg w-full h-auto object-cover relative z-0">
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- QUIZ SELECTION Section (New Position after Hero) --><section id="quiz-cta" class="max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:px-8">
+            <div id="hsk-quiz" class="sophisticated-card p-8 md:p-10 w-full max-w-4xl mx-auto animate-on-scroll" style="transition-delay: 0.1s;">
+                <h2 class="text-3xl font-extrabold mb-6 text-text-light text-center">
+                    Choose Your HSK1 Challenge
+                </h2>
+                <!-- New instruction text added here --><p class="text-center text-lg text-text-muted mb-8">
+                    Select the Words Quiz to focus on HSK1 vocabulary mastery, or choose the Sentence Quiz to practice essential grammar and context.
+                </p>
+                
+                <div class="flex flex-col sm:flex-row gap-6">
+                    <!-- Words Quiz Link (Anchor tag with href) --><a href="/words/quiz" class="flex-1 py-5 px-6 rounded-xl text-xl font-bold cta-button-primary shadow-lg hover:shadow-xl transition duration-300">
+                        <!-- Icon for Vocabulary/Words --><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Words Quiz
+                    </a>
+                    <!-- Sentence Quiz Link (Anchor tag with href) --><a href="/sentences/quiz" class="flex-1 py-5 px-6 rounded-xl text-xl font-bold cta-button-secondary shadow-lg hover:shadow-xl transition duration-300">
+                        <!-- Icon for Grammar/Sentences --><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 inline mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Sentence  Quiz
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- FEATURES Section (Updated) -->
+        <section id="features" class="max-w-7xl mx-auto py-24 px-4 sm:px-6 lg:px-8">
+            <h2 class="text-4xl font-extrabold text-center mb-16 text-text-light animate-on-scroll" style="transition-delay: 0.1s;">Key Features Designed For Success</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                
+                <!-- Feature 1: 500+ Words & Sentences (Updated) --><div class="sophisticated-card p-8 animate-on-scroll" style="transition-delay: 0.2s;">
+                    <div class="bg-primary-blue/20 p-4 rounded-lg w-16 h-16 flex items-center justify-center mb-4 text-secondary-cyan border border-primary-blue/30">
+                        <!-- Icon for Volume/Content --><svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-2 text-text-light">500+ Words & Sentences</h3>
+                    <p class="text-text-muted">Master an extensive library that goes beyond the basics, offering deep quiz coverage of essential HSK1 vocabulary and grammar structures.</p>
+                </div>
+
+                <!-- Feature 2: Real-Time Performance Statistics (Updated) --><div class="sophisticated-card p-8 animate-on-scroll" style="transition-delay: 0.4s;">
+                    <div class="bg-primary-blue/20 p-4 rounded-lg w-16 h-16 flex items-center justify-center mb-4 text-secondary-cyan border border-primary-blue/30">
+                        <!-- Icon for Stats/Data --><svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c1.657 0 3 .895 3 2s-1.343 2-3 2v5l-4-4 4-4z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-4a4 4 0 014-4h.5M20 12h-2m-8 6h-2m14-8h-2" />
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-2 text-text-light">Real-Time Performance Statistics</h3>
+                    <p class="text-text-muted">Track your mastery with dynamic charts and graphs showing retention rates, speed, and accuracy across all quiz categories.</p>
+                </div>
+
+                <!-- Feature 3: Live Learner Community Chat (Updated) --><div class="sophisticated-card p-8 animate-on-scroll" style="transition-delay: 0.6s;">
+                    <div class="bg-primary-blue/20 p-4 rounded-lg w-16 h-16 flex items-center justify-center mb-4 text-secondary-cyan border border-primary-blue/30">
+                        <!-- Icon for Community/Chat --><svg xmlns="http://www.w3.org/2000/svg" class="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a2 2 0 01-2-2V7a2 2 0 012-2h8a2 2 0 012 2v1m-7 4h.01M17 12h.01" />
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-2 text-text-light">Live Learner Community Chat</h3>
+                    <p class="text-text-muted">Connect instantly with thousands of other HSK learners for advice, encouragement, and real-time practice.</p>
+                </div>
+            </div>
+            
+        </section>
+        
+        <!-- YOUTUBE VIDEO Section (Dribbble-Style, No Card) --><section id="video-learning" class="py-24 px-4 sm:px-6 lg:px-8 border-y border-main-bg/50">
+            <div class="max-w-5xl mx-auto animate-on-scroll" style="transition-delay: 0.1s;">
+                <h2 class="text-5xl font-extrabold text-center mb-4 text-text-light">
+                    Character Mastery Video Guide
+                </h2>
+                <p class="text-center text-xl text-text-muted mb-12 max-w-3xl mx-auto font-light">
+                    Start your journey by mastering the first 500 HSK1 Chinese characters with this detailed and engaging lesson.
+                </p>
+                
+                <!-- Responsive YouTube Embed Container with Premium Styling -->
+                <div class="relative overflow-hidden w-full rounded-2xl premium-video-shadow" style="padding-top: 56.25%;">
+                    <iframe 
+                        class="absolute top-0 left-0 w-full h-full"
+                        src="https://www.youtube.com/embed/GGd0ELuvKJo" 
+                        title="YouTube video player: HSK 1 - First 50 Characters" 
+                        frameborder="0" 
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                        referrerpolicy="strict-origin-when-cross-origin" 
+                        allowfullscreen>
+                    </iframe>
+                </div>
+
+                <div class="text-center mt-12">
+                    <a href="https://youtu.be/GGd0ELuvKJo?si=xXNajXhuFL15DckJ" target="_blank" class="inline-flex items-center py-3 px-8 rounded-full text-lg font-bold cta-button-primary transition duration-300">
+                        View Full Lesson on YouTube
+                        <!-- External link icon --><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </section>
+        
+        <!-- ABOUT Section -->
+        <section id="about" class="max-w-7xl mx-auto py-24 px-4 sm:px-6 lg:px-8">
+            
+            <!-- Row 1: Mission/Commitment Text and Graphic -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center mb-24">
+                
+                <div class="lg:order-2 animate-on-scroll" style="transition-delay: 0.1s;">
+                    <h2 class="text-4xl font-bold mb-6 text-text-light">Our Commitment to Your Learning</h2>
+                    <p class="text-lg text-text-muted mb-6 font-light">
+                        RedCharger was developed with a single goal: to make learning Chinese accessible, efficient, and enjoyable. We've distilled the core requirements of HSK1 into a streamlined, powerful tool.
+                    </p>
+                    <p class="text-lg text-text-muted font-light">
+                        Our minimalist yet effective approach helps you cut through distractions, focusing purely on what matters most for HSK1 mastery. It's not just an app; it's your dedicated learning partner.
+                    </p>
+                </div>
+
+                <!-- Right Column (Order 2 on Desktop): Image Placeholder (Updated) --><div class="lg:order-2 relative h-72 flex items-center justify-center animate-on-scroll" style="transition-delay: 0.3s;">
+                    <!-- Replacing the SVG graphic with a placeholder image for Progress Visualization -->
+                    <div class="hero-image-container w-full h-full flex items-center justify-center animate-floating" style="transform: none; box-shadow: none; border: none;">
+                        <img src="{{ url_for('static', filename='images/stat.jpg') }}" 
+                             alt="A visual chart demonstrating learning progress." 
+                             class="rounded-xl w-full h-full object-cover relative z-0 shadow-2xl border-2 border-secondary-cyan/50">
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Row 2: Founder/CEO Section (Updated to Text Left, Image Right, No Card) -->
+            <div class="text-center mb-10 pt-10 border-t border-card-bg/50">
+                <h3 class="text-3xl font-extrabold text-primary-blue mb-8 animate-on-scroll" style="transition-delay: 0.5s;">Meet the Creator</h3>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+                
+                <!-- Left: Text Content -->
+                <div class="text-center md:text-left p-4 animate-on-scroll" style="transition-delay: 0.7s;">
+                    <h4 class="founder-name text-4xl lg:text-5xl font-extrabold mb-2 leading-tight">Dr. Kwame Adjei</h4>
+                    <p class="text-secondary-cyan font-bold mb-6 italic text-xl">Founder & CEO, HSK Language Labs</p>
+                    
+                    <p class="text-text-muted text-lg leading-relaxed font-light mb-6">
+                        "Driven by a passion for effective language education, I built this app to remove the friction from learning HSK1. Having personally navigated the complexities of learning Mandarin, my goal is simple: to share a streamlined, powerful tool that ensures your success and love for the language."
+                    </p>
+                    <p class="text-text-light text-base font-medium">
+                        A commitment to clarity and efficiency in every character.
+                    </p>
+                </div>
+                
+                <!-- Right: Image with Floating Gradient Animation -->
+                <div class="flex justify-center md:justify-end animate-on-scroll" style="transition-delay: 0.9s;">
+                    <div class="ceo-image-container w-full max-w-sm h-64 animate-floating">
+                        <!-- Placeholder image URL is used here as a mockup --><img src="{{ url_for('static', filename='images/CEO.jpg') }}" 
+                             alt="Profile image of the Founder" 
+                             class="ceo-image">
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- Footer --><footer class="py-10 border-t border-main-bg/20 text-center text-text-muted bg-card-bg">
+        <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
+    </footer>
+
+    <!-- JavaScript for Scroll Animations and Mobile Menu --><script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Mobile Menu Logic ---
+            const menuButton = document.getElementById('menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const menuIconOpen = document.getElementById('menu-icon-open');
+            const menuIconClose = document.getElementById('menu-icon-close');
+            const mobileLinks = document.querySelectorAll('.mobile-link');
+
+            function toggleMenu() {
+                mobileMenu.classList.toggle('hidden');
+                menuIconOpen.classList.toggle('hidden');
+                menuIconClose.classList.toggle('hidden');
+            }
+
+            // Attach toggle function to the button
+            menuButton.addEventListener('click', toggleMenu);
+
+            // Close menu when a link is clicked (improves mobile UX)
+            mobileLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    // Check if the menu is open before closing it
+                    if (!mobileMenu.classList.contains('hidden')) {
+                        toggleMenu();
+                    }
+                });
+            });
+
+
+            // --- Scroll Animations Logic ---
+            const animateElements = document.querySelectorAll('.animate-on-scroll');
+            
+            // Options for the Intersection Observer
+            const observerOptions = {
+                root: null, // relative to viewport
+                rootMargin: '0px',
+                threshold: 0.1 // 10% of element visible
+            };
+
+            // Observer callback function
+            const observer = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        // Add the class to trigger the defined animation transition
+                        const delayString = entry.target.style.transitionDelay;
+                        const delay = delayString ? parseFloat(delayString) * 1000 : 0;
+                        
+                        setTimeout(() => {
+                             entry.target.classList.add('animate-fadeInUp');
+                        }, delay);
+                       
+                        // Stop observing once animated
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            // Start observing all target elements
+            animateElements.forEach(el => {
+                observer.observe(el);
+            });
+            
+            // Force hero section elements to show immediately if they are already in view
+            const heroElements = document.querySelectorAll('#hero .animate-on-scroll');
+            heroElements.forEach(el => {
+                el.classList.add('animate-fadeInUp');
+            });
+        });
+    </script>
+</body>
+</html>

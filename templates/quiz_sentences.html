@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSK1 Sentences Quiz - Master Chinese Sentences</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Georgia', 'serif'],
+                    },
+                    colors: {
+                        'primary-blue': '#5c7cfa',
+                        'secondary-cyan': '#33f0e8',
+                        'main-bg': '#1e293b',
+                        'card-bg': '#2a3a50',
+                        'text-light': '#e2e8f0',
+                        'text-muted': '#94a3b8',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        gradientShift: {
+                            '0%': { backgroundPosition: '0% 50%' },
+                            '100%': { backgroundPosition: '100% 50%' },
+                        },
+                        pulseCorrect: {
+                            '0%': { boxShadow: '0 0 0 0 rgba(34, 197, 94, 0.7)' },
+                            '70%': { boxShadow: '0 0 0 10px rgba(34, 197, 94, 0)' },
+                            '100%': { boxShadow: '0 0 0 0 rgba(34, 197, 94, 0)' },
+                        },
+                        pulseIncorrect: {
+                            '0%': { boxShadow: '0 0 0 0 rgba(239, 68, 68, 0.7)' },
+                            '70%': { boxShadow: '0 0 0 10px rgba(239, 68, 68, 0)' },
+                            '100%': { boxShadow: '0 0 0 0 rgba(239, 68, 68, 0)' },
+                        },
+                        fadeInDown: {
+                            '0%': { transform: 'translateY(-10px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        }
+                    },
+                    animation: {
+                        fadeInUp: 'fadeInUp 0.6s ease-out forwards',
+                        gradientShift: 'gradientShift 3s ease infinite alternate',
+                        pulseCorrect: 'pulseCorrect 1s ease',
+                        pulseIncorrect: 'pulseIncorrect 1s ease',
+                        fadeInDown: 'fadeInDown 0.3s ease-out forwards',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1e293b;
+            min-height: 100vh;
+            color: #e2e8f0;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .nav-card {
+            background-color: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sophisticated-card {
+            background-color: #2a3a50;
+            border-radius: 0.75rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .sophisticated-card:hover {
+             transform: translateY(-5px) scale(1.01);
+             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(92, 124, 250, 0.3);
+        }
+
+        .cta-button-primary, .cta-button-secondary {
+            border: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cta-button-primary {
+            background: linear-gradient(135deg, #5c7cfa, #3d5ad8);
+            color: white;
+            box-shadow: 0 5px 20px rgba(92, 124, 250, 0.5);
+            background-size: 200% auto;
+            animation: gradientShift 3s ease infinite alternate;
+        }
+        
+        .cta-button-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(92, 124, 250, 0.7);
+        }
+
+        .cta-button-secondary {
+            background: linear-gradient(135deg, #33f0e8, #25c0b8);
+            color: #1e293b;
+            box-shadow: 0 5px 20px rgba(51, 240, 232, 0.4);
+        }
+
+        .cta-button-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(51, 240, 232, 0.6);
+        }
+
+        .animate-on-scroll {
+            opacity: 0;
+            transition-property: opacity, transform;
+            transition-duration: 0.7s;
+            transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+            transform: translateY(20px);
+        }
+
+        .animate-on-scroll.animate-fadeInUp {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .option-button {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        
+        .option-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .option-button.correct {
+            border-color: #10b981;
+            background-color: rgba(16, 185, 129, 0.1);
+            animation: pulseCorrect 1s ease;
+        }
+        
+        .option-button.incorrect {
+            border-color: #ef4444;
+            background-color: rgba(239, 68, 68, 0.1);
+            animation: pulseIncorrect 1s ease;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background-color: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #5c7cfa, #33f0e8);
+            transition: width 0.5s ease;
+        }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #5c7cfa;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .sentence-character {
+            font-size: 2.5rem;
+            line-height: 1.2;
+        }
+
+        .results-badge {
+            font-size: 1.5rem;
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+
+        .results-badge.excellent {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .results-badge.good {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+
+        .results-badge.average {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .results-badge.poor {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        /* Mobile dropdown menu styles - Full Width */
+        .mobile-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background-color: rgba(42, 58, 80, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 50;
+            opacity: 0;
+            transform: translateY(-10px);
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-dropdown-menu.open {
+            opacity: 1;
+            transform: translateY(0);
+            visibility: visible;
+        }
+
+        .mobile-dropdown-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 45;
+            background-color: transparent;
+            display: none;
+        }
+    </style>
+</head>
+<body class="selection:bg-primary-blue selection:text-white">
+
+    <!-- Navigation Bar with Full-Width Dropdown Menu -->
+    <nav class="fixed top-0 left-0 right-0 z-50 p-4 lg:p-6 nav-card">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-2xl font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-text-light to-secondary-cyan">
+                RedCharger
+            </div>
+            
+            <!-- Desktop Menu -->
+            <div class="space-x-8 hidden md:flex font-medium">
+                <a href="/" class="text-text-muted hover:text-secondary-cyan transition duration-300">Home</a>
+                <a href="/words/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Words Quiz</a>
+                <a href="/sentences/quiz" class="text-secondary-cyan transition duration-300">Sentences Quiz</a>
+                <a href="/result" class="text-text-muted hover:text-secondary-cyan transition duration-300">Results</a>
+                <a href="/chat" class="text-text-muted hover:text-secondary-cyan transition duration-300">Community Chat</a>
+            </div>
+
+            <!-- Desktop Back to Home Button -->
+            <a href="/" class="hidden md:flex py-2 px-5 rounded-full cta-button-secondary font-extrabold text-base shadow-xl hover:shadow-2xl transition duration-300">
+                Back to Home
+            </a>
+
+            <!-- Mobile Menu Container -->
+            <div class="md:hidden flex items-center space-x-3">
+                <!-- Mobile Back to Home Button -->
+                <a href="/" class="py-1 px-3 rounded-full text-sm cta-button-secondary font-bold shadow-xl transition duration-300">
+                    Home
+                </a>
+
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-button" class="text-text-muted hover:text-secondary-cyan transition duration-300 relative z-50">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Dropdown Menu - Full Width -->
+        <div id="mobile-dropdown-menu" class="mobile-dropdown-menu md:hidden w-full left-0">
+            <div class="p-4 space-y-3">
+                <a href="/" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-home mr-3 w-5 text-center"></i>
+                    <span>Home</span>
+                </a>
+                <a href="/words/quiz" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-book mr-3 w-5 text-center"></i>
+                    <span>Words Quiz</span>
+                </a>
+                <a href="/sentences/quiz" class="flex items-center text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-comments mr-3 w-5 text-center"></i>
+                    <span>Sentences Quiz</span>
+                </a>
+                <a href="/chat" class="flex items-center text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50 font-semibold">
+                    <i class="fas fa-users mr-3 w-5 text-center"></i>
+                    <span>Community Chat</span>
+                </a>
+                <a href="/result" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-chart-bar mr-3 w-5 text-center"></i>
+                    <span>Results</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Dropdown Backdrop -->
+    <div id="mobile-dropdown-backdrop" class="mobile-dropdown-backdrop md:hidden"></div>
+
+    <main class="pt-24 pb-16">
+        <!-- Quiz Header -->
+        <section class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-text-light">
+                    HSK1 <span class="text-secondary-cyan">Sentences Quiz</span>
+                </h1>
+                <p class="text-xl text-text-muted max-w-2xl mx-auto">
+                    Test your understanding of essential HSK1 sentences. Choose the correct English translation for each Chinese sentence!
+                </p>
+            </div>
+        </section>
+
+        <!-- Quiz Container -->
+        <section class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="sophisticated-card p-6 md:p-8">
+                <!-- Loading State -->
+                <div id="loading-state" class="text-center py-12">
+                    <div class="loading-spinner mx-auto mb-4"></div>
+                    <p class="text-text-muted">Loading quiz questions...</p>
+                </div>
+
+                <!-- Quiz Content (Initially Hidden) -->
+                <div id="quiz-content" class="hidden">
+                    <!-- Progress Bar -->
+                    <div class="mb-8">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-text-light font-medium">Progress</span>
+                            <span id="progress-text" class="text-text-muted">0/10</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="progress-fill" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Score Display -->
+                    <div class="flex justify-between items-center mb-8">
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-text-light" id="score">0</div>
+                            <div class="text-text-muted text-sm">Score</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-text-light" id="correct-count">0</div>
+                            <div class="text-text-muted text-sm">Correct</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-2xl font-bold text-text-light" id="incorrect-count">0</div>
+                            <div class="text-text-muted text-sm">Incorrect</div>
+                        </div>
+                    </div>
+
+                    <!-- Question Container -->
+                    <div id="question-container" class="mb-8">
+                        <!-- Question content will be dynamically inserted here -->
+                    </div>
+
+                    <!-- Options Container -->
+                    <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                        <!-- Options will be dynamically inserted here -->
+                    </div>
+
+                    <!-- Feedback Message -->
+                    <div id="feedback" class="mb-6 text-center text-lg font-medium hidden"></div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="flex justify-between">
+                        <button id="prev-btn" class="py-3 px-6 rounded-lg bg-card-bg text-text-light border border-text-muted/30 font-medium hover:bg-text-muted/10 transition duration-300 opacity-50 cursor-not-allowed" disabled>
+                            <i class="fas fa-arrow-left mr-2"></i> Previous
+                        </button>
+                        <button id="next-btn" class="py-3 px-6 rounded-lg cta-button-primary font-medium">
+                            Next <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div id="error-state" class="hidden text-center py-12">
+                    <i class="fas fa-exclamation-triangle text-red-400 text-5xl mb-4"></i>
+                    <h3 class="text-2xl font-bold text-text-light mb-2">Failed to Load Quiz</h3>
+                    <p class="text-text-muted mb-6" id="error-message">There was an error loading the quiz questions.</p>
+                    <button id="retry-btn" class="py-3 px-6 rounded-lg cta-button-primary font-medium">
+                        <i class="fas fa-redo mr-2"></i> Try Again
+                    </button>
+                </div>
+
+                <!-- Results Section (Initially Hidden) -->
+                <div id="results-section" class="hidden mt-12 text-center">
+                    <div class="mb-8">
+                        <h2 class="text-3xl font-bold mb-4 text-text-light">Quiz Complete!</h2>
+                        <div id="results-badge" class="results-badge excellent mb-4">Excellent!</div>
+                        <div class="text-5xl font-extrabold mb-2" id="final-score">0</div>
+                        <div class="text-text-muted text-lg">Your Final Score</div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-card-bg/50 p-4 rounded-lg">
+                            <div class="text-3xl font-bold text-green-400" id="final-correct">0</div>
+                            <div class="text-text-muted">Correct Answers</div>
+                        </div>
+                        <div class="bg-card-bg/50 p-4 rounded-lg">
+                            <div class="text-3xl font-bold text-red-400" id="final-incorrect">0</div>
+                            <div class="text-text-muted">Incorrect Answers</div>
+                        </div>
+                        <div class="bg-card-bg/50 p-4 rounded-lg">
+                            <div class="text-3xl font-bold text-secondary-cyan" id="final-percentage">0%</div>
+                            <div class="text-text-muted">Accuracy</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold mb-4 text-text-light">Performance Summary</h3>
+                        <p id="performance-message" class="text-text-muted text-lg max-w-2xl mx-auto">
+                            <!-- Performance message will be inserted here -->
+                        </p>
+                    </div>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                        <button id="restart-btn" class="py-3 px-6 rounded-lg cta-button-primary font-medium">
+                            <i class="fas fa-redo mr-2"></i> Take Quiz Again
+                        </button>
+                        <button id="view-results-btn" class="py-3 px-6 rounded-lg bg-purple-600 text-white font-medium hover:bg-purple-700 transition duration-300">
+                            <i class="fas fa-chart-bar mr-2"></i> View Detailed Results
+                        </button>
+                        <button id="home-btn" class="py-3 px-6 rounded-lg bg-card-bg text-text-light border border-text-muted/30 font-medium hover:bg-text-muted/10 transition duration-300">
+                            <i class="fas fa-home mr-2"></i> Back to Home
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-10 border-t border-main-bg/20 text-center text-text-muted bg-card-bg">
+        <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
+    </footer>
+
+    <!-- Quiz Logic -->
+    <script>
+    // Quiz state
+    let currentQuestion = 0;
+    let score = 0;
+    let correctAnswers = 0;
+    let incorrectAnswers = 0;
+    let userAnswers = [];
+    let quizData = [];
+    let quizStarted = false;
+    let startTime = null;
+    let quizResults = null;
+    
+    // Speech functionality
+    let speechEnabled = true;
+    let speechSynthesis = window.speechSynthesis;
+    let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    let userInteractedWithSpeech = false;
+    let audioContext = null;
+    let autoSpeakEnabled = true;
+
+    // DOM elements
+    const loadingState = document.getElementById('loading-state');
+    const quizContent = document.getElementById('quiz-content');
+    const errorState = document.getElementById('error-state');
+    const questionContainer = document.getElementById('question-container');
+    const optionsContainer = document.getElementById('options-container');
+    const feedbackElement = document.getElementById('feedback');
+    const nextButton = document.getElementById('next-btn');
+    const prevButton = document.getElementById('prev-btn');
+    const progressText = document.getElementById('progress-text');
+    const progressFill = document.getElementById('progress-fill');
+    const scoreElement = document.getElementById('score');
+    const correctCountElement = document.getElementById('correct-count');
+    const incorrectCountElement = document.getElementById('incorrect-count');
+    const resultsSection = document.getElementById('results-section');
+    const finalScoreElement = document.getElementById('final-score');
+    const finalCorrectElement = document.getElementById('final-correct');
+    const finalIncorrectElement = document.getElementById('final-incorrect');
+    const finalPercentageElement = document.getElementById('final-percentage');
+    const performanceMessageElement = document.getElementById('performance-message');
+    const resultsBadge = document.getElementById('results-badge');
+    const restartButton = document.getElementById('restart-btn');
+    const viewResultsButton = document.getElementById('view-results-btn');
+    const homeButton = document.getElementById('home-btn');
+    const retryButton = document.getElementById('retry-btn');
+    const errorMessage = document.getElementById('error-message');
+
+    // Mobile menu elements
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+    const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+
+    // Initialize the application
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize mobile menu
+        initializeMobileMenu();
+        
+        // Initialize speech system
+        initializeSpeechSystem();
+        
+        // Initialize audio context for sound effects
+        initializeAudioContext();
+        
+        // Add user interaction listeners for mobile auto-speak
+        setupUserInteractionListeners();
+        
+        // Load quiz data
+        loadQuizData();
+        
+        // Add event listeners
+        restartButton.addEventListener('click', restartQuiz);
+        viewResultsButton.addEventListener('click', viewDetailedResults);
+        homeButton.addEventListener('click', () => {
+            window.location.href = '/';
+        });
+        retryButton.addEventListener('click', loadQuizData);
+    });
+
+    // Initialize Audio Context for sound effects
+    function initializeAudioContext() {
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('AudioContext initialized for sound effects');
+        } catch (e) {
+            console.log('AudioContext not supported for sound effects');
+        }
+    }
+
+    // Play correct answer sound
+    function playCorrectSound() {
+        if (!audioContext) {
+            console.log('AudioContext not available for sound effects');
+            return;
+        }
+
+        try {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Happy, ascending sound
+            oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+            oscillator.frequency.exponentialRampToValueAtTime(1046.50, audioContext.currentTime + 0.3); // C6
+            
+            oscillator.type = 'sine';
+            
+            // Smooth volume envelope
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+            
+            console.log('Played correct answer sound');
+        } catch (e) {
+            console.log('Correct sound failed:', e);
+        }
+    }
+
+    // Play incorrect answer sound
+    function playIncorrectSound() {
+        if (!audioContext) {
+            console.log('AudioContext not available for sound effects');
+            return;
+        }
+
+        try {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Sad, descending sound
+            oscillator.frequency.setValueAtTime(392.00, audioContext.currentTime); // G4
+            oscillator.frequency.exponentialRampToValueAtTime(261.63, audioContext.currentTime + 0.4); // C4
+            
+            oscillator.type = 'sawtooth';
+            
+            // Quick attack, slower release
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.6);
+            
+            console.log('Played incorrect answer sound');
+        } catch (e) {
+            console.log('Incorrect sound failed:', e);
+        }
+    }
+
+    // Play level up sound for excellent scores
+    function playLevelUpSound() {
+        if (!audioContext) return;
+
+        try {
+            const times = [0, 0.1, 0.2, 0.3, 0.4];
+            const frequencies = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+            
+            times.forEach((time, index) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(frequencies[index], audioContext.currentTime + time);
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0, audioContext.currentTime + time);
+                gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + time + 0.05);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.3);
+                
+                oscillator.start(audioContext.currentTime + time);
+                oscillator.stop(audioContext.currentTime + time + 0.3);
+            });
+            
+            console.log('Played level up sound');
+        } catch (e) {
+            console.log('Level up sound failed:', e);
+        }
+    }
+
+    // Setup user interaction listeners for mobile
+    function setupUserInteractionListeners() {
+        // Listen for any user interaction to enable auto-speak
+        document.addEventListener('click', function() {
+            userInteractedWithSpeech = true;
+            console.log('User interaction detected - auto-speak enabled');
+        }, { once: true });
+        
+        // Also listen for touch events on mobile
+        if (isMobile) {
+            document.addEventListener('touchstart', function() {
+                userInteractedWithSpeech = true;
+                console.log('Touch interaction detected - auto-speak enabled');
+            }, { once: true });
+        }
+    }
+
+    // Initialize speech system
+    function initializeSpeechSystem() {
+        if (!speechSynthesis) {
+            console.log('Speech synthesis not supported');
+            speechEnabled = false;
+            autoSpeakEnabled = false;
+            return;
+        }
+        
+        // Check for mobile-specific speech issues
+        if (isMobile) {
+            console.log('Mobile device detected - speech will work after user interaction');
+        }
+        
+        // Load voices when available
+        speechSynthesis.onvoiceschanged = function() {
+            const voices = speechSynthesis.getVoices();
+            console.log('Available voices:', voices.length);
+            const chineseVoices = voices.filter(voice => 
+                voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
+            );
+            console.log('Chinese voices available:', chineseVoices.length);
+        };
+        
+        // Force voices to load
+        setTimeout(() => {
+            const voices = speechSynthesis.getVoices();
+            console.log('Voices loaded:', voices.length);
+        }, 1000);
+    }
+
+    // Auto-speak function for new questions
+    function autoSpeakQuestion(text) {
+        if (!speechEnabled || !autoSpeakEnabled) {
+            console.log('Auto-speak disabled');
+            return;
+        }
+        
+        // On mobile, only auto-speak after user has interacted
+        if (isMobile && !userInteractedWithSpeech) {
+            console.log('Waiting for user interaction before auto-speaking on mobile');
+            return;
+        }
+        
+        console.log('Auto-speaking sentence:', text);
+        speakText(text);
+    }
+
+    // Speak text using Web Speech API with multiple fallbacks
+    function speakText(text, language = 'zh-CN') {
+        if (!speechEnabled) {
+            console.log('Speech is disabled');
+            return;
+        }
+        
+        // Stop any ongoing speech
+        speechSynthesis.cancel();
+        
+        // Update button to show loading state
+        const speechButton = document.getElementById('speech-button');
+        if (speechButton) {
+            speechButton.disabled = true;
+            speechButton.classList.add('opacity-50', 'cursor-not-allowed', 'bg-secondary-cyan/20', 'text-secondary-cyan', 'border-secondary-cyan');
+            speechButton.classList.remove('cursor-pointer', 'hover:bg-card-bg/70', 'bg-card-bg', 'text-text-light', 'border-text-muted/30');
+            speechButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            speechButton.title = 'Loading...';
+        }
+        
+        // Try multiple speech methods
+        attemptSpeech(text, language, 0);
+    }
+
+    // Attempt speech with fallbacks
+    function attemptSpeech(text, language, attempt) {
+        const speechButton = document.getElementById('speech-button');
+        
+        if (attempt === 0) {
+            // Method 1: Try with Chinese voice
+            console.log('Attempt 1: Trying Chinese TTS');
+            speakWithVoice(text, language, true);
+        } else if (attempt === 1) {
+            // Method 2: Try with any available voice
+            console.log('Attempt 2: Trying any available voice');
+            speakWithVoice(text, 'en-US', false);
+        } else if (attempt === 2) {
+            // Method 3: Try fallback beep sound
+            console.log('Attempt 3: Using fallback sound');
+            playFallbackSound();
+            resetSpeechButton();
+        } else {
+            // All methods failed
+            console.log('All speech methods failed');
+            resetSpeechButton();
+        }
+    }
+
+    // Speak with specific voice preference
+    function speakWithVoice(text, language, preferChinese = true) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = language;
+        utterance.rate = isMobile ? 0.7 : 0.8;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        
+        // Get available voices
+        const voices = speechSynthesis.getVoices();
+        let selectedVoice = null;
+        
+        if (preferChinese) {
+            // Try to find Chinese voice
+            selectedVoice = voices.find(voice => 
+                voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
+            );
+        }
+        
+        // If no Chinese voice found or not preferring Chinese, use default
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => voice.default) || voices[0];
+        }
+        
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+            console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
+        }
+        
+        // Set up event handlers
+        utterance.onstart = function() {
+            console.log('Speech started successfully');
+            const speechButton = document.getElementById('speech-button');
+            if (speechButton) {
+                speechButton.innerHTML = '<i class="fas fa-volume-up animate-pulse"></i>';
+                speechButton.title = 'Speaking...';
+            }
+        };
+        
+        utterance.onend = function() {
+            console.log('Speech completed successfully');
+            resetSpeechButton();
+        };
+        
+        utterance.onerror = function(event) {
+            console.error('Speech error:', event.error);
+            // Try next method
+            setTimeout(() => attemptSpeech(text, language, attempt + 1), 100);
+        };
+        
+        // Speak with timeout
+        speechSynthesis.speak(utterance);
+        
+        // Set timeout in case speech never starts
+        setTimeout(() => {
+            if (speechSynthesis.speaking) {
+                console.log('Speech is speaking, seems successful');
+            } else {
+                console.log('Speech never started, trying next method');
+                speechSynthesis.cancel();
+                setTimeout(() => attemptSpeech(text, language, attempt + 1), 100);
+            }
+        }, 1000);
+    }
+
+    // Play fallback sound
+    function playFallbackSound() {
+        if (!audioContext) {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.log('Cannot create AudioContext for fallback sound');
+                return;
+            }
+        }
+        
+        try {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 440; // A4 note
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+            
+            console.log('Played fallback sound');
+        } catch (e) {
+            console.log('Fallback sound failed:', e);
+        }
+    }
+
+    // Reset speech button to normal state
+    function resetSpeechButton() {
+        const speechButton = document.getElementById('speech-button');
+        if (speechButton) {
+            speechButton.classList.remove('playing', 'opacity-50', 'cursor-not-allowed', 'bg-secondary-cyan/20', 'text-secondary-cyan', 'border-secondary-cyan');
+            speechButton.classList.add('cursor-pointer', 'hover:bg-card-bg/70', 'bg-card-bg', 'text-text-light', 'border-text-muted/30');
+            speechButton.innerHTML = '<i class="fas fa-volume-up"></i>';
+            speechButton.disabled = false;
+            speechButton.title = 'Click to hear pronunciation';
+            speechButton.setAttribute('aria-label', 'Click to hear pronunciation');
+        }
+    }
+
+    // Mobile menu functionality with full-width dropdown
+    function initializeMobileMenu() {
+        let isMenuOpen = false;
+
+        mobileMenuButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMobileMenu();
+        });
+
+        mobileDropdownBackdrop.addEventListener('click', () => {
+            closeMobileMenu();
+        });
+
+        // Close menu when clicking on menu links
+        const menuLinks = document.querySelectorAll('#mobile-dropdown-menu a');
+        menuLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                closeMobileMenu();
+            });
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (isMenuOpen && !mobileDropdownMenu.contains(e.target) && !mobileMenuButton.contains(e.target)) {
+                closeMobileMenu();
+            }
+        });
+
+        // Close menu on escape key
+        document.addEventListener('keydown', function(e) {
+            if (isMenuOpen && e.key === 'Escape') {
+                closeMobileMenu();
+            }
+        });
+
+        function toggleMobileMenu() {
+            if (isMenuOpen) {
+                closeMobileMenu();
+            } else {
+                openMobileMenu();
+            }
+        }
+
+        function openMobileMenu() {
+            mobileDropdownMenu.classList.add('open');
+            mobileDropdownBackdrop.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            isMenuOpen = true;
+            
+            // Change icon to X
+            mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+            mobileMenuButton.classList.remove('text-text-muted');
+            mobileMenuButton.classList.add('text-secondary-cyan');
+        }
+
+        function closeMobileMenu() {
+            mobileDropdownMenu.classList.remove('open');
+            mobileDropdownBackdrop.style.display = 'none';
+            document.body.style.overflow = '';
+            isMenuOpen = false;
+            
+            // Change icon back to hamburger
+            mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+            mobileMenuButton.classList.remove('text-secondary-cyan');
+            mobileMenuButton.classList.add('text-text-muted');
+        }
+    }
+
+    // Load quiz data from Flask backend
+    async function loadQuizData() {
+        try {
+            showLoading();
+            
+            const response = await fetch('/sentences/api/quiz-sentences?count=20');
+            const data = await response.json();
+            
+            if (data.success) {
+                quizData = data.sentences;
+                hideLoading();
+                showQuizContent();
+                initQuiz();
+            } else {
+                throw new Error(data.message || 'Failed to load quiz data');
+            }
+        } catch (error) {
+            console.error('Error loading quiz data:', error);
+            showError(error.message);
+        }
+    }
+
+    // Initialize the quiz
+    function initQuiz() {
+        startTime = new Date();
+        showQuestion();
+        updateProgress();
+        updateScore();
+        
+        // Add event listeners
+        nextButton.addEventListener('click', nextQuestion);
+        prevButton.addEventListener('click', prevQuestion);
+        
+        // Setup interaction listeners for this quiz session
+        setupQuizInteractionListeners();
+    }
+
+    // Setup interaction listeners specifically for the quiz
+    function setupQuizInteractionListeners() {
+        // Remove any existing listeners and add new ones
+        document.removeEventListener('click', handleQuizInteraction);
+        document.removeEventListener('touchstart', handleQuizInteraction);
+        
+        document.addEventListener('click', handleQuizInteraction);
+        if (isMobile) {
+            document.addEventListener('touchstart', handleQuizInteraction);
+        }
+    }
+
+    function handleQuizInteraction() {
+        if (!userInteractedWithSpeech) {
+            userInteractedWithSpeech = true;
+            console.log('Quiz interaction detected - auto-speak now enabled');
+            
+            // Auto-speak the current question if this is the first interaction
+            if (speechEnabled && autoSpeakEnabled) {
+                const currentSentence = quizData[currentQuestion]?.sentence;
+                if (currentSentence) {
+                    setTimeout(() => {
+                        console.log('Auto-speaking after first interaction:', currentSentence);
+                        speakText(currentSentence);
+                    }, 300);
+                }
+            }
+        }
+    }
+
+    // Show current question
+    function showQuestion() {
+        const question = quizData[currentQuestion];
+        
+        questionContainer.innerHTML = `
+            <div class="text-center mb-6">
+                <div class="flex items-center justify-center mb-4">
+                    <div class="sentence-character font-bold text-text-light mr-4">${question.sentence}</div>
+                    <button id="speech-button" class="speech-button p-3 rounded-full bg-card-bg text-text-light border border-text-muted/30 cursor-pointer hover:bg-card-bg/70 transition duration-300" title="Click to hear pronunciation" aria-label="Click to hear pronunciation">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
+                </div>
+                <div class="text-xl text-secondary-cyan mb-2">${question.pinyin}</div>
+                <div class="text-lg text-text-muted">What is the English translation of this sentence?</div>
+            </div>
+        `;
+        
+        // Add event listener to speech button
+        const speechButton = document.getElementById('speech-button');
+        speechButton.addEventListener('click', function() {
+            userInteractedWithSpeech = true;
+            speakText(question.sentence);
+        });
+        
+        optionsContainer.innerHTML = '';
+        question.options.forEach((option, index) => {
+            const button = document.createElement('button');
+            button.className = 'option-button py-4 px-6 rounded-lg bg-card-bg text-text-light border border-text-muted/30 font-medium text-left';
+            button.innerHTML = `
+                <span class="font-bold mr-3">${String.fromCharCode(65 + index)}.</span> ${option}
+            `;
+            button.addEventListener('click', () => selectOption(index));
+            optionsContainer.appendChild(button);
+        });
+        
+        // Reset feedback
+        feedbackElement.classList.add('hidden');
+        feedbackElement.textContent = '';
+        
+        // Update navigation buttons
+        prevButton.disabled = currentQuestion === 0;
+        if (prevButton.disabled) {
+            prevButton.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            prevButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+        
+        if (currentQuestion === quizData.length - 1) {
+            nextButton.innerHTML = 'Finish <i class="fas fa-flag-checkered ml-2"></i>';
+        } else {
+            nextButton.innerHTML = 'Next <i class="fas fa-arrow-right ml-2"></i>';
+        }
+        
+        // If user already answered this question, show their answer
+        if (userAnswers[currentQuestion] !== undefined) {
+            highlightOption(userAnswers[currentQuestion], quizData[currentQuestion].correctAnswer);
+        }
+        
+        // Auto-speak the new question
+        setTimeout(() => {
+            autoSpeakQuestion(question.sentence);
+        }, 500);
+    }
+
+    // Select an option
+    function selectOption(selectedIndex) {
+        if (userAnswers[currentQuestion] !== undefined) return; // Already answered
+        
+        const question = quizData[currentQuestion];
+        const isCorrect = selectedIndex === question.correctAnswer;
+        
+        // Store user's answer
+        userAnswers[currentQuestion] = selectedIndex;
+        
+        // Play sound effect based on answer
+        if (isCorrect) {
+            playCorrectSound();
+            score += 20;
+            correctAnswers++;
+            feedbackElement.textContent = 'Correct! Well done.';
+            feedbackElement.className = 'mb-6 text-center text-lg font-medium text-green-400';
+        } else {
+            playIncorrectSound();
+            incorrectAnswers++;
+            feedbackElement.textContent = `Incorrect. The correct translation is: "${question.options[question.correctAnswer]}"`;
+            feedbackElement.className = 'mb-6 text-center text-lg font-medium text-red-400';
+        }
+        
+        feedbackElement.classList.remove('hidden');
+        updateScore();
+        
+        // Highlight the selected option and correct answer
+        highlightOption(selectedIndex, question.correctAnswer);
+    }
+
+    // Highlight selected option and correct answer
+    function highlightOption(selectedIndex, correctIndex) {
+        const optionButtons = optionsContainer.querySelectorAll('.option-button');
+        
+        optionButtons.forEach((button, index) => {
+            if (index === correctIndex) {
+                button.classList.add('correct');
+            } else if (index === selectedIndex && index !== correctIndex) {
+                button.classList.add('incorrect');
+            }
+            
+            // Disable all buttons after selection
+            button.disabled = true;
+        });
+    }
+
+    // Next question
+    function nextQuestion() {
+        if (currentQuestion < quizData.length - 1) {
+            currentQuestion++;
+            showQuestion();
+            updateProgress();
+        } else {
+            // Quiz finished
+            finishQuiz();
+        }
+    }
+
+    // Previous question
+    function prevQuestion() {
+        if (currentQuestion > 0) {
+            currentQuestion--;
+            showQuestion();
+            updateProgress();
+        }
+    }
+
+    // Update progress bar
+    function updateProgress() {
+        const progress = ((currentQuestion + 1) / quizData.length) * 100;
+        progressText.textContent = `${currentQuestion + 1}/${quizData.length}`;
+        progressFill.style.width = `${progress}%`;
+    }
+
+    // Update score display
+    function updateScore() {
+        scoreElement.textContent = score;
+        correctCountElement.textContent = correctAnswers;
+        incorrectCountElement.textContent = incorrectAnswers;
+    }
+
+    // Finish quiz and show results
+    async function finishQuiz() {
+        // Stop any ongoing speech
+        speechSynthesis.cancel();
+        
+        // Calculate final results
+        const percentage = Math.round((correctAnswers / quizData.length) * 100);
+        const timeTaken = Math.round((new Date() - startTime) / 1000); // in seconds
+        
+        // Play celebration sound for excellent scores
+        if (percentage >= 90) {
+            setTimeout(() => playLevelUpSound(), 500);
+        }
+        
+        // Update results section
+        finalScoreElement.textContent = score;
+        finalCorrectElement.textContent = correctAnswers;
+        finalIncorrectElement.textContent = incorrectAnswers;
+        finalPercentageElement.textContent = `${percentage}%`;
+        
+        // Set performance badge and message
+        let performanceMessage = '';
+        let badgeText = '';
+        let badgeClass = '';
+        
+        if (percentage >= 90) {
+            performanceMessage = 'Outstanding! You have mastered HSK1 sentences. You are ready for the next level!';
+            badgeText = 'Excellent!';
+            badgeClass = 'excellent';
+        } else if (percentage >= 70) {
+            performanceMessage = 'Good job! You have a solid understanding of HSK1 sentences. Keep practicing to improve further.';
+            badgeText = 'Good!';
+            badgeClass = 'good';
+        } else if (percentage >= 50) {
+            performanceMessage = 'Not bad! You understand some HSK1 sentences, but there is room for improvement. Review the sentences you missed.';
+            badgeText = 'Average';
+            badgeClass = 'average';
+        } else {
+            performanceMessage = 'Keep practicing! HSK1 sentence comprehension takes time to master. Try reviewing the sentences and taking the quiz again.';
+            badgeText = 'Needs Practice';
+            badgeClass = 'poor';
+        }
+        
+        performanceMessageElement.textContent = performanceMessage;
+        resultsBadge.textContent = badgeText;
+        resultsBadge.className = `results-badge ${badgeClass} mb-4`;
+        
+        // Store results for saving and detailed view
+        quizResults = {
+            score: score,
+            correct_answers: correctAnswers,
+            incorrect_answers: incorrectAnswers,
+            percentage: percentage,
+            time_taken: timeTaken,
+            total_questions: quizData.length,
+            user_answers: userAnswers,
+            quiz_data: quizData,
+            quiz_type: 'sentences',
+            performance_message: performanceMessage,
+            badge: badgeText
+        };
+        
+        // Save results automatically in background
+        await saveResults();
+        
+        // Store in sessionStorage for detailed results page
+        sessionStorage.setItem('quizResults', JSON.stringify(quizResults));
+        
+        // Hide quiz and show results
+        quizContent.classList.add('hidden');
+        resultsSection.classList.remove('hidden');
+    }
+
+    // View detailed results
+    function viewDetailedResults() {
+        window.location.href = '/result';
+    }
+
+    // Save results to Flask backend (automatically in background)
+    async function saveResults() {
+        try {
+            const response = await fetch('/api/quiz-results', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(quizResults)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('Results saved successfully');
+                return true;
+            } else {
+                throw new Error(data.message || 'Failed to save results');
+            }
+        } catch (error) {
+            console.error('Error saving results:', error);
+            // Don't show error to user since it's in background
+            return false;
+        }
+    }
+
+    // Restart quiz
+    function restartQuiz() {
+        currentQuestion = 0;
+        score = 0;
+        correctAnswers = 0;
+        incorrectAnswers = 0;
+        userAnswers = [];
+        
+        // Reset speech interaction flag for new quiz
+        userInteractedWithSpeech = false;
+        
+        // Reset UI
+        resultsSection.classList.add('hidden');
+        quizContent.classList.remove('hidden');
+        
+        showQuestion();
+        updateProgress();
+        updateScore();
+    }
+
+    // UI State Management
+    function showLoading() {
+        loadingState.classList.remove('hidden');
+        quizContent.classList.add('hidden');
+        errorState.classList.add('hidden');
+    }
+
+    function hideLoading() {
+        loadingState.classList.add('hidden');
+    }
+
+    function showQuizContent() {
+        quizContent.classList.remove('hidden');
+    }
+
+    function showError(message) {
+        loadingState.classList.add('hidden');
+        quizContent.classList.add('hidden');
+        errorState.classList.remove('hidden');
+        errorMessage.textContent = message;
+    }
+</script>
+</body>
+</html>

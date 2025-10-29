@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSK1 Quiz Results - Track Your Progress</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Georgia', 'serif'],
+                    },
+                    colors: {
+                        'primary-blue': '#5c7cfa',
+                        'secondary-cyan': '#33f0e8',
+                        'main-bg': '#1e293b',
+                        'card-bg': '#2a3a50',
+                        'text-light': '#e2e8f0',
+                        'text-muted': '#94a3b8',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        gradientShift: {
+                            '0%': { backgroundPosition: '0% 50%' },
+                            '100%': { backgroundPosition: '100% 50%' },
+                        },
+                        fadeInDown: {
+                            '0%': { transform: 'translateY(-10px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        }
+                    },
+                    animation: {
+                        fadeInUp: 'fadeInUp 0.6s ease-out forwards',
+                        gradientShift: 'gradientShift 3s ease infinite alternate',
+                        fadeInDown: 'fadeInDown 0.3s ease-out forwards',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1e293b;
+            min-height: 100vh;
+            color: #e2e8f0;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .nav-card {
+            background-color: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sophisticated-card {
+            background-color: #2a3a50;
+            border-radius: 0.75rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .sophisticated-card:hover {
+             transform: translateY(-5px);
+             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(92, 124, 250, 0.3);
+        }
+
+        .cta-button-primary, .cta-button-secondary {
+            border: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cta-button-primary {
+            background: linear-gradient(135deg, #5c7cfa, #3d5ad8);
+            color: white;
+            box-shadow: 0 5px 20px rgba(92, 124, 250, 0.5);
+        }
+        
+        .cta-button-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(92, 124, 250, 0.7);
+        }
+
+        .cta-button-secondary {
+            background: linear-gradient(135deg, #33f0e8, #25c0b8);
+            color: #1e293b;
+            box-shadow: 0 5px 20px rgba(51, 240, 232, 0.4);
+        }
+
+        .cta-button-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(51, 240, 232, 0.6);
+        }
+
+        .progress-bar {
+            height: 8px;
+            background-color: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #5c7cfa, #33f0e8);
+            transition: width 0.5s ease;
+        }
+
+        .stat-card {
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .word-difficulty-easy { background: linear-gradient(135deg, #10b981, #34d399); }
+        .word-difficulty-medium { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+        .word-difficulty-hard { background: linear-gradient(135deg, #ef4444, #f87171); }
+        .word-difficulty-mastered { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+        
+        .quiz-type-words { border-left: 4px solid #5c7cfa; }
+        .quiz-type-sentences { border-left: 4px solid #33f0e8; }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #5c7cfa;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile dropdown menu styles - Full Width */
+        .mobile-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background-color: rgba(42, 58, 80, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 50;
+            opacity: 0;
+            transform: translateY(-10px);
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-dropdown-menu.open {
+            opacity: 1;
+            transform: translateY(0);
+            visibility: visible;
+        }
+
+        .mobile-dropdown-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 45;
+            background-color: transparent;
+            display: none;
+        }
+    </style>
+</head>
+<body class="selection:bg-primary-blue selection:text-white">
+
+    <!-- Navigation Bar with Full-Width Dropdown Menu -->
+    <nav class="fixed top-0 left-0 right-0 z-50 p-4 lg:p-6 nav-card">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-2xl font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-text-light to-secondary-cyan">
+                RedCharger
+            </div>
+            
+            <!-- Desktop Menu -->
+            <div class="space-x-8 hidden md:flex font-medium">
+                <a href="/" class="text-text-muted hover:text-secondary-cyan transition duration-300">Home</a>
+                <a href="/words/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Words Quiz</a>
+                <a href="/sentences/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Sentences Quiz</a>
+                <a href="/chat" class="text-secondary-cyan transition duration-300">Community Chat</a>
+                <a href="/result" class="text-secondary-cyan transition duration-300">Results</a>
+            </div>
+
+            <!-- Desktop Export Button -->
+            <button id="export-data" class="py-2 px-5 rounded-full cta-button-secondary font-extrabold text-base shadow-xl hover:shadow-2xl transition duration-300 hidden md:block">
+                <i class="fas fa-download mr-2"></i> Export Data
+            </button>
+
+            <!-- Mobile Menu Container -->
+            <div class="md:hidden flex items-center space-x-3">
+                <!-- Mobile Export Button -->
+                <button id="mobile-export" class="py-1 px-3 rounded-full text-sm cta-button-secondary font-bold shadow-xl transition duration-300">
+                    <i class="fas fa-download mr-1"></i> Export
+                </button>
+
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-button" class="text-text-muted hover:text-secondary-cyan transition duration-300 relative z-50">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Dropdown Menu - Full Width -->
+        <div id="mobile-dropdown-menu" class="mobile-dropdown-menu md:hidden w-full left-0">
+            <div class="p-4 space-y-3">
+                <a href="/" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-home mr-3 w-5 text-center"></i>
+                    <span>Home</span>
+                </a>
+                <a href="/words/quiz" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-book mr-3 w-5 text-center"></i>
+                    <span>Words Quiz</span>
+                </a>
+                <a href="/sentences/quiz" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-comments mr-3 w-5 text-center"></i>
+                    <span>Sentences Quiz</span>
+                </a>
+                <a href="/chat" class="flex items-center text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50 font-semibold">
+                    <i class="fas fa-users mr-3 w-5 text-center"></i>
+                    <span>Community Chat</span>
+                </a>
+                <a href="/result" class="flex items-center text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-chart-bar mr-3 w-5 text-center"></i>
+                    <span>Results</span>
+                </a>
+                <div class="border-t border-white/10 pt-3 mt-2">
+                    <button id="mobile-export-dropdown" class="w-full flex items-center justify-center py-3 px-3 rounded-lg cta-button-secondary font-medium">
+                        <i class="fas fa-download mr-3"></i> Export Data
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Dropdown Backdrop -->
+    <div id="mobile-dropdown-backdrop" class="mobile-dropdown-backdrop md:hidden"></div>
+
+    <main class="pt-24 pb-16">
+        <!-- Loading State -->
+        <div id="loading-state" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center py-20">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p class="text-text-muted">Loading your learning analytics...</p>
+        </div>
+
+        <!-- Results Header -->
+        <section id="results-header" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 hidden">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-text-light">
+                    Your <span class="text-secondary-cyan">Learning Journey</span>
+                </h1>
+                <p class="text-xl text-text-muted max-w-3xl mx-auto">
+                    Track your progress in both vocabulary and sentence comprehension
+                </p>
+            </div>
+        </section>
+
+        <!-- Overall Stats -->
+        <section id="overall-stats" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="sophisticated-card stat-card p-6 text-center">
+                    <div class="text-3xl font-bold text-text-light mb-2" id="total-quizzes">0</div>
+                    <div class="text-text-muted">Total Quizzes</div>
+                    <div class="mt-2 text-sm">
+                        <span class="text-primary-blue" id="words-quizzes">0 words</span> • 
+                        <span class="text-secondary-cyan" id="sentences-quizzes">0 sentences</span>
+                    </div>
+                </div>
+                
+                <div class="sophisticated-card stat-card p-6 text-center">
+                    <div class="text-3xl font-bold text-green-400 mb-2" id="avg-score">0%</div>
+                    <div class="text-text-muted">Average Score</div>
+                    <div class="mt-2 text-sm">
+                        <span class="text-primary-blue" id="words-score">0% words</span> • 
+                        <span class="text-secondary-cyan" id="sentences-score">0% sentences</span>
+                    </div>
+                </div>
+                
+                <div class="sophisticated-card stat-card p-6 text-center">
+                    <div class="text-3xl font-bold text-text-light mb-2" id="items-learned">0</div>
+                    <div class="text-text-muted">Items Learned</div>
+                    <div class="mt-2 text-sm">
+                        <span class="text-primary-blue" id="words-learned">0 words</span> • 
+                        <span class="text-secondary-cyan" id="sentences-learned">0 sentences</span>
+                    </div>
+                </div>
+                
+                <div class="sophisticated-card stat-card p-6 text-center">
+                    <div class="text-3xl font-bold text-text-light mb-2" id="study-streak">0</div>
+                    <div class="text-text-muted">Day Streak</div>
+                    <div class="mt-4 text-sm text-yellow-400">
+                        <i class="fas fa-fire mr-1"></i> Consistency
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Progress Charts -->
+        <section id="progress-charts" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Score Progress Chart -->
+                <div class="sophisticated-card p-6">
+                    <h3 class="text-xl font-bold mb-4 text-text-light">Score Progress Over Time</h3>
+                    <div class="h-64">
+                        <canvas id="scoreChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Mastery Comparison Chart -->
+                <div class="sophisticated-card p-6">
+                    <h3 class="text-xl font-bold mb-4 text-text-light">Words vs Sentences Mastery</h3>
+                    <div class="h-64">
+                        <canvas id="comparisonChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Weaknesses & Strengths -->
+        <section id="weaknesses-section" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Words Weaknesses -->
+                <div class="sophisticated-card p-6">
+                    <h3 class="text-xl font-bold mb-4 text-text-light flex items-center">
+                        <i class="fas fa-exclamation-triangle text-red-400 mr-2"></i>
+                        Words Needing Practice
+                    </h3>
+                    <div id="words-weakness-list" class="space-y-3">
+                        <!-- Words weaknesses will be populated here -->
+                    </div>
+                    <div id="no-words-weaknesses" class="text-center py-8 text-text-muted hidden">
+                        <i class="fas fa-check-circle text-green-400 text-4xl mb-3"></i>
+                        <p>Great job! You're doing well with vocabulary words.</p>
+                    </div>
+                </div>
+                
+                <!-- Sentences Weaknesses -->
+                <div class="sophisticated-card p-6">
+                    <h3 class="text-xl font-bold mb-4 text-text-light flex items-center">
+                        <i class="fas fa-exclamation-triangle text-red-400 mr-2"></i>
+                        Sentences Needing Practice
+                    </h3>
+                    <div id="sentences-weakness-list" class="space-y-3">
+                        <!-- Sentences weaknesses will be populated here -->
+                    </div>
+                    <div id="no-sentences-weaknesses" class="text-center py-8 text-text-muted hidden">
+                        <i class="fas fa-check-circle text-green-400 text-4xl mb-3"></i>
+                        <p>Excellent! Your sentence comprehension is strong.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Strengths Section -->
+        <section id="strengths-section" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Words Strengths -->
+                <div class="sophisticated-card p-6">
+                    <h3 class="text-xl font-bold mb-4 text-text-light flex items-center">
+                        <i class="fas fa-star text-yellow-400 mr-2"></i>
+                        Word Strengths
+                    </h3>
+                    <div id="words-strength-list" class="space-y-3">
+                        <!-- Words strengths will be populated here -->
+                    </div>
+                    <div id="no-words-strengths" class="text-center py-8 text-text-muted hidden">
+                        <i class="fas fa-book-open text-blue-400 text-4xl mb-3"></i>
+                        <p>Keep practicing to build your vocabulary strengths!</p>
+                    </div>
+                </div>
+                
+                <!-- Sentences Strengths -->
+                <div class="sophisticated-card p-6">
+                    <h3 class="text-xl font-bold mb-4 text-text-light flex items-center">
+                        <i class="fas fa-star text-yellow-400 mr-2"></i>
+                        Sentence Strengths
+                    </h3>
+                    <div id="sentences-strength-list" class="space-y-3">
+                        <!-- Sentences strengths will be populated here -->
+                    </div>
+                    <div id="no-sentences-strengths" class="text-center py-8 text-text-muted hidden">
+                        <i class="fas fa-book-open text-blue-400 text-4xl mb-3"></i>
+                        <p>Continue practicing to improve sentence comprehension!</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Recent Quiz History -->
+        <section id="quiz-history-section" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12 hidden">
+            <div class="sophisticated-card p-6">
+                <h3 class="text-xl font-bold mb-4 text-text-light">Recent Quiz History</h3>
+                <div id="quiz-history" class="space-y-4">
+                    <!-- Quiz history will be populated here -->
+                </div>
+                <div id="no-history" class="text-center py-8 text-text-muted">
+                    <i class="fas fa-history text-4xl mb-3"></i>
+                    <p>No quiz history yet. Complete your first quiz to see your results here!</p>
+                    <div class="mt-4 space-x-4">
+                        <a href="/words/quiz" class="inline-block py-2 px-4 rounded-lg cta-button-primary font-medium">
+                            <i class="fas fa-play mr-2"></i> Take Words Quiz
+                        </a>
+                        <a href="/sentences/quiz" class="inline-block py-2 px-4 rounded-lg cta-button-secondary font-medium">
+                            <i class="fas fa-play mr-2"></i> Take Sentences Quiz
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Word & Sentence Difficulty Analysis -->
+        <section id="difficulty-section" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 hidden">
+            <div class="sophisticated-card p-6">
+                <h3 class="text-xl font-bold mb-4 text-text-light">Mastery Level Analysis</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Words Mastery -->
+                    <div>
+                        <h4 class="text-lg font-bold mb-3 text-primary-blue flex items-center">
+                            <i class="fas fa-font mr-2"></i> Vocabulary Words
+                        </h4>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="word-difficulty-mastered p-3 rounded-lg text-white text-center">
+                                <div class="text-xl font-bold" id="words-mastered-count">0</div>
+                                <div class="text-sm">Mastered</div>
+                            </div>
+                            <div class="word-difficulty-easy p-3 rounded-lg text-white text-center">
+                                <div class="text-xl font-bold" id="words-easy-count">0</div>
+                                <div class="text-sm">Easy</div>
+                            </div>
+                            <div class="word-difficulty-medium p-3 rounded-lg text-white text-center">
+                                <div class="text-xl font-bold" id="words-medium-count">0</div>
+                                <div class="text-sm">Medium</div>
+                            </div>
+                            <div class="word-difficulty-hard p-3 rounded-lg text-white text-center">
+                                <div class="text-xl font-bold" id="words-hard-count">0</div>
+                                <div class="text-sm">Hard</div>
+                            </div>
+                        </div>
+                        <div id="words-difficulty-list" class="space-y-2">
+                            <!-- Words by difficulty will be populated here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Sentences Mastery -->
+                    <div>
+                        <h4 class="text-lg font-bold mb-3 text-secondary-cyan flex items-center">
+                            <i class="fas fa-comment-alt mr-2"></i> Sentences
+                        </h4>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="word-difficulty-mastered p-3 rounded-lg text-white text-center">
+                                <div class="text-xl font-bold" id="sentences-mastered-count">0</div>
+                                <div class="text-sm">Mastered</div>
+                            </div>
+                            <div class="word-difficulty-easy p-3 rounded-lg text-white text-center">
+                                <div class="text-xl font-bold" id="sentences-easy-count">0</div>
+                                <div class="text-sm">Easy</div>
+                            </div>
+                            <div class="word-difficulty-medium p-3 rounded-lg text-white text-center">
+                                <div class="text-xl font-bold" id="sentences-medium-count">0</div>
+                                <div class="text-sm">Medium</div>
+                            </div>
+                            <div class="word-difficulty-hard p-3 rounded-lg text-white text-center">
+                                <div class="text-xl font-bold" id="sentences-hard-count">0</div>
+                                <div class="text-sm">Hard</div>
+                            </div>
+                        </div>
+                        <div id="sentences-difficulty-list" class="space-y-2">
+                            <!-- Sentences by difficulty will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- No Data State -->
+        <section id="no-data-state" class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 hidden">
+            <div class="sophisticated-card p-8 text-center">
+                <i class="fas fa-chart-line text-6xl text-text-muted mb-6"></i>
+                <h2 class="text-3xl font-bold text-text-light mb-4">Start Your Learning Journey</h2>
+                <p class="text-text-muted text-lg mb-8">
+                    Complete your first quiz to unlock detailed analytics and track your progress over time.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="/words/quiz" class="py-3 px-6 rounded-lg cta-button-primary font-medium">
+                        <i class="fas fa-book mr-2"></i> Start Words Quiz
+                    </a>
+                    <a href="/sentences/quiz" class="py-3 px-6 rounded-lg cta-button-secondary font-medium">
+                        <i class="fas fa-comments mr-2"></i> Start Sentences Quiz
+                    </a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-10 border-t border-main-bg/20 text-center text-text-muted bg-card-bg mt-12">
+        <p class="text-sm">&copy; 2025 RedCharger. Track your progress in both vocabulary and sentences.</p>
+    </footer>
+
+    <!-- Results Logic -->
+    <script>
+        // DOM elements
+        const loadingState = document.getElementById('loading-state');
+        const resultsHeader = document.getElementById('results-header');
+        const overallStats = document.getElementById('overall-stats');
+        const progressCharts = document.getElementById('progress-charts');
+        const weaknessesSection = document.getElementById('weaknesses-section');
+        const strengthsSection = document.getElementById('strengths-section');
+        const quizHistorySection = document.getElementById('quiz-history-section');
+        const difficultySection = document.getElementById('difficulty-section');
+        const noDataState = document.getElementById('no-data-state');
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+        const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+        const exportDataBtn = document.getElementById('export-data');
+        const mobileExportBtn = document.getElementById('mobile-export');
+        const mobileExportDropdownBtn = document.getElementById('mobile-export-dropdown');
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMobileMenu();
+            loadResultsData();
+            
+            exportDataBtn.addEventListener('click', exportUserData);
+            mobileExportBtn.addEventListener('click', exportUserData);
+            mobileExportDropdownBtn.addEventListener('click', exportUserData);
+        });
+
+        // Mobile menu functionality with full-width dropdown
+        function initializeMobileMenu() {
+            let isMenuOpen = false;
+
+            mobileMenuButton.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleMobileMenu();
+            });
+
+            mobileDropdownBackdrop.addEventListener('click', () => {
+                closeMobileMenu();
+            });
+
+            // Close menu when clicking on menu links
+            const menuLinks = document.querySelectorAll('#mobile-dropdown-menu a');
+            menuLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    closeMobileMenu();
+                });
+            });
+
+            // Close menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (isMenuOpen && !mobileDropdownMenu.contains(e.target) && !mobileMenuButton.contains(e.target)) {
+                    closeMobileMenu();
+                }
+            });
+
+            function toggleMobileMenu() {
+                if (isMenuOpen) {
+                    closeMobileMenu();
+                } else {
+                    openMobileMenu();
+                }
+            }
+
+            function openMobileMenu() {
+                mobileDropdownMenu.classList.add('open');
+                mobileDropdownBackdrop.style.display = 'block';
+                isMenuOpen = true;
+            }
+
+            function closeMobileMenu() {
+                mobileDropdownMenu.classList.remove('open');
+                mobileDropdownBackdrop.style.display = 'none';
+                isMenuOpen = false;
+            }
+        }
+
+        // Generate mock data for demonstration
+        function generateMockData() {
+            // Mock quiz history
+            const quizHistory = [];
+            const today = new Date();
+            
+            for (let i = 0; i < 12; i++) {
+                const date = new Date();
+                date.setDate(today.getDate() - i * 2);
+                
+                const quizType = Math.random() > 0.5 ? 'words' : 'sentences';
+                const correct = Math.floor(Math.random() * 8) + 3; // 3-10 correct
+                const total = 10;
+                const percentage = Math.round((correct / total) * 100);
+                
+                quizHistory.push({
+                    quiz_type: quizType,
+                    correct_answers: correct,
+                    total_questions: total,
+                    percentage: percentage,
+                    timestamp: date.toISOString()
+                });
+            }
+            
+            // Mock performance data
+            const hsk1Words = [
+                { word: '你好', pinyin: 'nǐ hǎo', meaning: 'hello' },
+                { word: '谢谢', pinyin: 'xiè xiè', meaning: 'thank you' },
+                { word: '再见', pinyin: 'zài jiàn', meaning: 'goodbye' },
+                { word: '我', pinyin: 'wǒ', meaning: 'I, me' },
+                { word: '你', pinyin: 'nǐ', meaning: 'you' },
+                { word: '他', pinyin: 'tā', meaning: 'he, him' },
+                { word: '她', pinyin: 'tā', meaning: 'she, her' },
+                { word: '是', pinyin: 'shì', meaning: 'to be' },
+                { word: '不', pinyin: 'bù', meaning: 'no, not' },
+                { word: '好', pinyin: 'hǎo', meaning: 'good' },
+                { word: '人', pinyin: 'rén', meaning: 'person' },
+                { word: '大', pinyin: 'dà', meaning: 'big' },
+                { word: '小', pinyin: 'xiǎo', meaning: 'small' },
+                { word: '上', pinyin: 'shàng', meaning: 'up, above' },
+                { word: '下', pinyin: 'xià', meaning: 'down, below' }
+            ];
+            
+            const hsk1Sentences = [
+                { sentence: '你好吗？', pinyin: 'nǐ hǎo ma?', meaning: 'How are you?' },
+                { sentence: '我很好。', pinyin: 'wǒ hěn hǎo.', meaning: 'I am fine.' },
+                { sentence: '你叫什么名字？', pinyin: 'nǐ jiào shén me míng zì?', meaning: 'What is your name?' },
+                { sentence: '我叫小明。', pinyin: 'wǒ jiào xiǎo míng.', meaning: 'My name is Xiaoming.' },
+                { sentence: '你是哪国人？', pinyin: 'nǐ shì nǎ guó rén?', meaning: 'Which country are you from?' },
+                { sentence: '我是美国人。', pinyin: 'wǒ shì měi guó rén.', meaning: 'I am American.' },
+                { sentence: '这是什么？', pinyin: 'zhè shì shén me?', meaning: 'What is this?' },
+                { sentence: '那是一本书。', pinyin: 'nà shì yī běn shū.', meaning: 'That is a book.' },
+                { sentence: '我喜欢中国。', pinyin: 'wǒ xǐ huān zhōng guó.', meaning: 'I like China.' },
+                { sentence: '你会说英语吗？', pinyin: 'nǐ huì shuō yīng yǔ ma?', meaning: 'Can you speak English?' },
+                { sentence: '我会说一点中文。', pinyin: 'wǒ huì shuō yī diǎn zhōng wén.', meaning: 'I can speak a little Chinese.' },
+                { sentence: '今天天气很好。', pinyin: 'jīn tiān tiān qì hěn hǎo.', meaning: 'The weather is good today.' },
+                { sentence: '明天见。', pinyin: 'míng tiān jiàn.', meaning: 'See you tomorrow.' },
+                { sentence: '多少钱？', pinyin: 'duō shǎo qián?', meaning: 'How much is it?' },
+                { sentence: '太贵了。', pinyin: 'tài guì le.', meaning: 'Too expensive.' }
+            ];
+            
+            const performanceData = {
+                words: {},
+                sentences: {}
+            };
+            
+            // Generate performance data for words with intentional weaknesses and strengths
+            hsk1Words.forEach((word, index) => {
+                // Create intentional patterns for weaknesses and strengths
+                let correct, incorrect;
+                
+                if (index < 3) {
+                    // Create weaknesses (low accuracy)
+                    correct = Math.floor(Math.random() * 2) + 1; // 1-2 correct
+                    incorrect = Math.floor(Math.random() * 4) + 3; // 3-6 incorrect
+                } else if (index < 8) {
+                    // Create strengths (high accuracy)
+                    correct = Math.floor(Math.random() * 4) + 4; // 4-7 correct
+                    incorrect = Math.floor(Math.random() * 2); // 0-1 incorrect
+                } else {
+                    // Mixed performance
+                    correct = Math.floor(Math.random() * 4) + 2; // 2-5 correct
+                    incorrect = Math.floor(Math.random() * 3) + 1; // 1-3 incorrect
+                }
+                
+                performanceData.words[word.word] = {
+                    pinyin: word.pinyin,
+                    meaning: word.meaning,
+                    correct: correct,
+                    incorrect: incorrect
+                };
+            });
+            
+            // Generate performance data for sentences with intentional weaknesses and strengths
+            hsk1Sentences.forEach((sentence, index) => {
+                // Create intentional patterns for weaknesses and strengths
+                let correct, incorrect;
+                
+                if (index < 3) {
+                    // Create weaknesses (low accuracy)
+                    correct = Math.floor(Math.random() * 2) + 1; // 1-2 correct
+                    incorrect = Math.floor(Math.random() * 3) + 2; // 2-4 incorrect
+                } else if (index < 8) {
+                    // Create strengths (high accuracy)
+                    correct = Math.floor(Math.random() * 3) + 3; // 3-5 correct
+                    incorrect = Math.floor(Math.random() * 2); // 0-1 incorrect
+                } else {
+                    // Mixed performance
+                    correct = Math.floor(Math.random() * 3) + 2; // 2-4 correct
+                    incorrect = Math.floor(Math.random() * 2) + 1; // 1-2 incorrect
+                }
+                
+                performanceData.sentences[sentence.sentence] = {
+                    pinyin: sentence.pinyin,
+                    meaning: sentence.meaning,
+                    correct: correct,
+                    incorrect: incorrect
+                };
+            });
+            
+            return {
+                quizHistory,
+                performanceData
+            };
+        }
+
+        // Load and process results data
+        function loadResultsData() {
+            // Get quiz results from sessionStorage (current quiz)
+            const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
+            
+            // Get quiz history from localStorage (all previous quizzes)
+            let quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
+            
+            // Get performance data
+            let performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+            
+            // If no data exists, generate mock data for demonstration
+            if (quizHistory.length === 0 && Object.keys(performanceData).length === 0) {
+                const mockData = generateMockData();
+                quizHistory = mockData.quizHistory;
+                performanceData = mockData.performanceData;
+                
+                // Store the mock data for future use
+                localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
+                localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
+            }
+            
+            // Check if we have any data to display
+            const hasData = currentQuiz || quizHistory.length > 0 || Object.keys(performanceData).length > 0;
+            
+            if (hasData) {
+                displayResults(currentQuiz, quizHistory, performanceData);
+            } else {
+                showNoDataState();
+            }
+        }
+
+        // Display results
+        function displayResults(currentQuiz, quizHistory, performanceData) {
+            // Hide loading state
+            loadingState.classList.add('hidden');
+            
+            // Show all sections
+            resultsHeader.classList.remove('hidden');
+            overallStats.classList.remove('hidden');
+            progressCharts.classList.remove('hidden');
+            weaknessesSection.classList.remove('hidden');
+            strengthsSection.classList.remove('hidden');
+            quizHistorySection.classList.remove('hidden');
+            difficultySection.classList.remove('hidden');
+            
+            // Update overall stats
+            updateOverallStats(quizHistory, performanceData);
+            
+            // Update charts
+            updateCharts(quizHistory, performanceData);
+            
+            // Update weaknesses and strengths
+            updateWeaknessesAndStrengths(performanceData);
+            
+            // Update quiz history
+            updateQuizHistory(quizHistory, currentQuiz);
+            
+            // Update difficulty analysis
+            updateDifficultyAnalysis(performanceData);
+        }
+
+        // Show no data state
+        function showNoDataState() {
+            loadingState.classList.add('hidden');
+            noDataState.classList.remove('hidden');
+        }
+
+        // Update overall statistics
+        function updateOverallStats(quizHistory, performanceData) {
+            const totalQuizzes = quizHistory.length;
+            document.getElementById('total-quizzes').textContent = totalQuizzes;
+            
+            // Calculate words vs sentences quizzes
+            const wordsQuizzes = quizHistory.filter(q => q.quiz_type === 'words').length;
+            const sentencesQuizzes = quizHistory.filter(q => q.quiz_type === 'sentences').length;
+            
+            document.getElementById('words-quizzes').textContent = `${wordsQuizzes} words`;
+            document.getElementById('sentences-quizzes').textContent = `${sentencesQuizzes} sentences`;
+            
+            // Calculate average scores
+            let totalScore = 0;
+            quizHistory.forEach(quiz => {
+                totalScore += quiz.percentage;
+            });
+            const avgScore = totalQuizzes > 0 ? Math.round(totalScore / totalQuizzes) : 0;
+            
+            // Calculate words vs sentences scores
+            let wordsTotalScore = 0;
+            let sentencesTotalScore = 0;
+            
+            quizHistory.forEach(quiz => {
+                if (quiz.quiz_type === 'words') {
+                    wordsTotalScore += quiz.percentage;
+                } else {
+                    sentencesTotalScore += quiz.percentage;
+                }
+            });
+            
+            const wordsAvgScore = wordsQuizzes > 0 ? Math.round(wordsTotalScore / wordsQuizzes) : 0;
+            const sentencesAvgScore = sentencesQuizzes > 0 ? Math.round(sentencesTotalScore / sentencesQuizzes) : 0;
+            
+            document.getElementById('avg-score').textContent = `${avgScore}%`;
+            document.getElementById('words-score').textContent = `${wordsAvgScore}% words`;
+            document.getElementById('sentences-score').textContent = `${sentencesAvgScore}% sentences`;
+            
+            // Calculate items learned (items with at least 1 correct answer)
+            const wordsLearned = Object.values(performanceData.words || {}).filter(item => item.correct > 0).length;
+            const sentencesLearned = Object.values(performanceData.sentences || {}).filter(item => item.correct > 0).length;
+            
+            document.getElementById('items-learned').textContent = wordsLearned + sentencesLearned;
+            document.getElementById('words-learned').textContent = `${wordsLearned} words`;
+            document.getElementById('sentences-learned').textContent = `${sentencesLearned} sentences`;
+            
+            // Calculate study streak
+            const streak = calculateStudyStreak(quizHistory);
+            document.getElementById('study-streak').textContent = streak;
+        }
+
+        // Calculate study streak from quiz history
+        function calculateStudyStreak(quizHistory) {
+            if (quizHistory.length === 0) return 0;
+            
+            // Sort quizzes by date (newest first)
+            const sortedQuizzes = [...quizHistory].sort((a, b) => 
+                new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date)
+            );
+            
+            let streak = 0;
+            let currentDate = new Date();
+            
+            // Check if there was a quiz today
+            const today = new Date().toDateString();
+            const hasQuizToday = sortedQuizzes.some(quiz => {
+                const quizDate = new Date(quiz.timestamp || quiz.date).toDateString();
+                return quizDate === today;
+            });
+            
+            if (hasQuizToday) {
+                streak = 1;
+                currentDate.setDate(currentDate.getDate() - 1);
+            }
+            
+            // Check consecutive days
+            for (let i = 0; i < sortedQuizzes.length; i++) {
+                const quizDate = new Date(sortedQuizzes[i].timestamp || sortedQuizzes[i].date).toDateString();
+                const expectedDate = currentDate.toDateString();
+                
+                if (quizDate === expectedDate) {
+                    streak++;
+                    currentDate.setDate(currentDate.getDate() - 1);
+                } else if (quizDate < expectedDate) {
+                    // Skip to the next relevant date
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            
+            return streak;
+        }
+
+        // Update progress charts
+        function updateCharts(quizHistory, performanceData) {
+            // Score Progress Chart
+            const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+            
+            // Sort quizzes by date
+            const sortedQuizzes = [...quizHistory].sort((a, b) => 
+                new Date(a.timestamp || a.date) - new Date(b.timestamp || b.date)
+            );
+            
+            const labels = sortedQuizzes.map((quiz, index) => 
+                quiz.quiz_type === 'words' ? `W${index + 1}` : `S${index + 1}`
+            );
+            const scores = sortedQuizzes.map(quiz => quiz.percentage);
+            const backgroundColors = sortedQuizzes.map(quiz => 
+                quiz.quiz_type === 'words' ? 'rgba(92, 124, 250, 0.8)' : 'rgba(51, 240, 232, 0.8)'
+            );
+            
+            new Chart(scoreCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Quiz Scores',
+                        data: scores,
+                        backgroundColor: backgroundColors,
+                        borderColor: '#5c7cfa',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+            
+            // Comparison Chart (Words vs Sentences Mastery)
+            const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
+            
+            const wordsMastery = calculateMasteryLevels(performanceData.words || {});
+            const sentencesMastery = calculateMasteryLevels(performanceData.sentences || {});
+            
+            new Chart(comparisonCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Mastered', 'Easy', 'Medium', 'Hard'],
+                    datasets: [
+                        {
+                            label: 'Words',
+                            data: [
+                                wordsMastery.mastered,
+                                wordsMastery.easy, 
+                                wordsMastery.medium,
+                                wordsMastery.hard
+                            ],
+                            backgroundColor: 'rgba(92, 124, 250, 0.8)',
+                            borderColor: 'rgba(92, 124, 250, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Sentences',
+                            data: [
+                                sentencesMastery.mastered,
+                                sentencesMastery.easy, 
+                                sentencesMastery.medium,
+                                sentencesMastery.hard
+                            ],
+                            backgroundColor: 'rgba(51, 240, 232, 0.8)',
+                            borderColor: 'rgba(51, 240, 232, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#e2e8f0'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Calculate mastery levels
+        function calculateMasteryLevels(performance) {
+            const levels = { mastered: 0, easy: 0, medium: 0, hard: 0 };
+            
+            Object.values(performance).forEach(item => {
+                const totalAttempts = item.correct + (item.incorrect || 0);
+                const accuracy = totalAttempts > 0 ? (item.correct / totalAttempts) * 100 : 0;
+                
+                if (accuracy >= 90) levels.mastered++;
+                else if (accuracy >= 70) levels.easy++;
+                else if (accuracy >= 50) levels.medium++;
+                else levels.hard++;
+            });
+            
+            return levels;
+        }
+
+        // Update weaknesses and strengths
+        function updateWeaknessesAndStrengths(performanceData) {
+            updatePerformanceSection('words', performanceData.words || {});
+            updatePerformanceSection('sentences', performanceData.sentences || {});
+        }
+
+        // Helper function to update performance sections
+        function updatePerformanceSection(type, performance) {
+            const weaknessList = document.getElementById(`${type}-weakness-list`);
+            const strengthList = document.getElementById(`${type}-strength-list`);
+            const noWeaknesses = document.getElementById(`no-${type}-weaknesses`);
+            const noStrengths = document.getElementById(`no-${type}-strengths`);
+            
+            // Convert to array and calculate accuracy
+            const items = Object.entries(performance).map(([item, stats]) => ({
+                item,
+                pinyin: stats.pinyin || '',
+                accuracy: stats.correct + (stats.incorrect || 0) > 0 ? 
+                    (stats.correct / (stats.correct + (stats.incorrect || 0))) * 100 : 0,
+                attempts: stats.correct + (stats.incorrect || 0)
+            }));
+            
+            // Weaknesses (accuracy < 60% and at least 2 attempts)
+            const weaknesses = items
+                .filter(item => item.accuracy < 60 && item.attempts >= 2)
+                .sort((a, b) => a.accuracy - b.accuracy)
+                .slice(0, 5);
+            
+            // Strengths (accuracy >= 80% and at least 2 attempts)
+            const strengths = items
+                .filter(item => item.accuracy >= 80 && item.attempts >= 2)
+                .sort((a, b) => b.accuracy - a.accuracy)
+                .slice(0, 5);
+            
+            // Display weaknesses
+            if (weaknesses.length > 0) {
+                weaknessList.innerHTML = weaknesses.map(item => `
+                    <div class="flex justify-between items-center p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
+                        <div>
+                            <div class="font-medium">${item.item}</div>
+                            ${item.pinyin ? `<div class="text-sm text-text-muted">${item.pinyin}</div>` : ''}
+                        </div>
+                        <span class="text-red-400 font-bold">${Math.round(item.accuracy)}%</span>
+                    </div>
+                `).join('');
+                noWeaknesses.classList.add('hidden');
+            } else {
+                weaknessList.innerHTML = '';
+                noWeaknesses.classList.remove('hidden');
+            }
+            
+            // Display strengths
+            if (strengths.length > 0) {
+                strengthList.innerHTML = strengths.map(item => `
+                    <div class="flex justify-between items-center p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
+                        <div>
+                            <div class="font-medium">${item.item}</div>
+                            ${item.pinyin ? `<div class="text-sm text-text-muted">${item.pinyin}</div>` : ''}
+                        </div>
+                        <span class="text-green-400 font-bold">${Math.round(item.accuracy)}%</span>
+                    </div>
+                `).join('');
+                noStrengths.classList.add('hidden');
+            } else {
+                strengthList.innerHTML = '';
+                noStrengths.classList.remove('hidden');
+            }
+        }
+
+        // Update quiz history
+        function updateQuizHistory(quizHistory, currentQuiz) {
+            const historyContainer = document.getElementById('quiz-history');
+            const noHistory = document.getElementById('no-history');
+            
+            // Combine current quiz with history
+            const allQuizzes = currentQuiz ? [currentQuiz, ...quizHistory] : [...quizHistory];
+            
+            if (allQuizzes.length > 0) {
+                noHistory.classList.add('hidden');
+                
+                // Show last 6 quizzes
+                const recentQuizzes = allQuizzes.slice(0, 6);
+                
+                historyContainer.innerHTML = recentQuizzes.map(quiz => {
+                    const quizDate = new Date(quiz.timestamp || quiz.date);
+                    const dateStr = quizDate.toLocaleDateString();
+                    const type = quiz.quiz_type || 'words';
+                    
+                    return `
+                        <div class="flex justify-between items-center p-4 bg-card-bg/50 rounded-lg border border-text-muted/20 ${type === 'words' ? 'quiz-type-words' : 'quiz-type-sentences'}">
+                            <div>
+                                <div class="font-medium">${dateStr}</div>
+                                <div class="text-sm text-text-muted">
+                                    ${type === 'words' ? 'Vocabulary Words' : 'Sentence Comprehension'} • 
+                                    ${quiz.correct_answers || quiz.correct}/${quiz.total_questions || quiz.total} correct
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xl font-bold ${quiz.percentage >= 70 ? 'text-green-400' : quiz.percentage >= 50 ? 'text-yellow-400' : 'text-red-400'}">
+                                    ${quiz.percentage}%
+                                </div>
+                                <div class="text-sm text-text-muted">Accuracy</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                noHistory.classList.remove('hidden');
+                historyContainer.innerHTML = '';
+            }
+        }
+
+        // Update difficulty analysis
+        function updateDifficultyAnalysis(performanceData) {
+            const wordsMastery = calculateMasteryLevels(performanceData.words || {});
+            const sentencesMastery = calculateMasteryLevels(performanceData.sentences || {});
+            
+            // Update counts
+            document.getElementById('words-mastered-count').textContent = wordsMastery.mastered;
+            document.getElementById('words-easy-count').textContent = wordsMastery.easy;
+            document.getElementById('words-medium-count').textContent = wordsMastery.medium;
+            document.getElementById('words-hard-count').textContent = wordsMastery.hard;
+            
+            document.getElementById('sentences-mastered-count').textContent = sentencesMastery.mastered;
+            document.getElementById('sentences-easy-count').textContent = sentencesMastery.easy;
+            document.getElementById('sentences-medium-count').textContent = sentencesMastery.medium;
+            document.getElementById('sentences-hard-count').textContent = sentencesMastery.hard;
+            
+            // Update difficulty lists
+            updateDifficultyList('words', performanceData.words || {});
+            updateDifficultyList('sentences', performanceData.sentences || {});
+        }
+
+        // Update difficulty list for words or sentences
+        function updateDifficultyList(type, performance) {
+            const difficultyList = document.getElementById(`${type}-difficulty-list`);
+            
+            // Convert to array and calculate accuracy
+            const items = Object.entries(performance).map(([item, stats]) => ({
+                item,
+                pinyin: stats.pinyin || '',
+                accuracy: stats.correct + (stats.incorrect || 0) > 0 ? 
+                    (stats.correct / (stats.correct + (stats.incorrect || 0))) * 100 : 0,
+                attempts: stats.correct + (stats.incorrect || 0)
+            }));
+            
+            // Group by difficulty
+            const mastered = items.filter(item => item.accuracy >= 90);
+            const easy = items.filter(item => item.accuracy >= 70 && item.accuracy < 90);
+            const medium = items.filter(item => item.accuracy >= 50 && item.accuracy < 70);
+            const hard = items.filter(item => item.accuracy < 50);
+            
+            // Create HTML for each difficulty level
+            let html = '';
+            
+            if (mastered.length > 0) {
+                html += `<div class="mb-4">
+                    <div class="text-sm font-semibold text-purple-400 mb-2">Mastered (${mastered.length})</div>
+                    <div class="grid grid-cols-2 gap-2">`;
+                mastered.slice(0, 4).forEach(item => {
+                    html += `<div class="text-sm truncate" title="${item.item} - ${item.pinyin}">${item.item}</div>`;
+                });
+                html += `</div></div>`;
+            }
+            
+            if (easy.length > 0) {
+                html += `<div class="mb-4">
+                    <div class="text-sm font-semibold text-green-400 mb-2">Easy (${easy.length})</div>
+                    <div class="grid grid-cols-2 gap-2">`;
+                easy.slice(0, 4).forEach(item => {
+                    html += `<div class="text-sm truncate" title="${item.item} - ${item.pinyin}">${item.item}</div>`;
+                });
+                html += `</div></div>`;
+            }
+            
+            if (medium.length > 0) {
+                html += `<div class="mb-4">
+                    <div class="text-sm font-semibold text-yellow-400 mb-2">Medium (${medium.length})</div>
+                    <div class="grid grid-cols-2 gap-2">`;
+                medium.slice(0, 4).forEach(item => {
+                    html += `<div class="text-sm truncate" title="${item.item} - ${item.pinyin}">${item.item}</div>`;
+                });
+                html += `</div></div>`;
+            }
+            
+            if (hard.length > 0) {
+                html += `<div class="mb-4">
+                    <div class="text-sm font-semibold text-red-400 mb-2">Hard (${hard.length})</div>
+                    <div class="grid grid-cols-2 gap-2">`;
+                hard.slice(0, 4).forEach(item => {
+                    html += `<div class="text-sm truncate" title="${item.item} - ${item.pinyin}">${item.item}</div>`;
+                });
+                html += `</div></div>`;
+            }
+            
+            difficultyList.innerHTML = html;
+        }
+
+        // Export user data
+        function exportUserData() {
+            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
+            const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+            const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
+            
+            const exportData = {
+                quizHistory,
+                performanceData,
+                currentQuiz,
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `hsk1-quiz-data-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            // Show success message
+            alert('Your learning data has been exported successfully!');
+        }
+    </script>
+</body>
+</html> 
