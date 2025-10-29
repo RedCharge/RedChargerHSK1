@@ -6,10 +6,24 @@
     <title>RedCharger</title>
     
 
-<!-- PWA Manifest & Theme -->
-<link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-<link rel="icon" href="{{ url_for('static', filename='icons/icon-192x192.png') }}">
-<meta name="theme-color" content="#5c7cfa">
+<!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#5c7cfa">
+    <meta name="description" content="Learn Chinese HSK1 words and sentences with fun quizzes!">
+    
+    <!-- Mobile Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="RedCharger">
+    
+    <!-- Icons for different platforms -->
+    <link rel="icon" href="/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-192x192.png">
+
 
 
 
@@ -227,9 +241,11 @@
     </style>
 </head>
 <body class="selection:bg-primary-blue selection:text-white">
-    <button id="installBtn" style="display:none; position:fixed; bottom:20px; right:20px; padding:10px 20px; background:#5c7cfa; color:white; border:none; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.3);">
-  Install App
-</button>
+    <button class="install-btn" id="installButton">Install App</button>
+        
+        <div class="status" id="status">
+            Checking PWA readiness...
+        </div>
 
 
     <!-- Navigation Bar (MADE FULLY TRANSPARENT AND RESPONSIVE) -->
@@ -555,39 +571,136 @@
     </script>
 
 <script>
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/sw.js')
-        .then(reg => console.log('Service Worker registered:', reg))
-        .catch(err => console.log('SW registration failed:', err));
-    });
-}
-</script>
-
- <script>
-        // Register service worker
+        // PWA Installation Logic
+        class PWAInstaller {
+            constructor() {
+                this.deferredPrompt = null;
+                this.installButton = document.getElementById('installButton');
+                this.statusElement = document.getElementById('status');
+                this.offlineIndicator = document.getElementById('offlineIndicator');
+                
+                this.init();
+            }
+            
+            init() {
+                this.checkPWAReadiness();
+                this.setupEventListeners();
+                this.setupOfflineDetection();
+            }
+            
+            checkPWAReadiness() {
+                const checks = {
+                    hasManifest: !!document.querySelector('link[rel="manifest"]'),
+                    hasServiceWorker: 'serviceWorker' in navigator,
+                    isHTTPS: window.location.protocol === 'https:',
+                    isLocalhost: window.location.hostname === 'localhost',
+                    isStandalone: window.matchMedia('(display-mode: standalone)').matches
+                };
+                
+                console.log('PWA Checks:', checks);
+                
+                fetch('/static/manifest.json')
+                    .then(response => response.json())
+                    .then(manifest => {
+                        checks.hasIcons = manifest.icons && manifest.icons.length > 0;
+                        checks.hasStartUrl = !!manifest.start_url;
+                        checks.hasDisplay = !!manifest.display;
+                        
+                        this.updateStatus(checks);
+                    })
+                    .catch(() => {
+                        checks.manifestAccessible = false;
+                        this.updateStatus(checks);
+                    });
+            }
+            
+            updateStatus(checks) {
+                const allChecksPassed = checks.hasManifest && 
+                                      checks.hasServiceWorker && 
+                                      checks.hasIcons && 
+                                      (checks.isHTTPS || checks.isLocalhost);
+                
+                if (allChecksPassed) {
+                    this.statusElement.innerHTML = '✅ PWA ready for installation!';
+                    this.statusElement.style.background = 'rgba(34, 197, 94, 0.2)';
+                } else {
+                    this.statusElement.innerHTML = '⚠️ Some PWA requirements not met';
+                    this.statusElement.style.background = 'rgba(234, 179, 8, 0.2)';
+                }
+                
+                if (checks.isStandalone) {
+                    this.statusElement.innerHTML = '🎉 Running as installed PWA!';
+                    this.installButton.style.display = 'none';
+                }
+            }
+            
+            setupEventListeners() {
+                // Listen for beforeinstallprompt event
+                window.addEventListener('beforeinstallprompt', (e) => {
+                    console.log('beforeinstallprompt event fired');
+                    e.preventDefault();
+                    this.deferredPrompt = e;
+                    
+                    // Show install button
+                    this.installButton.style.display = 'block';
+                    this.installButton.addEventListener('click', () => this.installApp());
+                });
+                
+                // Listen for app installed event
+                window.addEventListener('appinstalled', (e) => {
+                    console.log('App installed successfully!');
+                    this.installButton.style.display = 'none';
+                    this.statusElement.innerHTML = '🎉 App installed successfully!';
+                });
+            }
+            
+            setupOfflineDetection() {
+                window.addEventListener('online', () => {
+                    this.offlineIndicator.style.display = 'none';
+                });
+                
+                window.addEventListener('offline', () => {
+                    this.offlineIndicator.style.display = 'block';
+                });
+                
+                // Initial check
+                if (!navigator.onLine) {
+                    this.offlineIndicator.style.display = 'block';
+                }
+            }
+            
+            async installApp() {
+                if (!this.deferredPrompt) {
+                    alert('Installation not available yet. Please use Chrome menu → "Add to Home screen"');
+                    return;
+                }
+                
+                this.deferredPrompt.prompt();
+                const { outcome } = await this.deferredPrompt.userChoice;
+                
+                console.log(`User response to the install prompt: ${outcome}`);
+                this.deferredPrompt = null;
+                
+                this.installButton.style.display = 'none';
+            }
+        }
+        
+        // Service Worker Registration
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/service-worker.js')
+                navigator.serviceWorker.register('/static/service-worker.js')
                     .then(function(registration) {
-                        console.log('ServiceWorker registration successful: ', registration);
-                        console.log('Scope: ', registration.scope);
+                        console.log('✅ ServiceWorker registration successful with scope: ', registration.scope);
                     })
                     .catch(function(error) {
-                        console.log('ServiceWorker registration failed: ', error);
+                        console.log('❌ ServiceWorker registration failed: ', error);
                     });
             });
         }
-
-        // Optional: Check if app is launched from home screen
-        window.addEventListener('DOMContentLoaded', () => {
-            if (window.matchMedia('(display-mode: standalone)').matches) {
-                console.log('Launched as PWA');
-            }
-        });
+        
+        // Initialize PWA Installer
+        new PWAInstaller();
     </script>
-</body>
-</html>
 
 
 </body>

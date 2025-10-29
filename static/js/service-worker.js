@@ -1,115 +1,161 @@
-const CACHE_NAME = 'redcharger-v1.0.0';
-const STATIC_CACHE = 'static-v1';
-const DYNAMIC_CACHE = 'dynamic-v1';
+// Service Worker for RedCharger PWA
+const CACHE_NAME = 'redcharger-v2.0.0';
+const APP_SHELL_CACHE = 'app-shell-v2';
+const DATA_CACHE = 'data-v1';
 
-// Assets to cache during installation
-const staticAssets = [
+// Files to cache immediately on install
+const APP_SHELL_FILES = [
   '/',
-  '/static/icons/icon-192x192.png',
-  '/static/icons/icon-512x512.png',
-  // Add your main CSS, JS files and other critical assets
-  '/static/css/input.css',
-  '/tailwind.css',
-  // Add your main HTML routes
   '/index.html',
-  '/quiz_words.html',
-  '/quiz_sentences.html',
-  '/results.html',
-  '/offline.html' // optional fallback page
+  '/manifest.json',
+  '/css/styles.css',
+  '/js/app.js',
+  '/icons/icon-72x72.png',
+  '/icons/icon-96x96.png',
+  '/icons/icon-128x128.png',
+  '/icons/icon-144x144.png',
+  '/icons/icon-152x152.png',
+  '/icons/icon-192x192.png',
+  '/icons/icon-384x384.png',
+  '/icons/icon-512x512.png',
+  '/offline.html'
 ];
 
-// Install event - cache static assets
+// Install event - cache app shell
 self.addEventListener('install', (event) => {
-  console.log('Service Worker: Installing...');
+  console.log('🚀 Service Worker: Installing...');
   
   event.waitUntil(
-    caches.open(STATIC_CACHE)
+    caches.open(APP_SHELL_CACHE)
       .then((cache) => {
-        console.log('Service Worker: Caching static assets');
-        return cache.addAll(staticAssets);
+        console.log('📦 Caching app shell files');
+        return cache.addAll(APP_SHELL_FILES);
       })
       .then(() => {
-        console.log('Service Worker: Installed');
-        return self.skipWaiting(); // Activate immediately
+        console.log('✅ App shell cached successfully');
+        return self.skipWaiting();
       })
       .catch((error) => {
-        console.log('Service Worker: Installation failed', error);
+        console.error('❌ Cache failed:', error);
       })
   );
 });
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker: Activated');
+  console.log('🔥 Service Worker: Activated');
   
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map((cache) => {
-          // Delete old caches that don't match current version
-          if (cache !== STATIC_CACHE && cache !== DYNAMIC_CACHE) {
-            console.log('Service Worker: Clearing old cache', cache);
-            return caches.delete(cache);
+        cacheNames.map((cacheName) => {
+          if (cacheName !== APP_SHELL_CACHE && cacheName !== DATA_CACHE) {
+            console.log('🗑️ Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
           }
         })
       );
     })
+    .then(() => {
+      console.log('✅ Cleanup completed');
+      return self.clients.claim();
+    })
   );
-  
-  return self.clients.claim(); // Take control immediately
 });
 
-// Fetch event - serve cached content when available
+// Fetch event - network first, then cache
 self.addEventListener('fetch', (event) => {
-  // Skip non-GET requests and chrome-extension requests
-  if (event.request.method !== 'GET' || event.request.url.startsWith('chrome-extension://')) {
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') return;
+  
+  // Skip chrome-extension requests
+  if (event.request.url.startsWith('chrome-extension://')) return;
+  
+  const requestUrl = new URL(event.request.url);
+  
+  // Handle API requests with network-first strategy
+  if (requestUrl.pathname.startsWith('/api/')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Cache successful API responses
+          if (response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(DATA_CACHE)
+              .then((cache) => {
+                cache.put(event.request, responseClone);
+              });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Fallback to cache when offline
+          return caches.match(event.request);
+        })
+    );
     return;
   }
-
+  
+  // Handle app shell requests with cache-first strategy
   event.respondWith(
     caches.match(event.request)
-      .then((response) => {
+      .then((cachedResponse) => {
         // Return cached version if found
-        if (response) {
-          return response;
+        if (cachedResponse) {
+          return cachedResponse;
         }
-
-        // Clone the request because it can only be used once
-        const fetchRequest = event.request.clone();
-
-        return fetch(fetchRequest)
+        
+        // Otherwise fetch from network
+        return fetch(event.request)
           .then((response) => {
-            // Check if valid response
+            // Check if we received a valid response
             if (!response || response.status !== 200 || response.type !== 'basic') {
               return response;
             }
-
-            // Clone the response because it can only be used once
+            
+            // Clone the response
             const responseToCache = response.clone();
-
-            // Cache the fetched response for future use
-            caches.open(DYNAMIC_CACHE)
+            
+            // Cache the new response
+            caches.open(APP_SHELL_CACHE)
               .then((cache) => {
                 cache.put(event.request, responseToCache);
               });
-
+            
             return response;
           })
           .catch(() => {
-            // Fallback for failed requests - you could return a custom offline page
+            // Fallback for pages - return offline page
             if (event.request.destination === 'document') {
               return caches.match('/offline.html');
             }
-            // Or return a fallback for images, etc.
+            
+            // Fallback for images - return placeholder
+            if (event.request.destination === 'image') {
+              return caches.match('/icons/icon-192x192.png');
+            }
+            
+            return new Response('Offline', {
+              status: 503,
+              statusText: 'Service Unavailable',
+              headers: new Headers({
+                'Content-Type': 'text/plain'
+              })
+            });
           });
       })
   );
 });
 
-// Background sync example (optional)
+// Background sync for offline data
 self.addEventListener('sync', (event) => {
   if (event.tag === 'background-sync') {
-    console.log('Service Worker: Background sync triggered');
-    // Handle background sync tasks here
+    console.log('🔄 Background sync triggered');
+    event.waitUntil(doBackgroundSync());
   }
 });
+
+async function doBackgroundSync() {
+  // Implement your background sync logic here
+  console.log('Performing background sync...');
+}
