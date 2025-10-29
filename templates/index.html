@@ -6,10 +6,9 @@
     <title>RedCharger</title>
     
 
-<!-- PWA Meta Tags -->
-    <link rel="manifest" href="/manifest.json">
+ <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#5c7cfa">
-    <meta name="description" content="Learn Chinese HSK1 words and sentences with fun quizzes!">
     
     <!-- Mobile Meta Tags -->
     <meta name="mobile-web-app-capable" content="yes">
@@ -17,12 +16,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="RedCharger">
     
-    <!-- Icons for different platforms -->
-    <link rel="icon" href="/icons/icon-192x192.png">
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png">
-    <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-192x192.png">
+    <!-- Icons -->
+    <link rel="icon" href="/static/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
 
 
 
@@ -571,135 +567,92 @@
     </script>
 
 <script>
-        // PWA Installation Logic
-        class PWAInstaller {
-            constructor() {
-                this.deferredPrompt = null;
-                this.installButton = document.getElementById('installButton');
-                this.statusElement = document.getElementById('status');
-                this.offlineIndicator = document.getElementById('offlineIndicator');
-                
-                this.init();
-            }
-            
-            init() {
-                this.checkPWAReadiness();
-                this.setupEventListeners();
-                this.setupOfflineDetection();
-            }
-            
-            checkPWAReadiness() {
-                const checks = {
-                    hasManifest: !!document.querySelector('link[rel="manifest"]'),
-                    hasServiceWorker: 'serviceWorker' in navigator,
-                    isHTTPS: window.location.protocol === 'https:',
-                    isLocalhost: window.location.hostname === 'localhost',
-                    isStandalone: window.matchMedia('(display-mode: standalone)').matches
-                };
-                
-                console.log('PWA Checks:', checks);
-                
-                fetch('/static/manifest.json')
-                    .then(response => response.json())
-                    .then(manifest => {
-                        checks.hasIcons = manifest.icons && manifest.icons.length > 0;
-                        checks.hasStartUrl = !!manifest.start_url;
-                        checks.hasDisplay = !!manifest.display;
-                        
-                        this.updateStatus(checks);
-                    })
-                    .catch(() => {
-                        checks.manifestAccessible = false;
-                        this.updateStatus(checks);
-                    });
-            }
-            
-            updateStatus(checks) {
-                const allChecksPassed = checks.hasManifest && 
-                                      checks.hasServiceWorker && 
-                                      checks.hasIcons && 
-                                      (checks.isHTTPS || checks.isLocalhost);
-                
-                if (allChecksPassed) {
-                    this.statusElement.innerHTML = '✅ PWA ready for installation!';
-                    this.statusElement.style.background = 'rgba(34, 197, 94, 0.2)';
-                } else {
-                    this.statusElement.innerHTML = '⚠️ Some PWA requirements not met';
-                    this.statusElement.style.background = 'rgba(234, 179, 8, 0.2)';
-                }
-                
-                if (checks.isStandalone) {
-                    this.statusElement.innerHTML = '🎉 Running as installed PWA!';
-                    this.installButton.style.display = 'none';
-                }
-            }
-            
-            setupEventListeners() {
-                // Listen for beforeinstallprompt event
-                window.addEventListener('beforeinstallprompt', (e) => {
-                    console.log('beforeinstallprompt event fired');
-                    e.preventDefault();
-                    this.deferredPrompt = e;
-                    
-                    // Show install button
-                    this.installButton.style.display = 'block';
-                    this.installButton.addEventListener('click', () => this.installApp());
-                });
-                
-                // Listen for app installed event
-                window.addEventListener('appinstalled', (e) => {
-                    console.log('App installed successfully!');
-                    this.installButton.style.display = 'none';
-                    this.statusElement.innerHTML = '🎉 App installed successfully!';
-                });
-            }
-            
-            setupOfflineDetection() {
-                window.addEventListener('online', () => {
-                    this.offlineIndicator.style.display = 'none';
-                });
-                
-                window.addEventListener('offline', () => {
-                    this.offlineIndicator.style.display = 'block';
-                });
-                
-                // Initial check
-                if (!navigator.onLine) {
-                    this.offlineIndicator.style.display = 'block';
-                }
-            }
-            
-            async installApp() {
-                if (!this.deferredPrompt) {
-                    alert('Installation not available yet. Please use Chrome menu → "Add to Home screen"');
-                    return;
-                }
-                
-                this.deferredPrompt.prompt();
-                const { outcome } = await this.deferredPrompt.userChoice;
-                
-                console.log(`User response to the install prompt: ${outcome}`);
-                this.deferredPrompt = null;
-                
-                this.installButton.style.display = 'none';
-            }
-        }
-        
-        // Service Worker Registration
+        // Enhanced service worker registration for static folder
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/static/service-worker.js')
+                // Register service worker from static directory
+                navigator.serviceWorker.register('/static/service-worker.js', { scope: '/' })
                     .then(function(registration) {
-                        console.log('✅ ServiceWorker registration successful with scope: ', registration.scope);
+                        console.log('✅ Service Worker registered with scope:', registration.scope);
+                        
+                        // Check if service worker is controlling the page
+                        if (navigator.serviceWorker.controller) {
+                            console.log('✅ Service Worker is controlling the page');
+                            document.getElementById('status').innerHTML = '✅ Service Worker Active - PWA Ready!';
+                        } else {
+                            console.log('ℹ️ Service Worker registered but not controlling');
+                            document.getElementById('status').innerHTML = 'ℹ️ Service Worker registered - refresh page';
+                        }
                     })
                     .catch(function(error) {
-                        console.log('❌ ServiceWorker registration failed: ', error);
+                        console.log('❌ Service Worker registration failed:', error);
+                        document.getElementById('status').innerHTML = '❌ Service Worker failed: ' + error;
                     });
             });
+        } else {
+            document.getElementById('status').innerHTML = '❌ Service Workers not supported';
         }
-        
-        // Initialize PWA Installer
-        new PWAInstaller();
+
+        // Check PWA installation criteria
+        function checkInstallCriteria() {
+            const checks = {
+                manifest: false,
+                serviceWorker: false,
+                icons: false,
+                https: window.location.protocol === 'https:',
+                localhost: window.location.hostname === 'localhost'
+            };
+            
+            // Check manifest
+            if (document.querySelector('link[rel="manifest"]')) {
+                checks.manifest = true;
+            }
+            
+            // Check service worker
+            if ('serviceWorker' in navigator) {
+                checks.serviceWorker = true;
+            }
+            
+            // Check icons by testing if manifest loads
+            fetch('/static/manifest.json')
+                .then(response => response.json())
+                .then(manifest => {
+                    checks.icons = manifest.icons && manifest.icons.length > 0;
+                    console.log('PWA Installation Criteria:', checks);
+                    
+                    let status = 'PWA Status: ';
+                    if (checks.manifest && checks.serviceWorker && checks.icons && (checks.https || checks.localhost)) {
+                        status += '✅ READY for installation! Use Chrome menu → "Add to Home screen"';
+                    } else {
+                        status += '⚠️ Missing: ';
+                        if (!checks.manifest) status += 'manifest, ';
+                        if (!checks.serviceWorker) status += 'service worker, ';
+                        if (!checks.icons) status += 'icons, ';
+                        if (!checks.https && !checks.localhost) status += 'HTTPS, ';
+                    }
+                    
+                    document.getElementById('status').innerHTML = status;
+                })
+                .catch(error => {
+                    console.log('Error loading manifest:', error);
+                    document.getElementById('status').innerHTML = '❌ Cannot load manifest.json';
+                });
+        }
+
+        // Listen for beforeinstallprompt event
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('✅ beforeinstallprompt event fired - PWA can be installed!');
+            document.getElementById('status').innerHTML = '🎉 PWA Installation Available! Use Chrome menu → "Add to Home screen"';
+            e.preventDefault();
+        });
+
+        // Check if already installed
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+            document.getElementById('status').innerHTML = '🎉 Running as installed PWA!';
+        }
+
+        // Run checks
+        setTimeout(checkInstallCriteria, 1000);
     </script>
 
 
