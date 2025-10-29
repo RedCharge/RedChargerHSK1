@@ -1,10 +1,11 @@
 {
-  "name": "RedCharger HSK1",
-  "short_name": "HSK1",
+  "name": "RedCharger",
+  "short_name": "RedCharger",
+  "description": "A beautiful Chinese vocabulary quiz app for HSK1 learners.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#f97316",
+  "background_color": "#1e293b",
+  "theme_color": "#5c7cfa",
   "icons": [
     {
       "src": "/static/icons/icon-192x192.png",

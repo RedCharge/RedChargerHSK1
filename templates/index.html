@@ -548,10 +548,14 @@
         });
     </script>
     <script>
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/static/service-worker.js');
-  }
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/static/js/service-worker.js")
+    .then(() => console.log("✅ Service worker registered"))
+    .catch(err => console.error("Service worker failed:", err));
+}
 </script>
+
+
 
 </body>
 </html>
