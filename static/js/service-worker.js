@@ -1,25 +1,33 @@
-const cacheName = 'hsk1-quiz-cache-v1';
-const assetsToCache = [
-  '/',
-  '/static/icons/icon-192x192.png',
-  '/static/icons/icon-512x512.png',
-  '/static/css/style.css', // add your CSS
-  '/static/js/main.js'     // add your JS
+const CACHE_NAME = "hsk1-quiz-cache-v1";
+const urlsToCache = [
+  "/",
+  "/static/icons/icon-192x192.png",
+  "/static/icons/icon-512x512.png",
+  "/static/main.css", // your CSS if any
+  "/static/main.js"   // your JS if any
 ];
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(cacheName).then(cache => cache.addAll(assetsToCache))
+// Install event → pre-cache essential routes
+self.addEventListener("install", e => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
   );
   self.skipWaiting();
 });
 
-self.addEventListener('activate', event => {
-  event.waitUntil(clients.claim());
+// Activate event → clear old caches
+self.addEventListener("activate", e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
 });
 
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request).then(resp => resp || fetch(event.request))
+// Fetch event → serve cached content or fetch and update
+self.addEventListener("fetch", e => {
+  e.respondWith(
+    caches.match(e.request).then(resp => resp || fetch(e.request))
   );
 });

@@ -1,11 +1,11 @@
 {
-  "name": "RedCharger HSK1 Quiz",
+  "name": "RedCharger",
   "short_name": "RedCharger",
+  "description": "Learn Chinese HSK1 words and sentences with fun quizzes!",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1e293b",
   "theme_color": "#5c7cfa",
-  "orientation": "portrait",
   "icons": [
     {
       "src": "/static/icons/icon-192x192.png",
