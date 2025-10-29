@@ -1,13 +1,12 @@
-self.addEventListener("install", e => {
-  e.waitUntil(
-    caches.open("hsk1-cache").then(cache => {
-      return cache.addAll(["/"]);
-    })
-  );
+// Simple service worker to make your app installable
+self.addEventListener('install', e => {
+  e.waitUntil(self.skipWaiting());
 });
 
-self.addEventListener("fetch", e => {
-  e.respondWith(
-    caches.match(e.request).then(response => response || fetch(e.request))
-  );
+self.addEventListener('activate', e => {
+  e.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', function(event) {
+  // Optionally cache offline content here
 });
