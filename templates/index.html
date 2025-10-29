@@ -567,93 +567,17 @@
     </script>
 
 <script>
-        // Enhanced service worker registration for static folder
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                // Register service worker from static directory
-                navigator.serviceWorker.register('/static/js/service-worker.js', { scope: '/' })
-                    .then(function(registration) {
-                        console.log('✅ Service Worker registered with scope:', registration.scope);
-                        
-                        // Check if service worker is controlling the page
-                        if (navigator.serviceWorker.controller) {
-                            console.log('✅ Service Worker is controlling the page');
-                            document.getElementById('status').innerHTML = '✅ Service Worker Active - PWA Ready!';
-                        } else {
-                            console.log('ℹ️ Service Worker registered but not controlling');
-                            document.getElementById('status').innerHTML = 'ℹ️ Service Worker registered - refresh page';
-                        }
-                    })
-                    .catch(function(error) {
-                        console.log('❌ Service Worker registration failed:', error);
-                        document.getElementById('status').innerHTML = '❌ Service Worker failed: ' + error;
-                    });
-            });
-        } else {
-            document.getElementById('status').innerHTML = '❌ Service Workers not supported';
-        }
-
-        // Check PWA installation criteria
-        function checkInstallCriteria() {
-            const checks = {
-                manifest: false,
-                serviceWorker: false,
-                icons: false,
-                https: window.location.protocol === 'https:',
-                localhost: window.location.hostname === 'localhost'
-            };
-            
-            // Check manifest
-            if (document.querySelector('link[rel="manifest"]')) {
-                checks.manifest = true;
-            }
-            
-            // Check service worker
-            if ('serviceWorker' in navigator) {
-                checks.serviceWorker = true;
-            }
-            
-            // Check icons by testing if manifest loads
-            fetch('/static/js/manifest.json')
-                .then(response => response.json())
-                .then(manifest => {
-                    checks.icons = manifest.icons && manifest.icons.length > 0;
-                    console.log('PWA Installation Criteria:', checks);
-                    
-                    let status = 'PWA Status: ';
-                    if (checks.manifest && checks.serviceWorker && checks.icons && (checks.https || checks.localhost)) {
-                        status += '✅ READY for installation! Use Chrome menu → "Add to Home screen"';
-                    } else {
-                        status += '⚠️ Missing: ';
-                        if (!checks.manifest) status += 'manifest, ';
-                        if (!checks.serviceWorker) status += 'service worker, ';
-                        if (!checks.icons) status += 'icons, ';
-                        if (!checks.https && !checks.localhost) status += 'HTTPS, ';
-                    }
-                    
-                    document.getElementById('status').innerHTML = status;
-                })
-                .catch(error => {
-                    console.log('Error loading manifest:', error);
-                    document.getElementById('status').innerHTML = '❌ Cannot load manifest.json';
-                });
-        }
-
-        // Listen for beforeinstallprompt event
-        window.addEventListener('beforeinstallprompt', (e) => {
-            console.log('✅ beforeinstallprompt event fired - PWA can be installed!');
-            document.getElementById('status').innerHTML = '🎉 PWA Installation Available! Use Chrome menu → "Add to Home screen"';
-            e.preventDefault();
+// Register service worker from static/js/ directory
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/js/service-worker.js', { scope: '/' })
+        .then(function(registration) {
+            console.log('✅ Service Worker registered:', registration);
+        })
+        .catch(function(error) {
+            console.log('❌ Service Worker failed:', error);
         });
-
-        // Check if already installed
-        if (window.matchMedia('(display-mode: standalone)').matches) {
-            document.getElementById('status').innerHTML = '🎉 Running as installed PWA!';
-        }
-
-        // Run checks
-        setTimeout(checkInstallCriteria, 1000);
-    </script>
+}
+</script>
 
 
 </body>
