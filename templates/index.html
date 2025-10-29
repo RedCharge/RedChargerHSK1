@@ -6,10 +6,10 @@
     <title>RedCharger</title>
     
 
+<!-- PWA Manifest & Theme -->
 <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-<meta name="theme-color" content="#5c7cfa">
 <link rel="icon" href="{{ url_for('static', filename='icons/icon-192x192.png') }}">
-
+<meta name="theme-color" content="#5c7cfa">
 
 
 
@@ -557,13 +557,37 @@
 <script>
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/static/service-Worker.js')
+        navigator.serviceWorker.register('/static/sw.js')
         .then(reg => console.log('Service Worker registered:', reg))
         .catch(err => console.log('SW registration failed:', err));
     });
 }
 </script>
 
+ <script>
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(function(registration) {
+                        console.log('ServiceWorker registration successful: ', registration);
+                        console.log('Scope: ', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('ServiceWorker registration failed: ', error);
+                    });
+            });
+        }
+
+        // Optional: Check if app is launched from home screen
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                console.log('Launched as PWA');
+            }
+        });
+    </script>
+</body>
+</html>
 
 
 </body>
