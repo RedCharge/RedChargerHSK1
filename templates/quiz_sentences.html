@@ -577,8 +577,6 @@ function playCorrectSound() {
         
         oscillator.start(audioContext.currentTime);
         oscillator.stop(audioContext.currentTime + 0.5);
-        
-        console.log('Played correct answer sound');
     } catch (e) {
         console.log('Correct sound failed:', e);
     }
@@ -611,8 +609,6 @@ function playIncorrectSound() {
         
         oscillator.start(audioContext.currentTime);
         oscillator.stop(audioContext.currentTime + 0.6);
-        
-        console.log('Played incorrect answer sound');
     } catch (e) {
         console.log('Incorrect sound failed:', e);
     }
@@ -643,8 +639,6 @@ function playLevelUpSound() {
             oscillator.start(audioContext.currentTime + time);
             oscillator.stop(audioContext.currentTime + time + 0.3);
         });
-        
-        console.log('Played level up sound');
     } catch (e) {
         console.log('Level up sound failed:', e);
     }
@@ -655,14 +649,12 @@ function setupUserInteractionListeners() {
     // Listen for any user interaction to enable auto-speak
     document.addEventListener('click', function() {
         userInteractedWithSpeech = true;
-        console.log('User interaction detected - auto-speak enabled');
     }, { once: true });
     
     // Also listen for touch events on mobile
     if (isMobile) {
         document.addEventListener('touchstart', function() {
             userInteractedWithSpeech = true;
-            console.log('Touch interaction detected - auto-speak enabled');
         }, { once: true });
     }
 }
@@ -670,55 +662,42 @@ function setupUserInteractionListeners() {
 // Initialize speech system
 function initializeSpeechSystem() {
     if (!speechSynthesis) {
-        console.log('Speech synthesis not supported');
         speechEnabled = false;
         autoSpeakEnabled = false;
         return;
     }
     
-    // Check for mobile-specific speech issues
-    if (isMobile) {
-        console.log('Mobile device detected - speech will work after user interaction');
-    }
-    
     // Load voices when available
     speechSynthesis.onvoiceschanged = function() {
         const voices = speechSynthesis.getVoices();
-        console.log('Available voices:', voices.length);
         const chineseVoices = voices.filter(voice => 
             voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
         );
-        console.log('Chinese voices available:', chineseVoices.length);
     };
     
     // Force voices to load
     setTimeout(() => {
-        const voices = speechSynthesis.getVoices();
-        console.log('Voices loaded:', voices.length);
+        speechSynthesis.getVoices();
     }, 1000);
 }
 
 // Auto-speak function for new questions
 function autoSpeakQuestion(text) {
     if (!speechEnabled || !autoSpeakEnabled) {
-        console.log('Auto-speak disabled');
         return;
     }
     
     // On mobile, only auto-speak after user has interacted
     if (isMobile && !userInteractedWithSpeech) {
-        console.log('Waiting for user interaction before auto-speaking on mobile');
         return;
     }
     
-    console.log('Auto-speaking sentence:', text);
     speakText(text);
 }
 
 // Speak text using Web Speech API with multiple fallbacks
 function speakText(text, language = 'zh-CN') {
     if (!speechEnabled) {
-        console.log('Speech is disabled');
         return;
     }
     
@@ -745,20 +724,16 @@ function attemptSpeech(text, language, attempt) {
     
     if (attempt === 0) {
         // Method 1: Try with Chinese voice
-        console.log('Attempt 1: Trying Chinese TTS');
         speakWithVoice(text, language, true);
     } else if (attempt === 1) {
         // Method 2: Try with any available voice
-        console.log('Attempt 2: Trying any available voice');
         speakWithVoice(text, 'en-US', false);
     } else if (attempt === 2) {
         // Method 3: Try fallback beep sound
-        console.log('Attempt 3: Using fallback sound');
         playFallbackSound();
         resetSpeechButton();
     } else {
         // All methods failed
-        console.log('All speech methods failed');
         resetSpeechButton();
     }
 }
@@ -789,12 +764,10 @@ function speakWithVoice(text, language, preferChinese = true) {
     
     if (selectedVoice) {
         utterance.voice = selectedVoice;
-        console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
     }
     
     // Set up event handlers
     utterance.onstart = function() {
-        console.log('Speech started successfully');
         const speechButton = document.getElementById('speech-button');
         if (speechButton) {
             speechButton.innerHTML = '<i class="fas fa-volume-up animate-pulse"></i>';
@@ -803,12 +776,10 @@ function speakWithVoice(text, language, preferChinese = true) {
     };
     
     utterance.onend = function() {
-        console.log('Speech completed successfully');
         resetSpeechButton();
     };
     
     utterance.onerror = function(event) {
-        console.error('Speech error:', event.error);
         // Try next method
         setTimeout(() => attemptSpeech(text, language, attempt + 1), 100);
     };
@@ -818,10 +789,7 @@ function speakWithVoice(text, language, preferChinese = true) {
     
     // Set timeout in case speech never starts
     setTimeout(() => {
-        if (speechSynthesis.speaking) {
-            console.log('Speech is speaking, seems successful');
-        } else {
-            console.log('Speech never started, trying next method');
+        if (!speechSynthesis.speaking) {
             speechSynthesis.cancel();
             setTimeout(() => attemptSpeech(text, language, attempt + 1), 100);
         }
@@ -834,7 +802,6 @@ function playFallbackSound() {
         try {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
         } catch (e) {
-            console.log('Cannot create AudioContext for fallback sound');
             return;
         }
     }
@@ -854,8 +821,6 @@ function playFallbackSound() {
         
         oscillator.start(audioContext.currentTime);
         oscillator.stop(audioContext.currentTime + 0.5);
-        
-        console.log('Played fallback sound');
     } catch (e) {
         console.log('Fallback sound failed:', e);
     }
@@ -942,25 +907,24 @@ function initializeMobileMenu() {
     }
 }
 
-// Debug function to check quiz data structure
+// Debug function to check quiz data structure (runs in background)
 function debugQuizData() {
     console.log('=== QUIZ DATA DEBUG INFO ===');
     console.log('Total questions:', quizData.length);
     
+    let hasIssues = false;
+    
     quizData.forEach((question, index) => {
-        console.log(`\nQuestion ${index + 1}:`);
-        console.log('Sentence:', question.sentence);
-        console.log('Correct Answer:', question.correctAnswer);
-        console.log('Correct Answer Type:', typeof question.correctAnswer);
-        console.log('Options:', question.options);
-        
         // Check if correctAnswer is within bounds
-        if (question.correctAnswer >= 0 && question.correctAnswer < question.options.length) {
-            console.log('✓ Correct answer is within bounds');
-        } else {
-            console.log('✗ Correct answer is OUT OF BOUNDS!');
+        if (question.correctAnswer < 0 || question.correctAnswer >= question.options.length) {
+            console.error(`✗ Question ${index + 1}: Correct answer is OUT OF BOUNDS!`);
+            hasIssues = true;
         }
     });
+    
+    if (!hasIssues) {
+        console.log('✓ All questions have valid correct answers');
+    }
 }
 
 // Load quiz data from Flask backend
@@ -980,9 +944,7 @@ async function loadQuizData() {
                 correctAnswer: parseInt(question.correctAnswer)
             }));
             
-            console.log('Quiz data after conversion:', quizData);
-            
-            // DEBUG: Check the data structure
+            // Run debug check in background
             debugQuizData();
             
             hideLoading();
@@ -1027,14 +989,12 @@ function setupQuizInteractionListeners() {
 function handleQuizInteraction() {
     if (!userInteractedWithSpeech) {
         userInteractedWithSpeech = true;
-        console.log('Quiz interaction detected - auto-speak now enabled');
         
         // Auto-speak the current question if this is the first interaction
         if (speechEnabled && autoSpeakEnabled) {
             const currentSentence = quizData[currentQuestion]?.sentence;
             if (currentSentence) {
                 setTimeout(() => {
-                    console.log('Auto-speaking after first interaction:', currentSentence);
                     speakText(currentSentence);
                 }, 300);
             }
@@ -1113,18 +1073,9 @@ function selectOption(selectedIndex) {
     
     const question = quizData[currentQuestion];
     
-    // DEBUG: Log the question data to see what's happening
-    console.log('Current question:', question);
-    console.log('Selected index:', selectedIndex);
-    console.log('Correct answer from data:', question.correctAnswer);
-    console.log('Correct answer type:', typeof question.correctAnswer);
-    
     // FIX: Ensure correctAnswer is treated as a number
     const correctAnswerIndex = parseInt(question.correctAnswer);
-    console.log('Parsed correct answer:', correctAnswerIndex);
-    
     const isCorrect = selectedIndex === correctAnswerIndex;
-    console.log('Is correct?', isCorrect);
     
     // Store user's answer
     userAnswers[currentQuestion] = selectedIndex;
@@ -1132,7 +1083,7 @@ function selectOption(selectedIndex) {
     // Play sound effect based on answer
     if (isCorrect) {
         playCorrectSound();
-        score += 20;
+        score += 10;
         correctAnswers++;
         feedbackElement.textContent = 'Correct! Well done.';
         feedbackElement.className = 'mb-6 text-center text-lg font-medium text-green-400';
@@ -1296,7 +1247,6 @@ async function saveResults() {
         const data = await response.json();
         
         if (data.success) {
-            console.log('Results saved successfully');
             return true;
         } else {
             throw new Error(data.message || 'Failed to save results');
@@ -1349,13 +1299,6 @@ function showError(message) {
     errorState.classList.remove('hidden');
     errorMessage.textContent = message;
 }
-
-// Temporary debug button (remove after testing)
-const debugButton = document.createElement('button');
-debugButton.textContent = 'Debug Data';
-debugButton.className = 'fixed bottom-4 right-4 bg-red-500 text-white p-2 rounded z-50';
-debugButton.onclick = debugQuizData;
-document.body.appendChild(debugButton);
 </script>
 </body>
 </html>
