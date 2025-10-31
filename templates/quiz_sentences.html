@@ -464,533 +464,625 @@
     <!-- Quiz Logic -->
     <script>
     // Quiz state
-let currentQuestion = 0;
-let score = 0;
-let correctAnswers = 0;
-let incorrectAnswers = 0;
-let userAnswers = [];
-let quizData = [];
-let quizStarted = false;
-let startTime = null;
-let quizResults = null;
+    let currentQuestion = 0;
+    let score = 0;
+    let correctAnswers = 0;
+    let incorrectAnswers = 0;
+    let userAnswers = [];
+    let quizData = [];
+    let quizStarted = false;
+    let startTime = null;
+    let quizResults = null;
 
-// DOM elements
-const loadingState = document.getElementById('loading-state');
-const quizContent = document.getElementById('quiz-content');
-const errorState = document.getElementById('error-state');
-const questionContainer = document.getElementById('question-container');
-const optionsContainer = document.getElementById('options-container');
-const feedbackElement = document.getElementById('feedback');
-const nextButton = document.getElementById('next-btn');
-const prevButton = document.getElementById('prev-btn');
-const progressText = document.getElementById('progress-text');
-const progressFill = document.getElementById('progress-fill');
-const scoreElement = document.getElementById('score');
-const correctCountElement = document.getElementById('correct-count');
-const incorrectCountElement = document.getElementById('incorrect-count');
-const resultsSection = document.getElementById('results-section');
-const finalScoreElement = document.getElementById('final-score');
-const finalCorrectElement = document.getElementById('final-correct');
-const finalIncorrectElement = document.getElementById('final-incorrect');
-const finalPercentageElement = document.getElementById('final-percentage');
-const performanceMessageElement = document.getElementById('performance-message');
-const resultsBadge = document.getElementById('results-badge');
-const restartButton = document.getElementById('restart-btn');
-const viewResultsButton = document.getElementById('view-results-btn');
-const homeButton = document.getElementById('home-btn');
-const retryButton = document.getElementById('retry-btn');
-const errorMessage = document.getElementById('error-message');
+    // DOM elements
+    const loadingState = document.getElementById('loading-state');
+    const quizContent = document.getElementById('quiz-content');
+    const errorState = document.getElementById('error-state');
+    const questionContainer = document.getElementById('question-container');
+    const optionsContainer = document.getElementById('options-container');
+    const feedbackElement = document.getElementById('feedback');
+    const nextButton = document.getElementById('next-btn');
+    const prevButton = document.getElementById('prev-btn');
+    const progressText = document.getElementById('progress-text');
+    const progressFill = document.getElementById('progress-fill');
+    const scoreElement = document.getElementById('score');
+    const correctCountElement = document.getElementById('correct-count');
+    const incorrectCountElement = document.getElementById('incorrect-count');
+    const resultsSection = document.getElementById('results-section');
+    const finalScoreElement = document.getElementById('final-score');
+    const finalCorrectElement = document.getElementById('final-correct');
+    const finalIncorrectElement = document.getElementById('final-incorrect');
+    const finalPercentageElement = document.getElementById('final-percentage');
+    const performanceMessageElement = document.getElementById('performance-message');
+    const resultsBadge = document.getElementById('results-badge');
+    const restartButton = document.getElementById('restart-btn');
+    const viewResultsButton = document.getElementById('view-results-btn');
+    const homeButton = document.getElementById('home-btn');
+    const retryButton = document.getElementById('retry-btn');
+    const errorMessage = document.getElementById('error-message');
 
-// Initialize the application
-document.addEventListener('DOMContentLoaded', function() {
-    // Load quiz data
-    loadQuizData();
-    
-    // Add event listeners
-    restartButton.addEventListener('click', restartQuiz);
-    viewResultsButton.addEventListener('click', viewDetailedResults);
-    homeButton.addEventListener('click', () => {
-        window.location.href = '/';
-    });
-    retryButton.addEventListener('click', loadQuizData);
-});
+    // Mobile Menu Elements
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+    const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
 
-// Validate and normalize quiz data
-function validateQuizData(data) {
-    console.log('=== VALIDATING QUIZ DATA ===');
-    
-    return data.map((question, index) => {
-        // Create a clean copy
-        const cleanQuestion = { ...question };
+    // Mobile Menu State
+    let isMenuOpen = false;
+
+    // Initialize the application
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize mobile menu
+        initializeMobileMenu();
         
-        // Log original data for debugging
-        console.log(`Question ${index + 1} original:`, {
-            correctAnswer: question.correctAnswer,
-            type: typeof question.correctAnswer,
-            options: question.options
+        // Load quiz data
+        loadQuizData();
+        
+        // Add event listeners
+        restartButton.addEventListener('click', restartQuiz);
+        viewResultsButton.addEventListener('click', viewDetailedResults);
+        homeButton.addEventListener('click', () => {
+            window.location.href = '/';
         });
-        
-        // METHOD 1: Try direct number conversion
-        let correctAnswer = parseInt(question.correctAnswer);
-        
-        // METHOD 2: If NaN, try string parsing
-        if (isNaN(correctAnswer)) {
-            console.warn(`Question ${index + 1}: Direct parsing failed, trying string methods`);
-            const strCorrect = String(question.correctAnswer).trim();
+        retryButton.addEventListener('click', loadQuizData);
+    });
+
+    // Initialize Mobile Menu
+    function initializeMobileMenu() {
+        // Toggle mobile menu
+        function toggleMobileMenu() {
+            isMenuOpen = !isMenuOpen;
             
-            // Try to extract number from string
-            const numMatch = strCorrect.match(/(\d+)/);
-            if (numMatch) {
-                correctAnswer = parseInt(numMatch[1]);
-                console.log(`Question ${index + 1}: Extracted number from string:`, correctAnswer);
-            }
-            
-            // If still NaN, try letter to number conversion (A=0, B=1, etc.)
-            if (isNaN(correctAnswer)) {
-                const letterMatch = strCorrect.match(/[A-D]/i);
-                if (letterMatch) {
-                    correctAnswer = letterMatch[0].toUpperCase().charCodeAt(0) - 65;
-                    console.log(`Question ${index + 1}: Converted letter to number:`, correctAnswer);
-                }
+            if (isMenuOpen) {
+                // Open menu
+                mobileDropdownMenu.classList.add('open');
+                mobileDropdownBackdrop.style.display = 'block';
+                document.body.style.overflow = 'hidden'; // Prevent scrolling
+                
+                // Change icon to X
+                mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+                mobileMenuButton.classList.remove('text-text-muted');
+                mobileMenuButton.classList.add('text-secondary-cyan');
+            } else {
+                // Close menu
+                mobileDropdownMenu.classList.remove('open');
+                mobileDropdownBackdrop.style.display = 'none';
+                document.body.style.overflow = ''; // Re-enable scrolling
+                
+                // Change icon back to hamburger
+                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                mobileMenuButton.classList.remove('text-secondary-cyan');
+                mobileMenuButton.classList.add('text-text-muted');
             }
         }
+
+        // Close mobile menu
+        function closeMobileMenu() {
+            isMenuOpen = false;
+            mobileDropdownMenu.classList.remove('open');
+            mobileDropdownBackdrop.style.display = 'none';
+            document.body.style.overflow = ''; // Re-enable scrolling
+            
+            // Reset icon
+            mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+            mobileMenuButton.classList.remove('text-secondary-cyan');
+            mobileMenuButton.classList.add('text-text-muted');
+        }
+
+        // Event Listeners
+        mobileMenuButton.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleMobileMenu();
+        });
+
+        // Close menu when clicking on backdrop
+        mobileDropdownBackdrop.addEventListener('click', closeMobileMenu);
+
+        // Close menu when clicking on menu links
+        const menuLinks = mobileDropdownMenu.querySelectorAll('a');
+        menuLinks.forEach(link => {
+            link.addEventListener('click', closeMobileMenu);
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(e) {
+            if (isMenuOpen && 
+                !mobileDropdownMenu.contains(e.target) && 
+                !mobileMenuButton.contains(e.target)) {
+                closeMobileMenu();
+            }
+        });
+
+        // Close menu on escape key
+        document.addEventListener('keydown', function(e) {
+            if (isMenuOpen && e.key === 'Escape') {
+                closeMobileMenu();
+            }
+        });
+
+        // Close menu on window resize (if resizing to desktop)
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 768 && isMenuOpen) {
+                closeMobileMenu();
+            }
+        });
+    }
+
+    // Validate and normalize quiz data
+    function validateQuizData(data) {
+        console.log('=== VALIDATING QUIZ DATA ===');
         
-        // METHOD 3: Final validation and fallback
-        if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= question.options.length) {
-            console.error(`Question ${index + 1}: INVALID correct answer after all methods:`, {
-                original: question.correctAnswer,
-                parsed: correctAnswer,
-                optionsCount: question.options.length,
+        return data.map((question, index) => {
+            // Create a clean copy
+            const cleanQuestion = { ...question };
+            
+            // Log original data for debugging
+            console.log(`Question ${index + 1} original:`, {
+                correctAnswer: question.correctAnswer,
+                type: typeof question.correctAnswer,
                 options: question.options
             });
             
-            // Try to find correct answer by matching option text patterns
-            const guessedIndex = guessCorrectAnswer(question);
-            correctAnswer = guessedIndex;
-            console.warn(`Question ${index + 1}: Using guessed index:`, correctAnswer);
+            // METHOD 1: Try direct number conversion
+            let correctAnswer = parseInt(question.correctAnswer);
+            
+            // METHOD 2: If NaN, try string parsing
+            if (isNaN(correctAnswer)) {
+                console.warn(`Question ${index + 1}: Direct parsing failed, trying string methods`);
+                const strCorrect = String(question.correctAnswer).trim();
+                
+                // Try to extract number from string
+                const numMatch = strCorrect.match(/(\d+)/);
+                if (numMatch) {
+                    correctAnswer = parseInt(numMatch[1]);
+                    console.log(`Question ${index + 1}: Extracted number from string:`, correctAnswer);
+                }
+                
+                // If still NaN, try letter to number conversion (A=0, B=1, etc.)
+                if (isNaN(correctAnswer)) {
+                    const letterMatch = strCorrect.match(/[A-D]/i);
+                    if (letterMatch) {
+                        correctAnswer = letterMatch[0].toUpperCase().charCodeAt(0) - 65;
+                        console.log(`Question ${index + 1}: Converted letter to number:`, correctAnswer);
+                    }
+                }
+            }
+            
+            // METHOD 3: Final validation and fallback
+            if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= question.options.length) {
+                console.error(`Question ${index + 1}: INVALID correct answer after all methods:`, {
+                    original: question.correctAnswer,
+                    parsed: correctAnswer,
+                    optionsCount: question.options.length,
+                    options: question.options
+                });
+                
+                // Try to find correct answer by matching option text patterns
+                const guessedIndex = guessCorrectAnswer(question);
+                correctAnswer = guessedIndex;
+                console.warn(`Question ${index + 1}: Using guessed index:`, correctAnswer);
+            }
+            
+            // Ensure the final answer is within bounds
+            if (correctAnswer < 0) correctAnswer = 0;
+            if (correctAnswer >= question.options.length) correctAnswer = question.options.length - 1;
+            
+            cleanQuestion.correctAnswer = correctAnswer;
+            
+            console.log(`Question ${index + 1} final:`, {
+                original: question.correctAnswer,
+                final: cleanQuestion.correctAnswer,
+                valid: !isNaN(cleanQuestion.correctAnswer) && 
+                       cleanQuestion.correctAnswer >= 0 && 
+                       cleanQuestion.correctAnswer < question.options.length
+            });
+            
+            return cleanQuestion;
+        });
+    }
+
+    // Try to guess correct answer by analyzing option patterns
+    function guessCorrectAnswer(question) {
+        const options = question.options;
+        const sentence = question.sentence.toLowerCase();
+        
+        // Common patterns that might indicate correct answer
+        for (let i = 0; i < options.length; i++) {
+            const option = options[i].toLowerCase();
+            
+            // Check for exact word matches
+            if (sentence.includes('你好') && option.includes('hello')) return i;
+            if (sentence.includes('谢谢') && option.includes('thank')) return i;
+            if (sentence.includes('再见') && option.includes('goodbye')) return i;
+            if (sentence.includes('什么') && option.includes('what')) return i;
+            if (sentence.includes('谁') && option.includes('who')) return i;
+            if (sentence.includes('哪里') && option.includes('where')) return i;
+            
+            // Check for question patterns
+            if (sentence.includes('吗？') && option.includes('?')) return i;
+            if (sentence.includes('什么') && option.includes('what')) return i;
         }
         
-        // Ensure the final answer is within bounds
-        if (correctAnswer < 0) correctAnswer = 0;
-        if (correctAnswer >= question.options.length) correctAnswer = question.options.length - 1;
+        // Fallback to first option
+        return 0;
+    }
+
+    // Load quiz data from Flask backend
+    async function loadQuizData() {
+        try {
+            showLoading();
+            
+            const response = await fetch('/sentences/api/quiz-sentences?count=20');
+            const data = await response.json();
+            
+            if (data.success) {
+                // VALIDATE AND NORMALIZE THE DATA
+                quizData = validateQuizData(data.sentences);
+                
+                // Run final debug check
+                debugQuizData();
+                
+                hideLoading();
+                showQuizContent();
+                initQuiz();
+            } else {
+                throw new Error(data.message || 'Failed to load quiz data');
+            }
+        } catch (error) {
+            console.error('Error loading quiz data:', error);
+            showError(error.message);
+        }
+    }
+
+    // Debug function to check quiz data structure
+    function debugQuizData() {
+        console.log('=== FINAL QUIZ DATA VALIDATION ===');
+        console.log('Total questions:', quizData.length);
         
-        cleanQuestion.correctAnswer = correctAnswer;
+        let validQuestions = 0;
+        let invalidQuestions = 0;
         
-        console.log(`Question ${index + 1} final:`, {
-            original: question.correctAnswer,
-            final: cleanQuestion.correctAnswer,
-            valid: !isNaN(cleanQuestion.correctAnswer) && 
-                   cleanQuestion.correctAnswer >= 0 && 
-                   cleanQuestion.correctAnswer < question.options.length
+        quizData.forEach((question, index) => {
+            const isValid = !isNaN(question.correctAnswer) && 
+                           question.correctAnswer >= 0 && 
+                           question.correctAnswer < question.options.length;
+            
+            if (isValid) {
+                validQuestions++;
+                console.log(`✓ Question ${index + 1}: VALID - Correct answer: ${question.correctAnswer} ("${question.options[question.correctAnswer]}")`);
+            } else {
+                invalidQuestions++;
+                console.error(`✗ Question ${index + 1}: INVALID - Correct answer: ${question.correctAnswer}, Options: ${question.options.length}`);
+            }
         });
         
-        return cleanQuestion;
-    });
-}
-
-// Try to guess correct answer by analyzing option patterns
-function guessCorrectAnswer(question) {
-    const options = question.options;
-    const sentence = question.sentence.toLowerCase();
-    
-    // Common patterns that might indicate correct answer
-    for (let i = 0; i < options.length; i++) {
-        const option = options[i].toLowerCase();
+        console.log(`=== VALIDATION SUMMARY: ${validQuestions} valid, ${invalidQuestions} invalid ===`);
         
-        // Check for exact word matches
-        if (sentence.includes('你好') && option.includes('hello')) return i;
-        if (sentence.includes('谢谢') && option.includes('thank')) return i;
-        if (sentence.includes('再见') && option.includes('goodbye')) return i;
-        if (sentence.includes('什么') && option.includes('what')) return i;
-        if (sentence.includes('谁') && option.includes('who')) return i;
-        if (sentence.includes('哪里') && option.includes('where')) return i;
-        
-        // Check for question patterns
-        if (sentence.includes('吗？') && option.includes('?')) return i;
-        if (sentence.includes('什么') && option.includes('what')) return i;
-    }
-    
-    // Fallback to first option
-    return 0;
-}
-
-// Load quiz data from Flask backend
-async function loadQuizData() {
-    try {
-        showLoading();
-        
-        const response = await fetch('/sentences/api/quiz-sentences?count=20');
-        const data = await response.json();
-        
-        if (data.success) {
-            // VALIDATE AND NORMALIZE THE DATA
-            quizData = validateQuizData(data.sentences);
-            
-            // Run final debug check
-            debugQuizData();
-            
-            hideLoading();
-            showQuizContent();
-            initQuiz();
-        } else {
-            throw new Error(data.message || 'Failed to load quiz data');
-        }
-    } catch (error) {
-        console.error('Error loading quiz data:', error);
-        showError(error.message);
-    }
-}
-
-// Debug function to check quiz data structure
-function debugQuizData() {
-    console.log('=== FINAL QUIZ DATA VALIDATION ===');
-    console.log('Total questions:', quizData.length);
-    
-    let validQuestions = 0;
-    let invalidQuestions = 0;
-    
-    quizData.forEach((question, index) => {
-        const isValid = !isNaN(question.correctAnswer) && 
-                       question.correctAnswer >= 0 && 
-                       question.correctAnswer < question.options.length;
-        
-        if (isValid) {
-            validQuestions++;
-            console.log(`✓ Question ${index + 1}: VALID - Correct answer: ${question.correctAnswer} ("${question.options[question.correctAnswer]}")`);
-        } else {
-            invalidQuestions++;
-            console.error(`✗ Question ${index + 1}: INVALID - Correct answer: ${question.correctAnswer}, Options: ${question.options.length}`);
-        }
-    });
-    
-    console.log(`=== VALIDATION SUMMARY: ${validQuestions} valid, ${invalidQuestions} invalid ===`);
-    
-    if (invalidQuestions > 0) {
-        console.error('WARNING: Some questions have invalid correct answers!');
-        // Create sample questions if too many are invalid
-        if (invalidQuestions === quizData.length) {
-            console.warn('All questions invalid, creating sample data...');
-            createSampleQuizData();
+        if (invalidQuestions > 0) {
+            console.error('WARNING: Some questions have invalid correct answers!');
+            // Create sample questions if too many are invalid
+            if (invalidQuestions === quizData.length) {
+                console.warn('All questions invalid, creating sample data...');
+                createSampleQuizData();
+            }
         }
     }
-}
 
-// Create sample quiz data as fallback
-function createSampleQuizData() {
-    quizData = [
-        {
-            sentence: "你好",
-            pinyin: "nǐ hǎo",
-            options: ["Hello", "Goodbye", "Thank you", "Sorry"],
-            correctAnswer: 0
-        },
-        {
-            sentence: "谢谢",
-            pinyin: "xiè xiè", 
-            options: ["Hello", "Goodbye", "Thank you", "Sorry"],
-            correctAnswer: 2
-        },
-        {
-            sentence: "再见",
-            pinyin: "zài jiàn",
-            options: ["Hello", "Goodbye", "Thank you", "Sorry"],
-            correctAnswer: 1
-        },
-        {
-            sentence: "对不起",
-            pinyin: "duì bu qǐ",
-            options: ["Hello", "Goodbye", "Thank you", "Sorry"],
-            correctAnswer: 3
-        },
-        {
-            sentence: "你叫什么名字？",
-            pinyin: "nǐ jiào shén me míng zì?",
-            options: ["What is your name?", "How are you?", "Where are you from?", "What time is it?"],
-            correctAnswer: 0
-        }
-    ];
-    console.log('Created sample quiz data as fallback');
-}
-
-// Initialize the quiz
-function initQuiz() {
-    startTime = new Date();
-    showQuestion();
-    updateProgress();
-    updateScore();
-    
-    // Add event listeners
-    nextButton.addEventListener('click', nextQuestion);
-    prevButton.addEventListener('click', prevQuestion);
-}
-
-// Show current question
-function showQuestion() {
-    const question = quizData[currentQuestion];
-    
-    questionContainer.innerHTML = `
-        <div class="text-center mb-6">
-            <div class="flex items-center justify-center mb-4">
-                <div class="sentence-character font-bold text-text-light mr-4">${question.sentence}</div>
-            </div>
-            <div class="text-xl text-secondary-cyan mb-2">${question.pinyin}</div>
-            <div class="text-lg text-text-muted">What is the English translation of this sentence?</div>
-        </div>
-    `;
-    
-    optionsContainer.innerHTML = '';
-    question.options.forEach((option, index) => {
-        const button = document.createElement('button');
-        button.className = 'option-button py-4 px-6 rounded-lg bg-card-bg text-text-light border border-text-muted/30 font-medium text-left';
-        button.innerHTML = `
-            <span class="font-bold mr-3">${String.fromCharCode(65 + index)}.</span> ${option}
-        `;
-        button.addEventListener('click', () => selectOption(index));
-        optionsContainer.appendChild(button);
-    });
-    
-    // Reset feedback
-    feedbackElement.classList.add('hidden');
-    feedbackElement.textContent = '';
-    
-    // Update navigation buttons
-    prevButton.disabled = currentQuestion === 0;
-    if (prevButton.disabled) {
-        prevButton.classList.add('opacity-50', 'cursor-not-allowed');
-    } else {
-        prevButton.classList.remove('opacity-50', 'cursor-not-allowed');
-    }
-    
-    if (currentQuestion === quizData.length - 1) {
-        nextButton.innerHTML = 'Finish <i class="fas fa-flag-checkered ml-2"></i>';
-    } else {
-        nextButton.innerHTML = 'Next <i class="fas fa-arrow-right ml-2"></i>';
-    }
-    
-    // If user already answered this question, show their answer
-    if (userAnswers[currentQuestion] !== undefined) {
-        highlightOption(userAnswers[currentQuestion], question.correctAnswer);
-    }
-}
-
-// Select an option - SIMPLIFIED AND ROBUST
-function selectOption(selectedIndex) {
-    if (userAnswers[currentQuestion] !== undefined) return; // Already answered
-    
-    const question = quizData[currentQuestion];
-    const correctAnswerIndex = question.correctAnswer;
-    
-    // EXTREME DEBUGGING
-    console.log('=== ANSWER SELECTION DEBUG ===');
-    console.log('Question index:', currentQuestion);
-    console.log('Selected index:', selectedIndex);
-    console.log('Correct index:', correctAnswerIndex);
-    console.log('Question sentence:', question.sentence);
-    console.log('Options:', question.options);
-    console.log('Selected option:', question.options[selectedIndex]);
-    console.log('Correct option:', question.options[correctAnswerIndex]);
-    console.log('Is correct:', selectedIndex === correctAnswerIndex);
-    
-    const isCorrect = selectedIndex === correctAnswerIndex;
-    
-    // Store user's answer
-    userAnswers[currentQuestion] = selectedIndex;
-    
-    if (isCorrect) {
-        score += 10;
-        correctAnswers++;
-        feedbackElement.textContent = 'Correct! Well done.';
-        feedbackElement.className = 'mb-6 text-center text-lg font-medium text-green-400';
-    } else {
-        incorrectAnswers++;
-        feedbackElement.textContent = `Incorrect. The correct translation is: "${question.options[correctAnswerIndex]}"`;
-        feedbackElement.className = 'mb-6 text-center text-lg font-medium text-red-400';
-    }
-    
-    feedbackElement.classList.remove('hidden');
-    updateScore();
-    
-    // Highlight the selected option and correct answer
-    highlightOption(selectedIndex, correctAnswerIndex);
-}
-
-// Highlight selected option and correct answer
-function highlightOption(selectedIndex, correctIndex) {
-    const optionButtons = optionsContainer.querySelectorAll('.option-button');
-    
-    optionButtons.forEach((button, index) => {
-        if (index === correctIndex) {
-            button.classList.add('correct');
-        } else if (index === selectedIndex && index !== correctIndex) {
-            button.classList.add('incorrect');
-        }
-        
-        // Disable all buttons after selection
-        button.disabled = true;
-    });
-}
-
-// Next question
-function nextQuestion() {
-    if (currentQuestion < quizData.length - 1) {
-        currentQuestion++;
-        showQuestion();
-        updateProgress();
-    } else {
-        // Quiz finished
-        finishQuiz();
-    }
-}
-
-// Previous question
-function prevQuestion() {
-    if (currentQuestion > 0) {
-        currentQuestion--;
-        showQuestion();
-        updateProgress();
-    }
-}
-
-// Update progress bar
-function updateProgress() {
-    const progress = ((currentQuestion + 1) / quizData.length) * 100;
-    progressText.textContent = `${currentQuestion + 1}/${quizData.length}`;
-    progressFill.style.width = `${progress}%`;
-}
-
-// Update score display
-function updateScore() {
-    scoreElement.textContent = score;
-    correctCountElement.textContent = correctAnswers;
-    incorrectCountElement.textContent = incorrectAnswers;
-}
-
-// Finish quiz and show results
-async function finishQuiz() {
-    // Calculate final results
-    const percentage = Math.round((correctAnswers / quizData.length) * 100);
-    const timeTaken = Math.round((new Date() - startTime) / 1000);
-    
-    // Update results section
-    finalScoreElement.textContent = score;
-    finalCorrectElement.textContent = correctAnswers;
-    finalIncorrectElement.textContent = incorrectAnswers;
-    finalPercentageElement.textContent = `${percentage}%`;
-    
-    // Set performance badge and message
-    let performanceMessage = '';
-    let badgeText = '';
-    let badgeClass = '';
-    
-    if (percentage >= 90) {
-        performanceMessage = 'Outstanding! You have mastered HSK1 sentences.';
-        badgeText = 'Excellent!';
-        badgeClass = 'excellent';
-    } else if (percentage >= 70) {
-        performanceMessage = 'Good job! You have a solid understanding of HSK1 sentences.';
-        badgeText = 'Good!';
-        badgeClass = 'good';
-    } else if (percentage >= 50) {
-        performanceMessage = 'Not bad! Review the sentences you missed.';
-        badgeText = 'Average';
-        badgeClass = 'average';
-    } else {
-        performanceMessage = 'Keep practicing! HSK1 sentence comprehension takes time to master.';
-        badgeText = 'Needs Practice';
-        badgeClass = 'poor';
-    }
-    
-    performanceMessageElement.textContent = performanceMessage;
-    resultsBadge.textContent = badgeText;
-    resultsBadge.className = `results-badge ${badgeClass} mb-4`;
-    
-    // Store results
-    quizResults = {
-        score: score,
-        correct_answers: correctAnswers,
-        incorrect_answers: incorrectAnswers,
-        percentage: percentage,
-        time_taken: timeTaken,
-        total_questions: quizData.length,
-        user_answers: userAnswers,
-        quiz_data: quizData,
-        quiz_type: 'sentences'
-    };
-    
-    // Save results
-    await saveResults();
-    
-    // Store for detailed results
-    sessionStorage.setItem('quizResults', JSON.stringify(quizResults));
-    
-    // Hide quiz and show results
-    quizContent.classList.add('hidden');
-    resultsSection.classList.remove('hidden');
-}
-
-// View detailed results
-function viewDetailedResults() {
-    window.location.href = '/result';
-}
-
-// Save results to backend
-async function saveResults() {
-    try {
-        const response = await fetch('/api/quiz-results', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
+    // Create sample quiz data as fallback
+    function createSampleQuizData() {
+        quizData = [
+            {
+                sentence: "你好",
+                pinyin: "nǐ hǎo",
+                options: ["Hello", "Goodbye", "Thank you", "Sorry"],
+                correctAnswer: 0
             },
-            body: JSON.stringify(quizResults)
+            {
+                sentence: "谢谢",
+                pinyin: "xiè xiè", 
+                options: ["Hello", "Goodbye", "Thank you", "Sorry"],
+                correctAnswer: 2
+            },
+            {
+                sentence: "再见",
+                pinyin: "zài jiàn",
+                options: ["Hello", "Goodbye", "Thank you", "Sorry"],
+                correctAnswer: 1
+            },
+            {
+                sentence: "对不起",
+                pinyin: "duì bu qǐ",
+                options: ["Hello", "Goodbye", "Thank you", "Sorry"],
+                correctAnswer: 3
+            },
+            {
+                sentence: "你叫什么名字？",
+                pinyin: "nǐ jiào shén me míng zì?",
+                options: ["What is your name?", "How are you?", "Where are you from?", "What time is it?"],
+                correctAnswer: 0
+            }
+        ];
+        console.log('Created sample quiz data as fallback');
+    }
+
+    // Initialize the quiz
+    function initQuiz() {
+        startTime = new Date();
+        showQuestion();
+        updateProgress();
+        updateScore();
+        
+        // Add event listeners
+        nextButton.addEventListener('click', nextQuestion);
+        prevButton.addEventListener('click', prevQuestion);
+    }
+
+    // Show current question
+    function showQuestion() {
+        const question = quizData[currentQuestion];
+        
+        questionContainer.innerHTML = `
+            <div class="text-center mb-6">
+                <div class="flex items-center justify-center mb-4">
+                    <div class="sentence-character font-bold text-text-light mr-4">${question.sentence}</div>
+                </div>
+                <div class="text-xl text-secondary-cyan mb-2">${question.pinyin}</div>
+                <div class="text-lg text-text-muted">What is the English translation of this sentence?</div>
+            </div>
+        `;
+        
+        optionsContainer.innerHTML = '';
+        question.options.forEach((option, index) => {
+            const button = document.createElement('button');
+            button.className = 'option-button py-4 px-6 rounded-lg bg-card-bg text-text-light border border-text-muted/30 font-medium text-left';
+            button.innerHTML = `
+                <span class="font-bold mr-3">${String.fromCharCode(65 + index)}.</span> ${option}
+            `;
+            button.addEventListener('click', () => selectOption(index));
+            optionsContainer.appendChild(button);
         });
         
-        const data = await response.json();
+        // Reset feedback
+        feedbackElement.classList.add('hidden');
+        feedbackElement.textContent = '';
         
-        if (!data.success) {
-            console.error('Failed to save results:', data.message);
+        // Update navigation buttons
+        prevButton.disabled = currentQuestion === 0;
+        if (prevButton.disabled) {
+            prevButton.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            prevButton.classList.remove('opacity-50', 'cursor-not-allowed');
         }
-    } catch (error) {
-        console.error('Error saving results:', error);
+        
+        if (currentQuestion === quizData.length - 1) {
+            nextButton.innerHTML = 'Finish <i class="fas fa-flag-checkered ml-2"></i>';
+        } else {
+            nextButton.innerHTML = 'Next <i class="fas fa-arrow-right ml-2"></i>';
+        }
+        
+        // If user already answered this question, show their answer
+        if (userAnswers[currentQuestion] !== undefined) {
+            highlightOption(userAnswers[currentQuestion], question.correctAnswer);
+        }
     }
-}
 
-// Restart quiz
-function restartQuiz() {
-    currentQuestion = 0;
-    score = 0;
-    correctAnswers = 0;
-    incorrectAnswers = 0;
-    userAnswers = [];
-    
-    resultsSection.classList.add('hidden');
-    quizContent.classList.remove('hidden');
-    
-    showQuestion();
-    updateProgress();
-    updateScore();
-}
+    // Select an option - SIMPLIFIED AND ROBUST
+    function selectOption(selectedIndex) {
+        if (userAnswers[currentQuestion] !== undefined) return; // Already answered
+        
+        const question = quizData[currentQuestion];
+        const correctAnswerIndex = question.correctAnswer;
+        
+        // EXTREME DEBUGGING
+        console.log('=== ANSWER SELECTION DEBUG ===');
+        console.log('Question index:', currentQuestion);
+        console.log('Selected index:', selectedIndex);
+        console.log('Correct index:', correctAnswerIndex);
+        console.log('Question sentence:', question.sentence);
+        console.log('Options:', question.options);
+        console.log('Selected option:', question.options[selectedIndex]);
+        console.log('Correct option:', question.options[correctAnswerIndex]);
+        console.log('Is correct:', selectedIndex === correctAnswerIndex);
+        
+        const isCorrect = selectedIndex === correctAnswerIndex;
+        
+        // Store user's answer
+        userAnswers[currentQuestion] = selectedIndex;
+        
+        if (isCorrect) {
+            score += 10;
+            correctAnswers++;
+            feedbackElement.textContent = 'Correct! Well done.';
+            feedbackElement.className = 'mb-6 text-center text-lg font-medium text-green-400';
+        } else {
+            incorrectAnswers++;
+            feedbackElement.textContent = `Incorrect. The correct translation is: "${question.options[correctAnswerIndex]}"`;
+            feedbackElement.className = 'mb-6 text-center text-lg font-medium text-red-400';
+        }
+        
+        feedbackElement.classList.remove('hidden');
+        updateScore();
+        
+        // Highlight the selected option and correct answer
+        highlightOption(selectedIndex, correctAnswerIndex);
+    }
 
-// UI State Management
-function showLoading() {
-    loadingState.classList.remove('hidden');
-    quizContent.classList.add('hidden');
-    errorState.classList.add('hidden');
-}
+    // Highlight selected option and correct answer
+    function highlightOption(selectedIndex, correctIndex) {
+        const optionButtons = optionsContainer.querySelectorAll('.option-button');
+        
+        optionButtons.forEach((button, index) => {
+            if (index === correctIndex) {
+                button.classList.add('correct');
+            } else if (index === selectedIndex && index !== correctIndex) {
+                button.classList.add('incorrect');
+            }
+            
+            // Disable all buttons after selection
+            button.disabled = true;
+        });
+    }
 
-function hideLoading() {
-    loadingState.classList.add('hidden');
-}
+    // Next question
+    function nextQuestion() {
+        if (currentQuestion < quizData.length - 1) {
+            currentQuestion++;
+            showQuestion();
+            updateProgress();
+        } else {
+            // Quiz finished
+            finishQuiz();
+        }
+    }
 
-function showQuizContent() {
-    quizContent.classList.remove('hidden');
-}
+    // Previous question
+    function prevQuestion() {
+        if (currentQuestion > 0) {
+            currentQuestion--;
+            showQuestion();
+            updateProgress();
+        }
+    }
 
-function showError(message) {
-    loadingState.classList.add('hidden');
-    quizContent.classList.add('hidden');
-    errorState.classList.remove('hidden');
-    errorMessage.textContent = message;
-}
+    // Update progress bar
+    function updateProgress() {
+        const progress = ((currentQuestion + 1) / quizData.length) * 100;
+        progressText.textContent = `${currentQuestion + 1}/${quizData.length}`;
+        progressFill.style.width = `${progress}%`;
+    }
+
+    // Update score display
+    function updateScore() {
+        scoreElement.textContent = score;
+        correctCountElement.textContent = correctAnswers;
+        incorrectCountElement.textContent = incorrectAnswers;
+    }
+
+    // Finish quiz and show results
+    async function finishQuiz() {
+        // Calculate final results
+        const percentage = Math.round((correctAnswers / quizData.length) * 100);
+        const timeTaken = Math.round((new Date() - startTime) / 1000);
+        
+        // Update results section
+        finalScoreElement.textContent = score;
+        finalCorrectElement.textContent = correctAnswers;
+        finalIncorrectElement.textContent = incorrectAnswers;
+        finalPercentageElement.textContent = `${percentage}%`;
+        
+        // Set performance badge and message
+        let performanceMessage = '';
+        let badgeText = '';
+        let badgeClass = '';
+        
+        if (percentage >= 90) {
+            performanceMessage = 'Outstanding! You have mastered HSK1 sentences.';
+            badgeText = 'Excellent!';
+            badgeClass = 'excellent';
+        } else if (percentage >= 70) {
+            performanceMessage = 'Good job! You have a solid understanding of HSK1 sentences.';
+            badgeText = 'Good!';
+            badgeClass = 'good';
+        } else if (percentage >= 50) {
+            performanceMessage = 'Not bad! Review the sentences you missed.';
+            badgeText = 'Average';
+            badgeClass = 'average';
+        } else {
+            performanceMessage = 'Keep practicing! HSK1 sentence comprehension takes time to master.';
+            badgeText = 'Needs Practice';
+            badgeClass = 'poor';
+        }
+        
+        performanceMessageElement.textContent = performanceMessage;
+        resultsBadge.textContent = badgeText;
+        resultsBadge.className = `results-badge ${badgeClass} mb-4`;
+        
+        // Store results
+        quizResults = {
+            score: score,
+            correct_answers: correctAnswers,
+            incorrect_answers: incorrectAnswers,
+            percentage: percentage,
+            time_taken: timeTaken,
+            total_questions: quizData.length,
+            user_answers: userAnswers,
+            quiz_data: quizData,
+            quiz_type: 'sentences'
+        };
+        
+        // Save results
+        await saveResults();
+        
+        // Store for detailed results
+        sessionStorage.setItem('quizResults', JSON.stringify(quizResults));
+        
+        // Hide quiz and show results
+        quizContent.classList.add('hidden');
+        resultsSection.classList.remove('hidden');
+    }
+
+    // View detailed results
+    function viewDetailedResults() {
+        window.location.href = '/result';
+    }
+
+    // Save results to backend
+    async function saveResults() {
+        try {
+            const response = await fetch('/api/quiz-results', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(quizResults)
+            });
+            
+            const data = await response.json();
+            
+            if (!data.success) {
+                console.error('Failed to save results:', data.message);
+            }
+        } catch (error) {
+            console.error('Error saving results:', error);
+        }
+    }
+
+    // Restart quiz
+    function restartQuiz() {
+        currentQuestion = 0;
+        score = 0;
+        correctAnswers = 0;
+        incorrectAnswers = 0;
+        userAnswers = [];
+        
+        resultsSection.classList.add('hidden');
+        quizContent.classList.remove('hidden');
+        
+        showQuestion();
+        updateProgress();
+        updateScore();
+    }
+
+    // UI State Management
+    function showLoading() {
+        loadingState.classList.remove('hidden');
+        quizContent.classList.add('hidden');
+        errorState.classList.add('hidden');
+    }
+
+    function hideLoading() {
+        loadingState.classList.add('hidden');
+    }
+
+    function showQuizContent() {
+        quizContent.classList.remove('hidden');
+    }
+
+    function showError(message) {
+        loadingState.classList.add('hidden');
+        quizContent.classList.add('hidden');
+        errorState.classList.remove('hidden');
+        errorMessage.textContent = message;
+    }
 </script>
 </body>
 </html>

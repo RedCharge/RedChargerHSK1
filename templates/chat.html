@@ -397,196 +397,212 @@
     </footer>
 
     <!-- Chat Logic -->
-        <!-- Chat Logic -->
-   <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
+        <script>
+document.addEventListener("DOMContentLoaded", () => {
   const socket = io(window.location.origin);
 
   // Elements
-  const usernameInput = document.getElementById('username');
-  const levelSelect = document.getElementById('level');
-  const joinBtn = document.getElementById('joinChat');
-  const chatContainer = document.getElementById('chatContainer');
-  const messageList = document.getElementById('messageList');
-  const messageInput = document.getElementById('messageInput');
-  const sendBtn = document.getElementById('sendBtn');
-  const channelSelect = document.getElementById('channelSelect');
-  const onlineList = document.getElementById('onlineUsers');
+  const joinSection = document.getElementById("joinSection");
+  const usernameInput = document.getElementById("username");
+  const joinBtn = document.getElementById("joinChat");
+  const cancelBtn = document.getElementById("cancel-join-btn");
+  const messageInput = document.getElementById("message-input");
+  const sendBtn = document.getElementById("send-button");
+  const messageList = document.getElementById("messages-container");
+  const typingIndicator = document.getElementById("typing-indicator");
+  const typingUsersText = document.getElementById("typing-users");
+  const connectionStatus = document.getElementById("connection-status");
+  const userCount = document.getElementById("user-count");
+  const onlineCount = document.getElementById("online-count");
+  const mobileOnlineCount = document.getElementById("mobile-online-count");
+  const charCount = document.getElementById("char-count");
 
   // State
   let currentUser = null;
-  let currentChannel = 'general';
+  let typingTimeout = null;
+  let typingUsers = new Set();
 
-  // -------------------------
-  // 1️⃣ Register user via API
-  // -------------------------
-  joinBtn?.addEventListener('click', async () => {
+  // ----------------------
+  // 1️⃣ Socket connection
+  // ----------------------
+  socket.on("connect", () => {
+    connectionStatus.textContent = "Connected";
+    connectionStatus.classList.add("text-secondary-cyan");
+  });
+
+  socket.on("disconnect", () => {
+    connectionStatus.textContent = "Disconnected";
+    connectionStatus.classList.remove("text-secondary-cyan");
+  });
+
+  // ----------------------
+  // 2️⃣ User joins chat
+  // ----------------------
+  joinBtn.addEventListener("click", async () => {
     const username = usernameInput.value.trim();
-    const level = levelSelect?.value || 'HSK1';
-    if (!username) return alert('Please enter a username');
+    if (!username) return alert("Please enter a name.");
 
     try {
-      const res = await fetch('/api/chat/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, level })
+      const res = await fetch("/api/chat/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, level: "HSK1" })
       });
       const data = await res.json();
-
       if (!data.success) return alert(data.message);
 
       currentUser = data.user;
-      document.getElementById('joinSection').style.display = 'none';
-      chatContainer.style.display = 'block';
+      joinSection.style.display = "none";
+      messageInput.disabled = false;
+      sendBtn.disabled = false;
 
-      // Join socket
-      socket.emit('user_joined', currentUser);
-
-      // Load initial channel + users
-      loadChannels();
-      joinChannel(currentChannel);
+      socket.emit("user_joined", currentUser);
     } catch (err) {
-      console.error('Registration error:', err);
+      console.error("Join error:", err);
     }
   });
 
-  // -----------------------------
-  // 2️⃣ Load available channels
-  // -----------------------------
-  async function loadChannels() {
-    try {
-      const res = await fetch('/api/chat/channels');
-      const data = await res.json();
-      if (data.success && channelSelect) {
-        channelSelect.innerHTML = '';
-        data.channels.forEach(ch => {
-          const option = document.createElement('option');
-          option.value = ch.id;
-          option.textContent = ch.name;
-          channelSelect.appendChild(option);
-        });
-      }
-    } catch (err) {
-      console.error('Error loading channels:', err);
-    }
-  }
-
-  // ---------------------------------
-  // 3️⃣ Join a channel + load messages
-  // ---------------------------------
-  async function joinChannel(channelId) {
-    currentChannel = channelId;
-    messageList.innerHTML = '';
-    socket.emit('join_channel', { channel: currentChannel, user: currentUser });
-    await loadMessages(channelId);
-  }
-
-  async function loadMessages(channelId) {
-    try {
-      const res = await fetch(`/api/chat/messages?channel=${channelId}`);
-      const data = await res.json();
-      if (data.success) {
-        messageList.innerHTML = '';
-        data.messages.forEach(msg => addMessage(msg));
-      }
-    } catch (err) {
-      console.error('Error loading messages:', err);
-    }
-  }
-
-  channelSelect?.addEventListener('change', (e) => {
-    joinChannel(e.target.value);
+  cancelBtn.addEventListener("click", () => {
+    joinSection.style.display = "none";
   });
 
-  // -------------------------
-  // 4️⃣ Send message
-  // -------------------------
-  sendBtn?.addEventListener('click', sendMessage);
-  messageInput?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendMessage();
-    else socket.emit('typing_start', { channel: currentChannel, user: currentUser });
+  // ----------------------
+  // 3️⃣ Receiving updates
+  // ----------------------
+  socket.on("online_users", (users) => {
+    const count = users.length;
+    userCount.textContent = `${count} users online`;
+    onlineCount.textContent = `${count} online`;
+    mobileOnlineCount.textContent = count;
+  });
+
+  socket.on("user_joined", (data) => {
+    addSystemMessage(`${data.username} joined the chat`);
+  });
+
+  socket.on("user_left", (data) => {
+    addSystemMessage(`${data.username} left the chat`);
+  });
+
+  socket.on("channel_history", (data) => {
+    messageList.innerHTML = "";
+    data.messages.forEach((msg) => addMessage(msg));
+  });
+
+  socket.on("new_message", (msg) => addMessage(msg));
+
+  // ----------------------
+  // 4️⃣ Sending messages
+  // ----------------------
+  sendBtn.addEventListener("click", sendMessage);
+  messageInput.addEventListener("keypress", (e) => {
+    charCount.textContent = `${messageInput.value.length}/500`;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      sendMessage();
+    } else {
+      socket.emit("typing_start", { channel: "general", user: currentUser });
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        socket.emit("typing_stop", { channel: "general", user: currentUser });
+      }, 2000);
+    }
   });
 
   function sendMessage() {
     const text = messageInput.value.trim();
-    if (!text) return;
+    if (!text || !currentUser) return;
 
     const msg = {
       id: crypto.randomUUID(),
       sender: currentUser.username,
       sender_id: currentUser.id,
       text,
-      channel: currentChannel,
-      timestamp: new Date().toISOString()
+      channel: "general",
+      timestamp: new Date().toISOString(),
     };
 
-    addMessage({ ...msg, type: 'sent' });
-    socket.emit('send_message', msg);
-    messageInput.value = '';
+    addMessage({ ...msg, type: "sent" });
+    socket.emit("send_message", msg);
+    messageInput.value = "";
+    charCount.textContent = "0/500";
   }
 
-  // -------------------------
-  // 5️⃣ Socket event handlers
-  // -------------------------
-  socket.on('connect', () => console.log('✅ Connected to server:', socket.id));
-  socket.on('connected', (data) => console.log(data.message));
+  // ----------------------
+  // 5️⃣ Typing indicator
+  // ----------------------
+  socket.on("user_typing", (data) => {
+    if (!data.user || !data.user.username || data.user.username === currentUser?.username)
+      return;
 
-  socket.on('user_joined', (data) => {
-    console.log(`${data.username} joined`);
-    if (data.onlineUsers) updateOnlineUsers(data.onlineUsers);
+    typingUsers.add(data.user.username);
+    showTypingIndicator();
+
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(() => {
+      typingUsers.delete(data.user.username);
+      showTypingIndicator();
+    }, 2000);
   });
 
-  socket.on('online_users', (users) => {
-    updateOnlineUsers(users);
-  });
+  function showTypingIndicator() {
+    if (typingUsers.size === 0) {
+      typingIndicator.classList.add("hidden");
+      typingUsersText.textContent = "";
+    } else {
+      typingIndicator.classList.remove("hidden");
+      typingUsersText.textContent = Array.from(typingUsers).join(", ") + " typing...";
+    }
+  }
 
-  socket.on('user_left', (data) => {
-    console.log(`${data.username} left`);
-    if (data.onlineUsers) updateOnlineUsers(data.onlineUsers);
-  });
-
-  socket.on('channel_history', (data) => {
-    messageList.innerHTML = '';
-    data.messages.forEach(msg => addMessage(msg));
-  });
-
-  socket.on('new_message', (msg) => {
-    if (msg.channel === currentChannel) addMessage(msg);
-  });
-
-  socket.on('user_typing', (data) => {
-    console.log(`${data.user.username} is typing...`);
-  });
-
-  // -------------------------
+  // ----------------------
   // 6️⃣ Helpers
-  // -------------------------
+  // ----------------------
   function addMessage(msg) {
-    const div = document.createElement('div');
-    div.classList.add('message', msg.type === 'sent' ? 'sent' : 'received');
+    const div = document.createElement("div");
+    const isSelf = msg.sender === currentUser?.username || msg.type === "sent";
+    div.classList.add("p-3", "max-w-[80%]", "rounded-xl", "animate-fadeInUp");
+    div.classList.add(isSelf ? "message-self ml-auto" : "message-other mr-auto");
     div.innerHTML = `
-      <strong style="color: var(--${msg.avatar_color || 'primary-blue'})">
-        ${msg.sender || 'Anonymous'}:
-      </strong>
-      <span>${msg.text}</span>
-      <small>${new Date(msg.timestamp).toLocaleTimeString()}</small>
+      <div class="font-semibold text-sm mb-1">
+        ${msg.sender || "Anonymous"}
+      </div>
+      <div>${msg.text}</div>
+      <div class="text-xs text-text-muted mt-1 text-right">
+        ${new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      </div>
     `;
     messageList.appendChild(div);
     messageList.scrollTop = messageList.scrollHeight;
   }
 
-  function updateOnlineUsers(users) {
-    if (!onlineList) return;
-    onlineList.innerHTML = '';
-    users.forEach(u => {
-      const li = document.createElement('li');
-      li.textContent = `${u.username} (${u.level})`;
-      onlineList.appendChild(li);
-    });
+  function addSystemMessage(text) {
+    const div = document.createElement("div");
+    div.classList.add("text-center", "text-text-muted", "text-sm", "py-2");
+    div.textContent = text;
+    messageList.appendChild(div);
+    messageList.scrollTop = messageList.scrollHeight;
   }
+
+  // ----------------------
+  // 7️⃣ Mobile dropdown menu
+  // ----------------------
+  const mobileMenuButton = document.getElementById("mobile-menu-button");
+  const mobileDropdownMenu = document.getElementById("mobile-dropdown-menu");
+  const mobileBackdrop = document.getElementById("mobile-dropdown-backdrop");
+
+  mobileMenuButton?.addEventListener("click", () => {
+    mobileDropdownMenu.classList.toggle("open");
+    mobileBackdrop.style.display = mobileDropdownMenu.classList.contains("open") ? "block" : "none";
+  });
+
+  mobileBackdrop?.addEventListener("click", () => {
+    mobileDropdownMenu.classList.remove("open");
+    mobileBackdrop.style.display = "none";
+  });
 });
 </script>
+
 
 </body>
 </html>
