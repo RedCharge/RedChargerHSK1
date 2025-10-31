@@ -2,8 +2,10 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import json
 import uuid
+from flask_socketio import SocketIO
 
 db = SQLAlchemy()
+socketio = SocketIO()
 
 class QuizResult(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -55,3 +57,6 @@ class ChatChannel(db.Model):
     member_count = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# REMOVE ALL SOCKETIO EVENT HANDLERS FROM THIS FILE
+# They should be in main_routes.py only
