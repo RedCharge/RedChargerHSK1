@@ -915,15 +915,31 @@ function debugQuizData() {
     let hasIssues = false;
     
     quizData.forEach((question, index) => {
+        console.log(`Question ${index + 1}:`, {
+            sentence: question.sentence,
+            correctAnswer: question.correctAnswer,
+            type: typeof question.correctAnswer,
+            options: question.options
+        });
+        
         // Check if correctAnswer is within bounds
-        if (question.correctAnswer < 0 || question.correctAnswer >= question.options.length) {
-            console.error(`✗ Question ${index + 1}: Correct answer is OUT OF BOUNDS!`);
+        const correctAnswerNum = parseInt(question.correctAnswer);
+        if (isNaN(correctAnswerNum) || correctAnswerNum < 0 || correctAnswerNum >= question.options.length) {
+            console.error(`✗ Question ${index + 1}: Correct answer is INVALID!`, {
+                rawValue: question.correctAnswer,
+                parsedValue: correctAnswerNum,
+                optionsCount: question.options.length
+            });
             hasIssues = true;
+        } else {
+            console.log(`✓ Question ${index + 1}: Correct answer is valid`);
         }
     });
     
     if (!hasIssues) {
         console.log('✓ All questions have valid correct answers');
+    } else {
+        console.error('✗ Some questions have invalid correct answers - check console for details');
     }
 }
 
@@ -1073,8 +1089,39 @@ function selectOption(selectedIndex) {
     
     const question = quizData[currentQuestion];
     
-    // FIX: Ensure correctAnswer is treated as a number
-    const correctAnswerIndex = parseInt(question.correctAnswer);
+    // COMPREHENSIVE FIX: Multiple methods to ensure correct comparison
+    let correctAnswerIndex;
+    
+    // Method 1: Try direct parsing
+    correctAnswerIndex = parseInt(question.correctAnswer);
+    
+    // Method 2: If parsing fails or gives NaN, try alternative approaches
+    if (isNaN(correctAnswerIndex)) {
+        console.warn('Direct parsing failed, trying alternative methods for question:', currentQuestion);
+        
+        // Try string conversion then parsing
+        correctAnswerIndex = parseInt(String(question.correctAnswer));
+        
+        // If still NaN, try to extract number from string
+        if (isNaN(correctAnswerIndex)) {
+            const match = String(question.correctAnswer).match(/\d+/);
+            correctAnswerIndex = match ? parseInt(match[0]) : 0;
+        }
+    }
+    
+    // Method 3: Final fallback - use the first option as correct
+    if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
+        console.error('Correct answer index invalid, using fallback for question:', currentQuestion, 'Raw value:', question.correctAnswer);
+        correctAnswerIndex = 0; // Fallback to first option
+    }
+    
+    // Debug logging to help identify issues
+    console.log('Question:', currentQuestion, 
+                'Selected:', selectedIndex, 
+                'Correct:', correctAnswerIndex, 
+                'Raw correctAnswer:', question.correctAnswer,
+                'Type of correctAnswer:', typeof question.correctAnswer);
+    
     const isCorrect = selectedIndex === correctAnswerIndex;
     
     // Store user's answer
@@ -1105,10 +1152,14 @@ function selectOption(selectedIndex) {
 function highlightOption(selectedIndex, correctIndex) {
     const optionButtons = optionsContainer.querySelectorAll('.option-button');
     
+    // Ensure correctIndex is a valid number
+    let correctAnswerIndex = parseInt(correctIndex);
+    if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= optionButtons.length) {
+        console.error('Invalid correct index in highlightOption:', correctIndex);
+        correctAnswerIndex = 0; // Fallback
+    }
+    
     optionButtons.forEach((button, index) => {
-        // Ensure correctIndex is a number
-        const correctAnswerIndex = parseInt(correctIndex);
-        
         if (index === correctAnswerIndex) {
             button.classList.add('correct');
         } else if (index === selectedIndex && index !== correctAnswerIndex) {
