@@ -3,7 +3,6 @@ from datetime import datetime
 import json
 import uuid
 
-# Remove SocketIO import
 db = SQLAlchemy()
 
 class QuizResult(db.Model):

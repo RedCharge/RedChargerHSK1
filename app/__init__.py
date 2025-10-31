@@ -1,15 +1,9 @@
 from flask import Flask
 import os
-# Remove these lines - we'll import from models
-# from flask_sqlalchemy import SQLAlchemy  
-# from flask_socketio import SocketIO
+from flask_sqlalchemy import SQLAlchemy  # Add this back
 
-# Import db and socketio from models
-from .models import db, socketio
-
-# Remove these - using imports from models instead
-# db = SQLAlchemy()
-# socketio = SocketIO()
+# Remove socketio import from models
+from .models import db  # Only import db, not socketio
 
 def create_app():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,9 +23,8 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///hsk_quiz.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
-    # Initialize extensions
+    # Initialize extensions - ONLY db, no socketio
     db.init_app(app)
-    socketio.init_app(app, cors_allowed_origins="*")
     
     # Register blueprints
     from .main_routes import main_bp
@@ -42,12 +35,12 @@ def create_app():
     app.register_blueprint(words_bp, url_prefix='/words')
     app.register_blueprint(sentence_bp, url_prefix='/sentences')
     
-    # Import and register socket events
-    from .main_routes import register_socket_events
-    register_socket_events(socketio)
+    # REMOVE socket events registration
+    # from .main_routes import register_socket_events
+    # register_socket_events(socketio)
     
     # Create database tables
     with app.app_context():
         db.create_all()
     
-    return app, socketio
+    return app  # Return only app, not socketio
