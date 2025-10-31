@@ -474,14 +474,6 @@ let quizStarted = false;
 let startTime = null;
 let quizResults = null;
 
-// Speech functionality
-let speechEnabled = true;
-let speechSynthesis = window.speechSynthesis;
-let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-let userInteractedWithSpeech = false;
-let audioContext = null;
-let autoSpeakEnabled = true;
-
 // DOM elements
 const loadingState = document.getElementById('loading-state');
 const quizContent = document.getElementById('quiz-content');
@@ -509,25 +501,8 @@ const homeButton = document.getElementById('home-btn');
 const retryButton = document.getElementById('retry-btn');
 const errorMessage = document.getElementById('error-message');
 
-// Mobile menu elements
-const mobileMenuButton = document.getElementById('mobile-menu-button');
-const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
-const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
-
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize mobile menu
-    initializeMobileMenu();
-    
-    // Initialize speech system
-    initializeSpeechSystem();
-    
-    // Initialize audio context for sound effects
-    initializeAudioContext();
-    
-    // Add user interaction listeners for mobile auto-speak
-    setupUserInteractionListeners();
-    
     // Load quiz data
     loadQuizData();
     
@@ -540,407 +515,103 @@ document.addEventListener('DOMContentLoaded', function() {
     retryButton.addEventListener('click', loadQuizData);
 });
 
-// Initialize Audio Context for sound effects
-function initializeAudioContext() {
-    try {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        console.log('AudioContext initialized for sound effects');
-    } catch (e) {
-        console.log('AudioContext not supported for sound effects');
-    }
-}
-
-// Play correct answer sound
-function playCorrectSound() {
-    if (!audioContext) {
-        console.log('AudioContext not available for sound effects');
-        return;
-    }
-
-    try {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
+// Validate and normalize quiz data
+function validateQuizData(data) {
+    console.log('=== VALIDATING QUIZ DATA ===');
+    
+    return data.map((question, index) => {
+        // Create a clean copy
+        const cleanQuestion = { ...question };
         
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        // Happy, ascending sound
-        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
-        oscillator.frequency.exponentialRampToValueAtTime(1046.50, audioContext.currentTime + 0.3); // C6
-        
-        oscillator.type = 'sine';
-        
-        // Smooth volume envelope
-        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
-    } catch (e) {
-        console.log('Correct sound failed:', e);
-    }
-}
-
-// Play incorrect answer sound
-function playIncorrectSound() {
-    if (!audioContext) {
-        console.log('AudioContext not available for sound effects');
-        return;
-    }
-
-    try {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        // Sad, descending sound
-        oscillator.frequency.setValueAtTime(392.00, audioContext.currentTime); // G4
-        oscillator.frequency.exponentialRampToValueAtTime(261.63, audioContext.currentTime + 0.4); // C4
-        
-        oscillator.type = 'sawtooth';
-        
-        // Quick attack, slower release
-        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.6);
-    } catch (e) {
-        console.log('Incorrect sound failed:', e);
-    }
-}
-
-// Play level up sound for excellent scores
-function playLevelUpSound() {
-    if (!audioContext) return;
-
-    try {
-        const times = [0, 0.1, 0.2, 0.3, 0.4];
-        const frequencies = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
-        
-        times.forEach((time, index) => {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.setValueAtTime(frequencies[index], audioContext.currentTime + time);
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime + time);
-            gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + time + 0.05);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.3);
-            
-            oscillator.start(audioContext.currentTime + time);
-            oscillator.stop(audioContext.currentTime + time + 0.3);
-        });
-    } catch (e) {
-        console.log('Level up sound failed:', e);
-    }
-}
-
-// Setup user interaction listeners for mobile
-function setupUserInteractionListeners() {
-    // Listen for any user interaction to enable auto-speak
-    document.addEventListener('click', function() {
-        userInteractedWithSpeech = true;
-    }, { once: true });
-    
-    // Also listen for touch events on mobile
-    if (isMobile) {
-        document.addEventListener('touchstart', function() {
-            userInteractedWithSpeech = true;
-        }, { once: true });
-    }
-}
-
-// Initialize speech system
-function initializeSpeechSystem() {
-    if (!speechSynthesis) {
-        speechEnabled = false;
-        autoSpeakEnabled = false;
-        return;
-    }
-    
-    // Load voices when available
-    speechSynthesis.onvoiceschanged = function() {
-        const voices = speechSynthesis.getVoices();
-        const chineseVoices = voices.filter(voice => 
-            voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
-        );
-    };
-    
-    // Force voices to load
-    setTimeout(() => {
-        speechSynthesis.getVoices();
-    }, 1000);
-}
-
-// Auto-speak function for new questions
-function autoSpeakQuestion(text) {
-    if (!speechEnabled || !autoSpeakEnabled) {
-        return;
-    }
-    
-    // On mobile, only auto-speak after user has interacted
-    if (isMobile && !userInteractedWithSpeech) {
-        return;
-    }
-    
-    speakText(text);
-}
-
-// Speak text using Web Speech API with multiple fallbacks
-function speakText(text, language = 'zh-CN') {
-    if (!speechEnabled) {
-        return;
-    }
-    
-    // Stop any ongoing speech
-    speechSynthesis.cancel();
-    
-    // Update button to show loading state
-    const speechButton = document.getElementById('speech-button');
-    if (speechButton) {
-        speechButton.disabled = true;
-        speechButton.classList.add('opacity-50', 'cursor-not-allowed', 'bg-secondary-cyan/20', 'text-secondary-cyan', 'border-secondary-cyan');
-        speechButton.classList.remove('cursor-pointer', 'hover:bg-card-bg/70', 'bg-card-bg', 'text-text-light', 'border-text-muted/30');
-        speechButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        speechButton.title = 'Loading...';
-    }
-    
-    // Try multiple speech methods
-    attemptSpeech(text, language, 0);
-}
-
-// Attempt speech with fallbacks
-function attemptSpeech(text, language, attempt) {
-    const speechButton = document.getElementById('speech-button');
-    
-    if (attempt === 0) {
-        // Method 1: Try with Chinese voice
-        speakWithVoice(text, language, true);
-    } else if (attempt === 1) {
-        // Method 2: Try with any available voice
-        speakWithVoice(text, 'en-US', false);
-    } else if (attempt === 2) {
-        // Method 3: Try fallback beep sound
-        playFallbackSound();
-        resetSpeechButton();
-    } else {
-        // All methods failed
-        resetSpeechButton();
-    }
-}
-
-// Speak with specific voice preference
-function speakWithVoice(text, language, preferChinese = true) {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language;
-    utterance.rate = isMobile ? 0.7 : 0.8;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    
-    // Get available voices
-    const voices = speechSynthesis.getVoices();
-    let selectedVoice = null;
-    
-    if (preferChinese) {
-        // Try to find Chinese voice
-        selectedVoice = voices.find(voice => 
-            voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
-        );
-    }
-    
-    // If no Chinese voice found or not preferring Chinese, use default
-    if (!selectedVoice) {
-        selectedVoice = voices.find(voice => voice.default) || voices[0];
-    }
-    
-    if (selectedVoice) {
-        utterance.voice = selectedVoice;
-    }
-    
-    // Set up event handlers
-    utterance.onstart = function() {
-        const speechButton = document.getElementById('speech-button');
-        if (speechButton) {
-            speechButton.innerHTML = '<i class="fas fa-volume-up animate-pulse"></i>';
-            speechButton.title = 'Speaking...';
-        }
-    };
-    
-    utterance.onend = function() {
-        resetSpeechButton();
-    };
-    
-    utterance.onerror = function(event) {
-        // Try next method
-        setTimeout(() => attemptSpeech(text, language, attempt + 1), 100);
-    };
-    
-    // Speak with timeout
-    speechSynthesis.speak(utterance);
-    
-    // Set timeout in case speech never starts
-    setTimeout(() => {
-        if (!speechSynthesis.speaking) {
-            speechSynthesis.cancel();
-            setTimeout(() => attemptSpeech(text, language, attempt + 1), 100);
-        }
-    }, 1000);
-}
-
-// Play fallback sound
-function playFallbackSound() {
-    if (!audioContext) {
-        try {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        } catch (e) {
-            return;
-        }
-    }
-    
-    try {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.value = 440; // A4 note
-        oscillator.type = 'sine';
-        
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 0.5);
-    } catch (e) {
-        console.log('Fallback sound failed:', e);
-    }
-}
-
-// Reset speech button to normal state
-function resetSpeechButton() {
-    const speechButton = document.getElementById('speech-button');
-    if (speechButton) {
-        speechButton.classList.remove('playing', 'opacity-50', 'cursor-not-allowed', 'bg-secondary-cyan/20', 'text-secondary-cyan', 'border-secondary-cyan');
-        speechButton.classList.add('cursor-pointer', 'hover:bg-card-bg/70', 'bg-card-bg', 'text-text-light', 'border-text-muted/30');
-        speechButton.innerHTML = '<i class="fas fa-volume-up"></i>';
-        speechButton.disabled = false;
-        speechButton.title = 'Click to hear pronunciation';
-        speechButton.setAttribute('aria-label', 'Click to hear pronunciation');
-    }
-}
-
-// Mobile menu functionality with full-width dropdown
-function initializeMobileMenu() {
-    let isMenuOpen = false;
-
-    mobileMenuButton.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleMobileMenu();
-    });
-
-    mobileDropdownBackdrop.addEventListener('click', () => {
-        closeMobileMenu();
-    });
-
-    // Close menu when clicking on menu links
-    const menuLinks = document.querySelectorAll('#mobile-dropdown-menu a');
-    menuLinks.forEach(link => {
-        link.addEventListener('click', () => {
-            closeMobileMenu();
-        });
-    });
-
-    // Close menu when clicking outside
-    document.addEventListener('click', (e) => {
-        if (isMenuOpen && !mobileDropdownMenu.contains(e.target) && !mobileMenuButton.contains(e.target)) {
-            closeMobileMenu();
-        }
-    });
-
-    // Close menu on escape key
-    document.addEventListener('keydown', function(e) {
-        if (isMenuOpen && e.key === 'Escape') {
-            closeMobileMenu();
-        }
-    });
-
-    function toggleMobileMenu() {
-        if (isMenuOpen) {
-            closeMobileMenu();
-        } else {
-            openMobileMenu();
-        }
-    }
-
-    function openMobileMenu() {
-        mobileDropdownMenu.classList.add('open');
-        mobileDropdownBackdrop.style.display = 'block';
-        document.body.style.overflow = 'hidden';
-        isMenuOpen = true;
-        
-        // Change icon to X
-        mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
-        mobileMenuButton.classList.remove('text-text-muted');
-        mobileMenuButton.classList.add('text-secondary-cyan');
-    }
-
-    function closeMobileMenu() {
-        mobileDropdownMenu.classList.remove('open');
-        mobileDropdownBackdrop.style.display = 'none';
-        document.body.style.overflow = '';
-        isMenuOpen = false;
-        
-        // Change icon back to hamburger
-        mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
-        mobileMenuButton.classList.remove('text-secondary-cyan');
-        mobileMenuButton.classList.add('text-text-muted');
-    }
-}
-
-// Debug function to check quiz data structure (runs in background)
-function debugQuizData() {
-    console.log('=== QUIZ DATA DEBUG INFO ===');
-    console.log('Total questions:', quizData.length);
-    
-    let hasIssues = false;
-    
-    quizData.forEach((question, index) => {
-        console.log(`Question ${index + 1}:`, {
-            sentence: question.sentence,
+        // Log original data for debugging
+        console.log(`Question ${index + 1} original:`, {
             correctAnswer: question.correctAnswer,
             type: typeof question.correctAnswer,
             options: question.options
         });
         
-        // Check if correctAnswer is within bounds
-        const correctAnswerNum = parseInt(question.correctAnswer);
-        if (isNaN(correctAnswerNum) || correctAnswerNum < 0 || correctAnswerNum >= question.options.length) {
-            console.error(`✗ Question ${index + 1}: Correct answer is INVALID!`, {
-                rawValue: question.correctAnswer,
-                parsedValue: correctAnswerNum,
-                optionsCount: question.options.length
-            });
-            hasIssues = true;
-        } else {
-            console.log(`✓ Question ${index + 1}: Correct answer is valid`);
+        // METHOD 1: Try direct number conversion
+        let correctAnswer = parseInt(question.correctAnswer);
+        
+        // METHOD 2: If NaN, try string parsing
+        if (isNaN(correctAnswer)) {
+            console.warn(`Question ${index + 1}: Direct parsing failed, trying string methods`);
+            const strCorrect = String(question.correctAnswer).trim();
+            
+            // Try to extract number from string
+            const numMatch = strCorrect.match(/(\d+)/);
+            if (numMatch) {
+                correctAnswer = parseInt(numMatch[1]);
+                console.log(`Question ${index + 1}: Extracted number from string:`, correctAnswer);
+            }
+            
+            // If still NaN, try letter to number conversion (A=0, B=1, etc.)
+            if (isNaN(correctAnswer)) {
+                const letterMatch = strCorrect.match(/[A-D]/i);
+                if (letterMatch) {
+                    correctAnswer = letterMatch[0].toUpperCase().charCodeAt(0) - 65;
+                    console.log(`Question ${index + 1}: Converted letter to number:`, correctAnswer);
+                }
+            }
         }
+        
+        // METHOD 3: Final validation and fallback
+        if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= question.options.length) {
+            console.error(`Question ${index + 1}: INVALID correct answer after all methods:`, {
+                original: question.correctAnswer,
+                parsed: correctAnswer,
+                optionsCount: question.options.length,
+                options: question.options
+            });
+            
+            // Try to find correct answer by matching option text patterns
+            const guessedIndex = guessCorrectAnswer(question);
+            correctAnswer = guessedIndex;
+            console.warn(`Question ${index + 1}: Using guessed index:`, correctAnswer);
+        }
+        
+        // Ensure the final answer is within bounds
+        if (correctAnswer < 0) correctAnswer = 0;
+        if (correctAnswer >= question.options.length) correctAnswer = question.options.length - 1;
+        
+        cleanQuestion.correctAnswer = correctAnswer;
+        
+        console.log(`Question ${index + 1} final:`, {
+            original: question.correctAnswer,
+            final: cleanQuestion.correctAnswer,
+            valid: !isNaN(cleanQuestion.correctAnswer) && 
+                   cleanQuestion.correctAnswer >= 0 && 
+                   cleanQuestion.correctAnswer < question.options.length
+        });
+        
+        return cleanQuestion;
     });
+}
+
+// Try to guess correct answer by analyzing option patterns
+function guessCorrectAnswer(question) {
+    const options = question.options;
+    const sentence = question.sentence.toLowerCase();
     
-    if (!hasIssues) {
-        console.log('✓ All questions have valid correct answers');
-    } else {
-        console.error('✗ Some questions have invalid correct answers - check console for details');
+    // Common patterns that might indicate correct answer
+    for (let i = 0; i < options.length; i++) {
+        const option = options[i].toLowerCase();
+        
+        // Check for exact word matches
+        if (sentence.includes('你好') && option.includes('hello')) return i;
+        if (sentence.includes('谢谢') && option.includes('thank')) return i;
+        if (sentence.includes('再见') && option.includes('goodbye')) return i;
+        if (sentence.includes('什么') && option.includes('what')) return i;
+        if (sentence.includes('谁') && option.includes('who')) return i;
+        if (sentence.includes('哪里') && option.includes('where')) return i;
+        
+        // Check for question patterns
+        if (sentence.includes('吗？') && option.includes('?')) return i;
+        if (sentence.includes('什么') && option.includes('what')) return i;
     }
+    
+    // Fallback to first option
+    return 0;
 }
 
 // Load quiz data from Flask backend
@@ -952,15 +623,10 @@ async function loadQuizData() {
         const data = await response.json();
         
         if (data.success) {
-            quizData = data.sentences;
+            // VALIDATE AND NORMALIZE THE DATA
+            quizData = validateQuizData(data.sentences);
             
-            // FORCE CONVERSION: Ensure all correctAnswer values are numbers
-            quizData = quizData.map(question => ({
-                ...question,
-                correctAnswer: parseInt(question.correctAnswer)
-            }));
-            
-            // Run debug check in background
+            // Run final debug check
             debugQuizData();
             
             hideLoading();
@@ -975,6 +641,77 @@ async function loadQuizData() {
     }
 }
 
+// Debug function to check quiz data structure
+function debugQuizData() {
+    console.log('=== FINAL QUIZ DATA VALIDATION ===');
+    console.log('Total questions:', quizData.length);
+    
+    let validQuestions = 0;
+    let invalidQuestions = 0;
+    
+    quizData.forEach((question, index) => {
+        const isValid = !isNaN(question.correctAnswer) && 
+                       question.correctAnswer >= 0 && 
+                       question.correctAnswer < question.options.length;
+        
+        if (isValid) {
+            validQuestions++;
+            console.log(`✓ Question ${index + 1}: VALID - Correct answer: ${question.correctAnswer} ("${question.options[question.correctAnswer]}")`);
+        } else {
+            invalidQuestions++;
+            console.error(`✗ Question ${index + 1}: INVALID - Correct answer: ${question.correctAnswer}, Options: ${question.options.length}`);
+        }
+    });
+    
+    console.log(`=== VALIDATION SUMMARY: ${validQuestions} valid, ${invalidQuestions} invalid ===`);
+    
+    if (invalidQuestions > 0) {
+        console.error('WARNING: Some questions have invalid correct answers!');
+        // Create sample questions if too many are invalid
+        if (invalidQuestions === quizData.length) {
+            console.warn('All questions invalid, creating sample data...');
+            createSampleQuizData();
+        }
+    }
+}
+
+// Create sample quiz data as fallback
+function createSampleQuizData() {
+    quizData = [
+        {
+            sentence: "你好",
+            pinyin: "nǐ hǎo",
+            options: ["Hello", "Goodbye", "Thank you", "Sorry"],
+            correctAnswer: 0
+        },
+        {
+            sentence: "谢谢",
+            pinyin: "xiè xiè", 
+            options: ["Hello", "Goodbye", "Thank you", "Sorry"],
+            correctAnswer: 2
+        },
+        {
+            sentence: "再见",
+            pinyin: "zài jiàn",
+            options: ["Hello", "Goodbye", "Thank you", "Sorry"],
+            correctAnswer: 1
+        },
+        {
+            sentence: "对不起",
+            pinyin: "duì bu qǐ",
+            options: ["Hello", "Goodbye", "Thank you", "Sorry"],
+            correctAnswer: 3
+        },
+        {
+            sentence: "你叫什么名字？",
+            pinyin: "nǐ jiào shén me míng zì?",
+            options: ["What is your name?", "How are you?", "Where are you from?", "What time is it?"],
+            correctAnswer: 0
+        }
+    ];
+    console.log('Created sample quiz data as fallback');
+}
+
 // Initialize the quiz
 function initQuiz() {
     startTime = new Date();
@@ -985,37 +722,6 @@ function initQuiz() {
     // Add event listeners
     nextButton.addEventListener('click', nextQuestion);
     prevButton.addEventListener('click', prevQuestion);
-    
-    // Setup interaction listeners for this quiz session
-    setupQuizInteractionListeners();
-}
-
-// Setup interaction listeners specifically for the quiz
-function setupQuizInteractionListeners() {
-    // Remove any existing listeners and add new ones
-    document.removeEventListener('click', handleQuizInteraction);
-    document.removeEventListener('touchstart', handleQuizInteraction);
-    
-    document.addEventListener('click', handleQuizInteraction);
-    if (isMobile) {
-        document.addEventListener('touchstart', handleQuizInteraction);
-    }
-}
-
-function handleQuizInteraction() {
-    if (!userInteractedWithSpeech) {
-        userInteractedWithSpeech = true;
-        
-        // Auto-speak the current question if this is the first interaction
-        if (speechEnabled && autoSpeakEnabled) {
-            const currentSentence = quizData[currentQuestion]?.sentence;
-            if (currentSentence) {
-                setTimeout(() => {
-                    speakText(currentSentence);
-                }, 300);
-            }
-        }
-    }
 }
 
 // Show current question
@@ -1026,21 +732,11 @@ function showQuestion() {
         <div class="text-center mb-6">
             <div class="flex items-center justify-center mb-4">
                 <div class="sentence-character font-bold text-text-light mr-4">${question.sentence}</div>
-                <button id="speech-button" class="speech-button p-3 rounded-full bg-card-bg text-text-light border border-text-muted/30 cursor-pointer hover:bg-card-bg/70 transition duration-300" title="Click to hear pronunciation" aria-label="Click to hear pronunciation">
-                    <i class="fas fa-volume-up"></i>
-                </button>
             </div>
             <div class="text-xl text-secondary-cyan mb-2">${question.pinyin}</div>
             <div class="text-lg text-text-muted">What is the English translation of this sentence?</div>
         </div>
     `;
-    
-    // Add event listener to speech button
-    const speechButton = document.getElementById('speech-button');
-    speechButton.addEventListener('click', function() {
-        userInteractedWithSpeech = true;
-        speakText(question.sentence);
-    });
     
     optionsContainer.innerHTML = '';
     question.options.forEach((option, index) => {
@@ -1073,69 +769,39 @@ function showQuestion() {
     
     // If user already answered this question, show their answer
     if (userAnswers[currentQuestion] !== undefined) {
-        const correctAnswerIndex = parseInt(quizData[currentQuestion].correctAnswer);
-        highlightOption(userAnswers[currentQuestion], correctAnswerIndex);
+        highlightOption(userAnswers[currentQuestion], question.correctAnswer);
     }
-    
-    // Auto-speak the new question
-    setTimeout(() => {
-        autoSpeakQuestion(question.sentence);
-    }, 500);
 }
 
-// Select an option - FIXED VERSION
+// Select an option - SIMPLIFIED AND ROBUST
 function selectOption(selectedIndex) {
     if (userAnswers[currentQuestion] !== undefined) return; // Already answered
     
     const question = quizData[currentQuestion];
+    const correctAnswerIndex = question.correctAnswer;
     
-    // COMPREHENSIVE FIX: Multiple methods to ensure correct comparison
-    let correctAnswerIndex;
-    
-    // Method 1: Try direct parsing
-    correctAnswerIndex = parseInt(question.correctAnswer);
-    
-    // Method 2: If parsing fails or gives NaN, try alternative approaches
-    if (isNaN(correctAnswerIndex)) {
-        console.warn('Direct parsing failed, trying alternative methods for question:', currentQuestion);
-        
-        // Try string conversion then parsing
-        correctAnswerIndex = parseInt(String(question.correctAnswer));
-        
-        // If still NaN, try to extract number from string
-        if (isNaN(correctAnswerIndex)) {
-            const match = String(question.correctAnswer).match(/\d+/);
-            correctAnswerIndex = match ? parseInt(match[0]) : 0;
-        }
-    }
-    
-    // Method 3: Final fallback - use the first option as correct
-    if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
-        console.error('Correct answer index invalid, using fallback for question:', currentQuestion, 'Raw value:', question.correctAnswer);
-        correctAnswerIndex = 0; // Fallback to first option
-    }
-    
-    // Debug logging to help identify issues
-    console.log('Question:', currentQuestion, 
-                'Selected:', selectedIndex, 
-                'Correct:', correctAnswerIndex, 
-                'Raw correctAnswer:', question.correctAnswer,
-                'Type of correctAnswer:', typeof question.correctAnswer);
+    // EXTREME DEBUGGING
+    console.log('=== ANSWER SELECTION DEBUG ===');
+    console.log('Question index:', currentQuestion);
+    console.log('Selected index:', selectedIndex);
+    console.log('Correct index:', correctAnswerIndex);
+    console.log('Question sentence:', question.sentence);
+    console.log('Options:', question.options);
+    console.log('Selected option:', question.options[selectedIndex]);
+    console.log('Correct option:', question.options[correctAnswerIndex]);
+    console.log('Is correct:', selectedIndex === correctAnswerIndex);
     
     const isCorrect = selectedIndex === correctAnswerIndex;
     
     // Store user's answer
     userAnswers[currentQuestion] = selectedIndex;
     
-    // Play sound effect based on answer
     if (isCorrect) {
-        playCorrectSound();
         score += 10;
         correctAnswers++;
         feedbackElement.textContent = 'Correct! Well done.';
         feedbackElement.className = 'mb-6 text-center text-lg font-medium text-green-400';
     } else {
-        playIncorrectSound();
         incorrectAnswers++;
         feedbackElement.textContent = `Incorrect. The correct translation is: "${question.options[correctAnswerIndex]}"`;
         feedbackElement.className = 'mb-6 text-center text-lg font-medium text-red-400';
@@ -1148,21 +814,14 @@ function selectOption(selectedIndex) {
     highlightOption(selectedIndex, correctAnswerIndex);
 }
 
-// Highlight selected option and correct answer - UPDATED
+// Highlight selected option and correct answer
 function highlightOption(selectedIndex, correctIndex) {
     const optionButtons = optionsContainer.querySelectorAll('.option-button');
     
-    // Ensure correctIndex is a valid number
-    let correctAnswerIndex = parseInt(correctIndex);
-    if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= optionButtons.length) {
-        console.error('Invalid correct index in highlightOption:', correctIndex);
-        correctAnswerIndex = 0; // Fallback
-    }
-    
     optionButtons.forEach((button, index) => {
-        if (index === correctAnswerIndex) {
+        if (index === correctIndex) {
             button.classList.add('correct');
-        } else if (index === selectedIndex && index !== correctAnswerIndex) {
+        } else if (index === selectedIndex && index !== correctIndex) {
             button.classList.add('incorrect');
         }
         
@@ -1208,17 +867,9 @@ function updateScore() {
 
 // Finish quiz and show results
 async function finishQuiz() {
-    // Stop any ongoing speech
-    speechSynthesis.cancel();
-    
     // Calculate final results
     const percentage = Math.round((correctAnswers / quizData.length) * 100);
-    const timeTaken = Math.round((new Date() - startTime) / 1000); // in seconds
-    
-    // Play celebration sound for excellent scores
-    if (percentage >= 90) {
-        setTimeout(() => playLevelUpSound(), 500);
-    }
+    const timeTaken = Math.round((new Date() - startTime) / 1000);
     
     // Update results section
     finalScoreElement.textContent = score;
@@ -1232,19 +883,19 @@ async function finishQuiz() {
     let badgeClass = '';
     
     if (percentage >= 90) {
-        performanceMessage = 'Outstanding! You have mastered HSK1 sentences. You are ready for the next level!';
+        performanceMessage = 'Outstanding! You have mastered HSK1 sentences.';
         badgeText = 'Excellent!';
         badgeClass = 'excellent';
     } else if (percentage >= 70) {
-        performanceMessage = 'Good job! You have a solid understanding of HSK1 sentences. Keep practicing to improve further.';
+        performanceMessage = 'Good job! You have a solid understanding of HSK1 sentences.';
         badgeText = 'Good!';
         badgeClass = 'good';
     } else if (percentage >= 50) {
-        performanceMessage = 'Not bad! You understand some HSK1 sentences, but there is room for improvement. Review the sentences you missed.';
+        performanceMessage = 'Not bad! Review the sentences you missed.';
         badgeText = 'Average';
         badgeClass = 'average';
     } else {
-        performanceMessage = 'Keep practicing! HSK1 sentence comprehension takes time to master. Try reviewing the sentences and taking the quiz again.';
+        performanceMessage = 'Keep practicing! HSK1 sentence comprehension takes time to master.';
         badgeText = 'Needs Practice';
         badgeClass = 'poor';
     }
@@ -1253,7 +904,7 @@ async function finishQuiz() {
     resultsBadge.textContent = badgeText;
     resultsBadge.className = `results-badge ${badgeClass} mb-4`;
     
-    // Store results for saving and detailed view
+    // Store results
     quizResults = {
         score: score,
         correct_answers: correctAnswers,
@@ -1263,15 +914,13 @@ async function finishQuiz() {
         total_questions: quizData.length,
         user_answers: userAnswers,
         quiz_data: quizData,
-        quiz_type: 'sentences',
-        performance_message: performanceMessage,
-        badge: badgeText
+        quiz_type: 'sentences'
     };
     
-    // Save results automatically in background
+    // Save results
     await saveResults();
     
-    // Store in sessionStorage for detailed results page
+    // Store for detailed results
     sessionStorage.setItem('quizResults', JSON.stringify(quizResults));
     
     // Hide quiz and show results
@@ -1284,7 +933,7 @@ function viewDetailedResults() {
     window.location.href = '/result';
 }
 
-// Save results to Flask backend (automatically in background)
+// Save results to backend
 async function saveResults() {
     try {
         const response = await fetch('/api/quiz-results', {
@@ -1297,15 +946,11 @@ async function saveResults() {
         
         const data = await response.json();
         
-        if (data.success) {
-            return true;
-        } else {
-            throw new Error(data.message || 'Failed to save results');
+        if (!data.success) {
+            console.error('Failed to save results:', data.message);
         }
     } catch (error) {
         console.error('Error saving results:', error);
-        // Don't show error to user since it's in background
-        return false;
     }
 }
 
@@ -1317,10 +962,6 @@ function restartQuiz() {
     incorrectAnswers = 0;
     userAnswers = [];
     
-    // Reset speech interaction flag for new quiz
-    userInteractedWithSpeech = false;
-    
-    // Reset UI
     resultsSection.classList.add('hidden');
     quizContent.classList.remove('hidden');
     
