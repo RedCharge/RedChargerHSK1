@@ -20,16 +20,6 @@ def index():
     """Render the main landing page"""
     return render_template('index.html')
 
-@main_bp.route('/words/quiz')
-def words_quiz():
-    """Render the words quiz page"""
-    return render_template('words_quiz.html')
-
-@main_bp.route('/sentences/quiz')
-def sentences_quiz():
-    """Render the sentences quiz page"""
-    return render_template('sentences_quiz.html')
-
 @main_bp.route('/result')
 def result():
     """Render the result page"""
@@ -306,6 +296,7 @@ def get_chat_messages():
             'sender': msg.sender_username,
             'sender_id': msg.sender_id,
             'text': msg.message,
+            'pinyin': msg.pinyin,
             'timestamp': msg.timestamp.isoformat(),
             'type': 'received'
         } for msg in messages]
@@ -374,65 +365,6 @@ def send_chat_message():
             'message': f'Error sending message: {str(e)}'
         }), 500
 
-@main_bp.route('/api/chat/messages/<message_id>', methods=['DELETE'])
-def delete_chat_message(message_id):
-    """API endpoint to delete a chat message"""
-    try:
-        data = request.get_json()
-        user_id = data.get('user_id')
-        
-        if not user_id:
-            return jsonify({
-                'success': False,
-                'message': 'User ID is required'
-            }), 400
-        
-        # Find the message
-        message = ChatMessage.query.filter_by(id=message_id).first()
-        
-        if not message:
-            return jsonify({
-                'success': False,
-                'message': 'Message not found'
-            }), 404
-        
-        # Check if user owns the message
-        if str(message.sender_id) != str(user_id):
-            return jsonify({
-                'success': False,
-                'message': 'You can only delete your own messages'
-            }), 403
-        
-        # Delete the message
-        db.session.delete(message)
-        db.session.commit()
-        
-        # Notify all clients to remove the message
-        # This would be handled by Socket.IO in a real-time scenario
-        
-        return jsonify({
-            'success': True,
-            'message': 'Message deleted successfully'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({
-            'success': False,
-            'message': f'Error deleting message: {str(e)}'
-        }), 500
-
-@main_bp.route('/api/chat/debug')
-def chat_debug():
-    """Debug endpoint for chat connection"""
-    return jsonify({
-        'success': True,
-        'active_users_count': len(active_users),
-        'active_users': list(active_users.values()),
-        'typing_users_count': len(typing_users),
-        'typing_users': list(typing_users.keys())
-    })
-
 # Utility functions
 def get_avatar_color(username):
     """Generate consistent avatar color based on username"""
@@ -442,220 +374,141 @@ def get_avatar_color(username):
 
 # Socket.IO Event Handlers
 def register_socket_events(socketio):
-    """Register all Socket.IO event handlers - UPDATED VERSION"""
+    """Register all Socket.IO event handlers"""
     
     @socketio.on('connect')
     def handle_connect():
-        print(f'✅ Client connected: {flask_request.sid}')
-        emit('connected', {'message': 'Connected to chat server', 'status': 'success'})
+        print('Client connected')
+        emit('connected', {'message': 'Connected to chat server'})
 
     @socketio.on('disconnect')
     def handle_disconnect():
-        print(f'❌ Client disconnected: {flask_request.sid}')
-        # Find and remove user from active users
-        user_to_remove = None
+        print('Client disconnected')
+        # Remove user from active users
         for user_id, user_data in active_users.items():
             if user_data.get('socket_id') == flask_request.sid:
-                user_to_remove = user_id
+                username = user_data['username']
+                del active_users[user_id]
+                emit('user_left', {
+                    'username': username,
+                    'onlineUsers': list(active_users.values())
+                }, broadcast=True)
                 break
-        
-        if user_to_remove:
-            username = active_users[user_to_remove]['username']
-            del active_users[user_to_remove]
-            emit('user_left', {
-                'username': username,
-                'onlineUsers': list(active_users.values())
-            }, broadcast=True)
-            emit('online_users', list(active_users.values()), broadcast=True)
 
     @socketio.on('user_joined')
     def handle_user_joined(data):
-        try:
-            print(f'👤 User joined: {data["username"]}')
-            
-            user_data = {
-                'id': data['id'],
-                'username': data['username'],
-                'level': data.get('level', 'HSK1'),
-                'avatar_color': data.get('avatar_color', 'primary-blue'),
-                'socket_id': flask_request.sid,
-                'joined_at': datetime.utcnow().isoformat()
-            }
-            
-            active_users[data['id']] = user_data
-            
-            emit('user_joined', {
-                'username': data['username'],
-                'onlineUsers': list(active_users.values())
-            }, broadcast=True)
-            
-            emit('online_users', list(active_users.values()), broadcast=True)
-            
-            print(f'📊 Online users: {len(active_users)}')
-            
-        except Exception as e:
-            print(f"💥 Error in user_joined: {e}")
+        user_data = {
+            'id': data['id'],
+            'username': data['username'],
+            'level': data.get('level', 'HSK1'),
+            'avatar_color': data.get('avatar_color', 'primary-blue'),
+            'socket_id': flask_request.sid,
+            'joined_at': datetime.utcnow().isoformat()
+        }
+        
+        active_users[data['id']] = user_data
+        
+        emit('user_joined', {
+            'username': data['username'],
+            'onlineUsers': list(active_users.values())
+        }, broadcast=True)
+        
+        emit('online_users', list(active_users.values()), broadcast=True)
 
     @socketio.on('join_channel')
     def handle_join_channel(data):
-        try:
-            channel = data['channel']
-            user = data['user']
-            
-            join_room(channel)
-            print(f"🎯 User {user['username']} joined channel {channel}")
-            
-            # Get channel message history
-            messages = ChatMessage.query.filter_by(channel=channel)\
-                .order_by(ChatMessage.timestamp.asc())\
-                .limit(100)\
-                .all()
-            
-            messages_data = [{
-                'id': msg.id,
-                'channel': msg.channel,
-                'sender': msg.sender_username,
-                'sender_id': msg.sender_id,
-                'text': msg.message,
-                'timestamp': msg.timestamp.isoformat(),
-                'type': 'received' if msg.sender_id != user['id'] else 'sent'
-            } for msg in messages]
-            
-            emit('channel_history', {
-                'channel': channel,
-                'messages': messages_data
-            })
-            
-            print(f"📨 Sent {len(messages_data)} messages to {user['username']}")
-            
-        except Exception as e:
-            print(f"💥 Error in join_channel: {e}")
+        channel = data['channel']
+        user = data['user']
+        
+        join_room(channel)
+        
+        # Get channel message history
+        messages = ChatMessage.query.filter_by(channel=channel)\
+            .order_by(ChatMessage.timestamp.asc())\
+            .limit(100)\
+            .all()
+        
+        messages_data = [{
+            'id': msg.id,
+            'channel': msg.channel,
+            'sender': msg.sender_username,
+            'sender_id': msg.sender_id,
+            'text': msg.message,
+            'pinyin': msg.pinyin,
+            'timestamp': msg.timestamp.isoformat(),
+            'type': 'received' if msg.sender_id != user['id'] else 'sent'
+        } for msg in messages]
+        
+        emit('channel_history', {
+            'channel': channel,
+            'messages': messages_data
+        })
 
     @socketio.on('send_message')
     def handle_send_message(data):
         try:
-            print(f"📝 Received message from {data['sender']}: {data['text'][:50]}...")
-            
             # Save message to database
             new_message = ChatMessage(
+                id=data['id'],
                 channel=data['channel'],
                 sender_id=data['sender_id'],
                 sender_username=data['sender'],
                 message=data['text'],
-                timestamp=datetime.utcnow()
+                timestamp=datetime.fromisoformat(data['timestamp'].replace('Z', '+00:00'))
             )
             
             db.session.add(new_message)
             db.session.commit()
             
-            # Add ID to the data for frontend
-            data['id'] = new_message.id
-            data['timestamp'] = new_message.timestamp.isoformat()
-            data['type'] = 'received'
-            
             # Broadcast to room
-            emit('new_message', data, room=data['channel'], broadcast=True)
+            emit('new_message', data, room=data['channel'])
             
             # Confirm delivery to sender
             emit('message_delivered', {
                 'messageId': data['id']
             })
             
-            print(f"📢 Message broadcasted to channel: {data['channel']}")
-            
         except Exception as e:
-            print(f"💥 Error saving message: {e}")
+            print(f"Error saving message: {e}")
             db.session.rollback()
-            emit('message_error', {'error': 'Failed to send message'})
 
     @socketio.on('typing_start')
     def handle_typing_start(data):
-        try:
-            channel = data['channel']
-            user = data['user']
-            
-            typing_users[user['id']] = {
-                'channel': channel,
-                'user': user,
-                'timestamp': datetime.utcnow()
-            }
-            
-            emit('user_typing', {
-                'channel': channel,
-                'user': user
-            }, room=channel, broadcast=True)
-            
-            print(f"⌨️ {user['username']} is typing in {channel}")
-            
-        except Exception as e:
-            print(f"💥 Error in typing_start: {e}")
+        channel = data['channel']
+        user = data['user']
+        
+        typing_users[user['id']] = {
+            'channel': channel,
+            'user': user,
+            'timestamp': datetime.utcnow()
+        }
+        
+        emit('user_typing', {
+            'channel': channel,
+            'user': user
+        }, room=channel)
 
     @socketio.on('typing_stop')
     def handle_typing_stop(data):
-        try:
-            channel = data['channel']
-            user = data['user']
-            
-            if user['id'] in typing_users:
-                del typing_users[user['id']]
-            
-            emit('user_stop_typing', {
-                'channel': channel,
-                'user': user
-            }, room=channel, broadcast=True)
-            
-            print(f"💤 {user['username']} stopped typing in {channel}")
-            
-        except Exception as e:
-            print(f"💥 Error in typing_stop: {e}")
+        channel = data['channel']
+        user = data['user']
+        
+        if user['id'] in typing_users:
+            del typing_users[user['id']]
+        
+        emit('user_stop_typing', {
+            'channel': channel,
+            'user': user
+        }, room=channel)
 
     @socketio.on('user_left')
     def handle_user_left(data):
-        try:
-            user_id = data.get('id')
-            if user_id in active_users:
-                username = active_users[user_id]['username']
-                del active_users[user_id]
-                
-                emit('user_left', {
-                    'username': username,
-                    'onlineUsers': list(active_users.values())
-                }, broadcast=True)
-                
-                emit('online_users', list(active_users.values()), broadcast=True)
-                
-                print(f"👋 User left: {username}")
-                
-        except Exception as e:
-            print(f"💥 Error in user_left: {e}")
-
-    @socketio.on('delete_message')
-    def handle_delete_message(data):
-        try:
-            message_id = data.get('message_id')
-            user_id = data.get('user_id')
+        user_id = data.get('id')
+        if user_id in active_users:
+            username = active_users[user_id]['username']
+            del active_users[user_id]
             
-            # Find the message
-            message = ChatMessage.query.filter_by(id=message_id).first()
-            
-            if message and str(message.sender_id) == str(user_id):
-                # Delete the message
-                db.session.delete(message)
-                db.session.commit()
-                
-                # Notify all clients in the channel
-                emit('message_deleted', {
-                    'message_id': message_id,
-                    'channel': message.channel
-                }, room=message.channel, broadcast=True)
-                
-                print(f"🗑️ Message {message_id} deleted by user {user_id}")
-            else:
-                emit('delete_error', {'error': 'Cannot delete message'})
-                
-        except Exception as e:
-            print(f"💥 Error deleting message: {e}")
-            db.session.rollback()
-            emit('delete_error', {'error': 'Failed to delete message'})
-
-    print("✅ Socket.IO events registered successfully")
+            emit('user_left', {
+                'username': username,
+                'onlineUsers': list(active_users.values())
+            }, broadcast=True)
