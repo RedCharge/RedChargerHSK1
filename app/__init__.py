@@ -31,11 +31,7 @@ def create_app():
     
     # Initialize extensions
     db.init_app(app)
-    socketio.init_app(app, 
-    cors_allowed_origins="*", 
-    async_mode='eventlet',
-    logger=True,
-    engineio_logger=True)
+    socketio.init_app(app, cors_allowed_origins="*")
     
     # Register blueprints
     from .main_routes import main_bp
