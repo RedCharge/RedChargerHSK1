@@ -397,6 +397,7 @@
     </footer>
 
     <!-- Chat Logic -->
+        <!-- Chat Logic -->
     <script>
         // Socket.IO and chat state
         let socket = null;
@@ -404,6 +405,7 @@
         let isConnected = false;
         let typingTimeout = null;
         let usersTyping = new Set();
+        let currentChannel = 'general';
 
         // DOM elements
         const messagesContainer = document.getElementById('messages-container');
@@ -434,6 +436,14 @@
             initializeMobileMenu();
             initializeChat();
             setupEventListeners();
+            
+            // Try to auto-join if username exists
+            const savedUsername = localStorage.getItem('chatUsername');
+            if (savedUsername) {
+                usernameInput.value = savedUsername;
+                // Auto-focus on input for quick entry
+                setTimeout(() => usernameInput.focus(), 100);
+            }
         });
 
         // Initialize Mobile Menu
@@ -506,12 +516,10 @@
         function initializeChat() {
             // Show connection modal
             connectionModal.classList.remove('hidden');
+            updateConnectionStatus('disconnected');
             
-            // Try to get saved username
-            const savedUsername = localStorage.getItem('chatUsername');
-            if (savedUsername) {
-                usernameInput.value = savedUsername;
-            }
+            // Focus on username input
+            setTimeout(() => usernameInput.focus(), 300);
         }
 
         // Setup event listeners
@@ -522,7 +530,9 @@
                 charCount.textContent = `${length}/500`;
                 
                 if (length > 0 && isConnected) {
-                    socket.emit('typing');
+                    handleTypingStart();
+                } else if (length === 0 && isConnected) {
+                    handleTypingStop();
                 }
             });
 
@@ -530,6 +540,12 @@
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
+                }
+            });
+
+            messageInput.addEventListener('blur', function() {
+                if (isConnected) {
+                    handleTypingStop();
                 }
             });
 
@@ -545,8 +561,31 @@
                 }
             });
 
-            // Stop typing when user stops typing
-            messageInput.addEventListener('blur', stopTyping);
+            // Handle page visibility changes
+            document.addEventListener('visibilitychange', function() {
+                if (document.hidden && isConnected) {
+                    handleTypingStop();
+                }
+            });
+        }
+
+        // Update connection status display
+        function updateConnectionStatus(status) {
+            connectionStatus.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            
+            switch(status) {
+                case 'connected':
+                    connectionStatus.className = 'text-green-400';
+                    break;
+                case 'connecting':
+                    connectionStatus.className = 'text-yellow-400';
+                    break;
+                case 'disconnected':
+                    connectionStatus.className = 'text-red-400';
+                    break;
+                default:
+                    connectionStatus.className = 'text-text-muted';
+            }
         }
 
         // Join chat with username
@@ -565,38 +604,70 @@
                 return;
             }
 
-            currentUser = username;
-            localStorage.setItem('chatUsername', username);
-            
-            // Connect to Socket.IO server
-            connectToServer();
+            if (username.length > 20) {
+                showNotification('Name must be less than 20 characters', 'error');
+                usernameInput.focus();
+                return;
+            }
+
+            // Show connecting state
+            joinChatBtn.disabled = true;
+            joinChatBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Connecting...';
+            updateConnectionStatus('connecting');
+
+            // Register user with backend
+            registerUser(username);
         }
 
-        // Cancel join
-        function cancelJoin() {
-            window.location.href = '/';
+        // Register user with the backend
+        async function registerUser(username) {
+            try {
+                const response = await fetch('/api/chat/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        level: 'HSK1'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentUser = data.user;
+                    localStorage.setItem('chatUsername', username);
+                    connectToServer();
+                } else {
+                    throw new Error(data.message || 'Failed to register user');
+                }
+
+            } catch (error) {
+                console.error('Registration error:', error);
+                showNotification(`Failed to join chat: ${error.message}`, 'error');
+                resetJoinButton();
+            }
         }
 
         // Connect to Socket.IO server
         function connectToServer() {
-            // Update connection status
-            connectionStatus.textContent = 'Connecting...';
-            connectionStatus.className = 'text-yellow-400';
-
-            // Connect to your Socket.IO server
-            // Replace with your actual server URL
-            socket = io('http://localhost:3000', {
-                auth: {
-                    username: currentUser
-                }
+            // Connect to Flask-SocketIO
+            socket = io({
+                transports: ['websocket', 'polling'],
+                timeout: 10000
             });
 
             // Socket event listeners
             socket.on('connect', () => {
                 console.log('Connected to chat server');
                 isConnected = true;
-                connectionStatus.textContent = 'Connected';
-                connectionStatus.className = 'text-green-400';
+                updateConnectionStatus('connected');
+                
+                // Join chat with user data
+                socket.emit('join_chat', {
+                    user: currentUser
+                });
                 
                 // Hide connection modal
                 connectionModal.classList.add('hidden');
@@ -606,68 +677,103 @@
                 sendButton.disabled = false;
                 messageInput.focus();
                 
-                // Add join message
-                addSystemMessage(`You joined the chat as ${currentUser}`);
+                showNotification('Connected to chat!', 'success');
             });
 
-            socket.on('disconnect', () => {
-                console.log('Disconnected from chat server');
+            socket.on('disconnect', (reason) => {
+                console.log('Disconnected from chat server:', reason);
                 isConnected = false;
-                connectionStatus.textContent = 'Disconnected';
-                connectionStatus.className = 'text-red-400';
+                updateConnectionStatus('disconnected');
                 
                 // Disable message input
                 messageInput.disabled = true;
                 sendButton.disabled = true;
+                
+                showNotification('Disconnected from chat', 'error');
+                
+                // Clear typing indicators
+                usersTyping.clear();
+                updateTypingIndicator();
+            });
+
+            socket.on('connected', (data) => {
+                console.log('Server connection confirmed:', data);
             });
 
             socket.on('user_joined', (data) => {
                 addSystemMessage(`${data.username} joined the chat`);
                 updateOnlineCount(data.userCount);
+                updateOnlineUsersList(data.onlineUsers);
             });
 
             socket.on('user_left', (data) => {
                 addSystemMessage(`${data.username} left the chat`);
                 updateOnlineCount(data.userCount);
+                updateOnlineUsersList(data.onlineUsers);
+            });
+
+            socket.on('online_users', (data) => {
+                updateOnlineCount(data.count);
+                updateOnlineUsersList(data.users);
             });
 
             socket.on('user_typing', (data) => {
-                if (data.username !== currentUser) {
-                    usersTyping.add(data.username);
+                if (data.user && data.user.id !== currentUser.id) {
+                    usersTyping.add(data.user.username);
                     updateTypingIndicator();
                 }
             });
 
             socket.on('user_stop_typing', (data) => {
-                if (data.username !== currentUser) {
-                    usersTyping.delete(data.username);
+                if (data.user && data.user.id !== currentUser.id) {
+                    usersTyping.delete(data.user.username);
                     updateTypingIndicator();
                 }
             });
 
             socket.on('new_message', (data) => {
-                addMessage(data.username, data.message, data.timestamp, false);
+                // Only add message if it's not from current user and matches current channel
+                if (data.sender_id !== currentUser.id && data.channel === currentChannel) {
+                    addMessage(data.sender, data.text, data.timestamp, false);
+                }
             });
 
-            socket.on('user_count', (count) => {
-                updateOnlineCount(count);
+            socket.on('message_sent', (data) => {
+                // Message delivery confirmation
+                console.log('Message delivered:', data.messageId);
             });
 
-            socket.on('chat_history', (messages) => {
-                // Clear welcome message
+            socket.on('chat_history', (data) => {
+                // Clear welcome message and load history
                 messagesContainer.innerHTML = '';
                 
-                // Add chat history
-                messages.forEach(msg => {
-                    const isSelf = msg.username === currentUser;
-                    addMessage(msg.username, msg.message, msg.timestamp, isSelf, true);
-                });
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => {
+                        const isSelf = msg.sender_id === currentUser.id;
+                        addMessage(msg.sender, msg.text, msg.timestamp, isSelf, true);
+                    });
+                } else {
+                    addSystemMessage('Welcome to the chat! Start a conversation.');
+                }
                 
                 scrollToBottom();
             });
 
             socket.on('error', (error) => {
                 showNotification(error.message, 'error');
+            });
+
+            // Connection error handling
+            socket.on('connect_error', (error) => {
+                console.error('Connection error:', error);
+                showNotification('Failed to connect to chat server', 'error');
+                resetJoinButton();
+            });
+
+            socket.on('connect_timeout', () => {
+                console.error('Connection timeout');
+                showNotification('Connection timeout', 'error');
+                resetJoinButton();
             });
         }
 
@@ -677,37 +783,61 @@
             
             if (!message || !isConnected) return;
 
-            // Add message to chat
-            addMessage(currentUser, message, new Date().toISOString(), true);
+            // Create message data
+            const messageData = {
+                id: generateMessageId(),
+                sender: currentUser.username,
+                sender_id: currentUser.id,
+                text: message,
+                timestamp: new Date().toISOString(),
+                channel: currentChannel
+            };
+
+            // Add message to chat immediately (optimistic update)
+            addMessage(currentUser.username, message, new Date().toISOString(), true);
             
             // Send to server
-            socket.emit('send_message', message);
+            socket.emit('send_message', messageData);
             
             // Clear input
             messageInput.value = '';
             charCount.textContent = '0/500';
             
             // Stop typing
-            stopTyping();
+            handleTypingStop();
             
             scrollToBottom();
         }
 
-        // Stop typing indicator
-        function stopTyping() {
-            if (isConnected) {
-                socket.emit('stop_typing');
-            }
+        // Handle typing start
+        function handleTypingStart() {
+            if (!isConnected) return;
             
+            socket.emit('typing_start', {
+                user: currentUser,
+                channel: currentChannel
+            });
+            
+            // Clear existing timeout
             if (typingTimeout) {
                 clearTimeout(typingTimeout);
             }
+        }
+
+        // Handle typing stop
+        function handleTypingStop() {
+            if (!isConnected) return;
             
-            typingTimeout = setTimeout(() => {
-                if (isConnected) {
-                    socket.emit('stop_typing');
-                }
-            }, 1000);
+            socket.emit('typing_stop', {
+                user: currentUser,
+                channel: currentChannel
+            });
+            
+            // Clear timeout
+            if (typingTimeout) {
+                clearTimeout(typingTimeout);
+                typingTimeout = null;
+            }
         }
 
         // Add message to chat
@@ -726,7 +856,7 @@
             }
             
             const messageText = document.createElement('div');
-            messageText.className = 'text-sm';
+            messageText.className = 'text-sm break-words';
             messageText.textContent = message;
             messageBubble.appendChild(messageText);
             
@@ -740,6 +870,13 @@
             
             if (!isHistory) {
                 scrollToBottom();
+            }
+            
+            // Trigger animation for history messages
+            if (isHistory) {
+                setTimeout(() => {
+                    messageDiv.classList.remove('opacity-0');
+                }, 50);
             }
         }
 
@@ -782,20 +919,50 @@
 
         // Update online count
         function updateOnlineCount(count) {
-            onlineCount.textContent = `${count} online`;
-            mobileOnlineCount.textContent = count;
-            userCount.textContent = `${count} user${count !== 1 ? 's' : ''} online`;
+            const displayCount = count || 0;
+            onlineCount.textContent = `${displayCount} online`;
+            mobileOnlineCount.textContent = displayCount;
+            userCount.textContent = `${displayCount} user${displayCount !== 1 ? 's' : ''} online`;
+        }
+
+        // Update online users list
+        function updateOnlineUsersList(users) {
+            // You can implement a detailed online users list here if needed
+            console.log('Online users updated:', users);
+        }
+
+        // Cancel join
+        function cancelJoin() {
+            window.location.href = '/';
+        }
+
+        // Reset join button state
+        function resetJoinButton() {
+            joinChatBtn.disabled = false;
+            joinChatBtn.innerHTML = 'Join Chat';
+            updateConnectionStatus('disconnected');
+        }
+
+        // Generate unique message ID
+        function generateMessageId() {
+            return 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
 
         // Format timestamp
         function formatTime(timestamp) {
-            const date = new Date(timestamp);
-            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            try {
+                const date = new Date(timestamp);
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                return 'now';
+            }
         }
 
         // Scroll to bottom of messages
         function scrollToBottom() {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            setTimeout(() => {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }, 100);
         }
 
         // Show notification
@@ -803,7 +970,8 @@
             // Create notification element
             const notification = document.createElement('div');
             notification.className = `fixed top-20 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full ${
-                type === 'error' ? 'bg-red-500' : 'bg-secondary-cyan text-main-bg'
+                type === 'error' ? 'bg-red-500 text-white' : 
+                type === 'success' ? 'bg-green-500 text-white' : 'bg-secondary-cyan text-main-bg'
             }`;
             notification.textContent = message;
             
@@ -818,18 +986,12 @@
             setTimeout(() => {
                 notification.classList.add('translate-x-full');
                 setTimeout(() => {
-                    document.body.removeChild(notification);
+                    if (document.body.contains(notification)) {
+                        document.body.removeChild(notification);
+                    }
                 }, 300);
             }, 3000);
         }
-
-        // Handle page visibility changes
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden) {
-                // Page is hidden, stop typing
-                stopTyping();
-            }
-        });
 
         // Handle beforeunload
         window.addEventListener('beforeunload', function() {
@@ -837,6 +999,31 @@
                 socket.disconnect();
             }
         });
+
+        // Handle page refresh/closing
+        window.addEventListener('unload', function() {
+            if (socket && isConnected) {
+                handleTypingStop();
+            }
+        });
+
+        // Export functions for global access (if needed)
+        window.chatApp = {
+            sendMessage,
+            joinChat,
+            disconnect: function() {
+                if (socket) {
+                    socket.disconnect();
+                }
+            },
+            getStatus: function() {
+                return {
+                    connected: isConnected,
+                    user: currentUser,
+                    onlineCount: activeUsers.size
+                };
+            }
+        };
     </script>
 </body>
 </html>
