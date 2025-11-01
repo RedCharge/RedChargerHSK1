@@ -874,7 +874,7 @@
         });
     }
 
-    // Validate and normalize quiz data
+    // Validate and normalize quiz data - FIXED VERSION
     function validateQuizData(data) {
         console.log('=== VALIDATING QUIZ DATA ===');
         
@@ -889,88 +889,37 @@
                 options: question.options
             });
             
-            // METHOD 1: Try direct number conversion
-            let correctAnswer = parseInt(question.correctAnswer);
+            // FIXED: Use the original correctAnswer without any guessing or modification
+            let correctAnswer = question.correctAnswer;
             
-            // METHOD 2: If NaN, try string parsing
+            // Convert to number if it's a string
+            if (typeof correctAnswer === 'string') {
+                correctAnswer = parseInt(correctAnswer.trim());
+            }
+            
+            // If conversion failed or it's still not a number, use the original value
             if (isNaN(correctAnswer)) {
-                console.warn(`Question ${index + 1}: Direct parsing failed, trying string methods`);
-                const strCorrect = String(question.correctAnswer).trim();
-                
-                // Try to extract number from string
-                const numMatch = strCorrect.match(/(\d+)/);
-                if (numMatch) {
-                    correctAnswer = parseInt(numMatch[1]);
-                    console.log(`Question ${index + 1}: Extracted number from string:`, correctAnswer);
-                }
-                
-                // If still NaN, try letter to number conversion (A=0, B=1, etc.)
-                if (isNaN(correctAnswer)) {
-                    const letterMatch = strCorrect.match(/[A-D]/i);
-                    if (letterMatch) {
-                        correctAnswer = letterMatch[0].toUpperCase().charCodeAt(0) - 65;
-                        console.log(`Question ${index + 1}: Converted letter to number:`, correctAnswer);
-                    }
-                }
+                console.warn(`Question ${index + 1}: Keeping original correctAnswer:`, question.correctAnswer);
+                correctAnswer = question.correctAnswer;
             }
             
-            // METHOD 3: Final validation and fallback
-            if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= question.options.length) {
-                console.error(`Question ${index + 1}: INVALID correct answer after all methods:`, {
-                    original: question.correctAnswer,
-                    parsed: correctAnswer,
-                    optionsCount: question.options.length,
-                    options: question.options
-                });
-                
-                // Try to find correct answer by matching option text patterns
-                const guessedIndex = guessCorrectAnswer(question);
-                correctAnswer = guessedIndex;
-                console.warn(`Question ${index + 1}: Using guessed index:`, correctAnswer);
+            // Final validation - ensure it's within bounds
+            if (correctAnswer < 0 || correctAnswer >= question.options.length) {
+                console.error(`Question ${index + 1}: Correct answer out of bounds:`, correctAnswer);
+                // Use the first option as fallback
+                correctAnswer = 0;
             }
-            
-            // Ensure the final answer is within bounds
-            if (correctAnswer < 0) correctAnswer = 0;
-            if (correctAnswer >= question.options.length) correctAnswer = question.options.length - 1;
             
             cleanQuestion.correctAnswer = correctAnswer;
             
             console.log(`Question ${index + 1} final:`, {
                 original: question.correctAnswer,
                 final: cleanQuestion.correctAnswer,
-                valid: !isNaN(cleanQuestion.correctAnswer) && 
-                       cleanQuestion.correctAnswer >= 0 && 
-                       cleanQuestion.correctAnswer < question.options.length
+                valid: cleanQuestion.correctAnswer >= 0 && cleanQuestion.correctAnswer < question.options.length
             });
             
             return cleanQuestion;
         });
-    }
-
-    // Try to guess correct answer by analyzing option patterns
-    function guessCorrectAnswer(question) {
-        const options = question.options;
-        const sentence = question.sentence.toLowerCase();
-        
-        // Common patterns that might indicate correct answer
-        for (let i = 0; i < options.length; i++) {
-            const option = options[i].toLowerCase();
-            
-            // Check for exact word matches
-            if (sentence.includes('你好') && option.includes('hello')) return i;
-            if (sentence.includes('谢谢') && option.includes('thank')) return i;
-            if (sentence.includes('再见') && option.includes('goodbye')) return i;
-            if (sentence.includes('什么') && option.includes('what')) return i;
-            if (sentence.includes('谁') && option.includes('who')) return i;
-            if (sentence.includes('哪里') && option.includes('where')) return i;
-            
-            // Check for question patterns
-            if (sentence.includes('吗？') && option.includes('?')) return i;
-            if (sentence.includes('什么') && option.includes('what')) return i;
-        }
-        
-        // Fallback to first option
-        return 0;
     }
 
     // Load quiz data from Flask backend
@@ -1009,9 +958,7 @@
         let invalidQuestions = 0;
         
         quizData.forEach((question, index) => {
-            const isValid = !isNaN(question.correctAnswer) && 
-                           question.correctAnswer >= 0 && 
-                           question.correctAnswer < question.options.length;
+            const isValid = question.correctAnswer >= 0 && question.correctAnswer < question.options.length;
             
             if (isValid) {
                 validQuestions++;
@@ -1026,49 +973,7 @@
         
         if (invalidQuestions > 0) {
             console.error('WARNING: Some questions have invalid correct answers!');
-            // Create sample questions if too many are invalid
-            if (invalidQuestions === quizData.length) {
-                console.warn('All questions invalid, creating sample data...');
-                createSampleQuizData();
-            }
         }
-    }
-
-    // Create sample quiz data as fallback
-    function createSampleQuizData() {
-        quizData = [
-            {
-                sentence: "你好",
-                pinyin: "nǐ hǎo",
-                options: ["Hello", "Goodbye", "Thank you", "Sorry"],
-                correctAnswer: 0
-            },
-            {
-                sentence: "谢谢",
-                pinyin: "xiè xiè", 
-                options: ["Hello", "Goodbye", "Thank you", "Sorry"],
-                correctAnswer: 2
-            },
-            {
-                sentence: "再见",
-                pinyin: "zài jiàn",
-                options: ["Hello", "Goodbye", "Thank you", "Sorry"],
-                correctAnswer: 1
-            },
-            {
-                sentence: "对不起",
-                pinyin: "duì bu qǐ",
-                options: ["Hello", "Goodbye", "Thank you", "Sorry"],
-                correctAnswer: 3
-            },
-            {
-                sentence: "你叫什么名字？",
-                pinyin: "nǐ jiào shén me míng zì?",
-                options: ["What is your name?", "How are you?", "Where are you from?", "What time is it?"],
-                correctAnswer: 0
-            }
-        ];
-        console.log('Created sample quiz data as fallback');
     }
 
     // Initialize the quiz
@@ -1147,11 +1052,13 @@
         }, 500);
     }
 
-    // Select an option - SIMPLIFIED AND ROBUST
+    // Select an option - FIXED VERSION
     function selectOption(selectedIndex) {
         if (userAnswers[currentQuestion] !== undefined) return; // Already answered
         
         const question = quizData[currentQuestion];
+        
+        // FIXED: Use the correctAnswer directly without any conversion
         const correctAnswerIndex = question.correctAnswer;
         
         // EXTREME DEBUGGING
@@ -1164,8 +1071,10 @@
         console.log('Selected option:', question.options[selectedIndex]);
         console.log('Correct option:', question.options[correctAnswerIndex]);
         console.log('Is correct:', selectedIndex === correctAnswerIndex);
+        console.log('Type of selected:', typeof selectedIndex, 'Type of correct:', typeof correctAnswerIndex);
         
-        const isCorrect = selectedIndex === correctAnswerIndex;
+        // FIXED: Use strict comparison but ensure both are numbers
+        const isCorrect = parseInt(selectedIndex) === parseInt(correctAnswerIndex);
         
         // Store user's answer
         userAnswers[currentQuestion] = selectedIndex;
@@ -1196,9 +1105,9 @@
         const optionButtons = optionsContainer.querySelectorAll('.option-button');
         
         optionButtons.forEach((button, index) => {
-            if (index === correctIndex) {
+            if (parseInt(index) === parseInt(correctIndex)) {
                 button.classList.add('correct');
-            } else if (index === selectedIndex && index !== correctIndex) {
+            } else if (parseInt(index) === parseInt(selectedIndex) && parseInt(index) !== parseInt(correctIndex)) {
                 button.classList.add('incorrect');
             }
             
