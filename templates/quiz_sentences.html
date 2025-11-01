@@ -473,6 +473,14 @@
     let quizStarted = false;
     let startTime = null;
     let quizResults = null;
+    let audioContext = null;
+
+    // Speech functionality
+    let speechEnabled = true;
+    let speechSynthesis = window.speechSynthesis;
+    let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    let userInteractedWithSpeech = false;
+    let autoSpeakEnabled = true;
 
     // DOM elements
     const loadingState = document.getElementById('loading-state');
@@ -514,6 +522,15 @@
         // Initialize mobile menu
         initializeMobileMenu();
         
+        // Initialize audio context for sound effects
+        initializeAudioContext();
+        
+        // Initialize speech system
+        initializeSpeechSystem();
+        
+        // Add user interaction listeners for mobile auto-speak
+        setupUserInteractionListeners();
+        
         // Load quiz data
         loadQuizData();
         
@@ -525,6 +542,256 @@
         });
         retryButton.addEventListener('click', loadQuizData);
     });
+
+    // Initialize Audio Context for sound effects
+    function initializeAudioContext() {
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('AudioContext initialized for sound effects');
+        } catch (e) {
+            console.log('AudioContext not supported for sound effects');
+        }
+    }
+
+    // Setup user interaction listeners for mobile
+    function setupUserInteractionListeners() {
+        // Listen for any user interaction to enable auto-speak
+        document.addEventListener('click', function() {
+            userInteractedWithSpeech = true;
+            console.log('User interaction detected - auto-speak enabled');
+        }, { once: true });
+        
+        // Also listen for touch events on mobile
+        if (isMobile) {
+            document.addEventListener('touchstart', function() {
+                userInteractedWithSpeech = true;
+                console.log('Touch interaction detected - auto-speak enabled');
+            }, { once: true });
+        }
+    }
+
+    // Initialize speech system
+    function initializeSpeechSystem() {
+        if (!speechSynthesis) {
+            speechEnabled = false;
+            autoSpeakEnabled = false;
+            console.log('Speech synthesis not supported');
+            return;
+        }
+        
+        // Load voices when available
+        speechSynthesis.onvoiceschanged = function() {
+            const voices = speechSynthesis.getVoices();
+            const chineseVoices = voices.filter(voice => 
+                voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
+            );
+            console.log('Chinese voices available:', chineseVoices.length);
+        };
+        
+        // Force voices to load
+        setTimeout(() => {
+            speechSynthesis.getVoices();
+        }, 1000);
+    }
+
+    // Auto-speak function for new questions
+    function autoSpeakQuestion(text) {
+        if (!speechEnabled || !autoSpeakEnabled) {
+            console.log('Auto-speak disabled');
+            return;
+        }
+        
+        // On mobile, only auto-speak after user has interacted
+        if (isMobile && !userInteractedWithSpeech) {
+            console.log('Waiting for user interaction before auto-speaking on mobile');
+            return;
+        }
+        
+        console.log('Auto-speaking sentence:', text);
+        speakText(text);
+    }
+
+    // Speak text using Web Speech API
+    function speakText(text, language = 'zh-CN') {
+        if (!speechEnabled) {
+            console.log('Speech is disabled');
+            return;
+        }
+        
+        // Stop any ongoing speech
+        speechSynthesis.cancel();
+        
+        // Update button to show loading state
+        const speechButton = document.getElementById('speech-button');
+        if (speechButton) {
+            speechButton.disabled = true;
+            speechButton.classList.add('opacity-50', 'cursor-not-allowed', 'bg-secondary-cyan/20', 'text-secondary-cyan', 'border-secondary-cyan');
+            speechButton.classList.remove('cursor-pointer', 'hover:bg-card-bg/70', 'bg-card-bg', 'text-text-light', 'border-text-muted/30');
+            speechButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            speechButton.title = 'Loading...';
+        }
+        
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = language;
+        utterance.rate = isMobile ? 0.7 : 0.8;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        
+        // Get available voices
+        const voices = speechSynthesis.getVoices();
+        let selectedVoice = null;
+        
+        // Try to find Chinese voice
+        selectedVoice = voices.find(voice => 
+            voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
+        );
+        
+        // If no Chinese voice found, use default
+        if (!selectedVoice) {
+            selectedVoice = voices.find(voice => voice.default) || voices[0];
+        }
+        
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
+            console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
+        }
+        
+        // Set up event handlers
+        utterance.onstart = function() {
+            console.log('Speech started successfully');
+            const speechButton = document.getElementById('speech-button');
+            if (speechButton) {
+                speechButton.innerHTML = '<i class="fas fa-volume-up animate-pulse"></i>';
+                speechButton.title = 'Speaking...';
+            }
+        };
+        
+        utterance.onend = function() {
+            console.log('Speech completed successfully');
+            resetSpeechButton();
+        };
+        
+        utterance.onerror = function(event) {
+            console.error('Speech error:', event.error);
+            resetSpeechButton();
+        };
+        
+        // Speak with timeout
+        speechSynthesis.speak(utterance);
+    }
+
+    // Reset speech button to normal state
+    function resetSpeechButton() {
+        const speechButton = document.getElementById('speech-button');
+        if (speechButton) {
+            speechButton.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-secondary-cyan/20', 'text-secondary-cyan', 'border-secondary-cyan');
+            speechButton.classList.add('cursor-pointer', 'hover:bg-card-bg/70', 'bg-card-bg', 'text-text-light', 'border-text-muted/30');
+            speechButton.innerHTML = '<i class="fas fa-volume-up"></i>';
+            speechButton.disabled = false;
+            speechButton.title = 'Click to hear pronunciation';
+            speechButton.setAttribute('aria-label', 'Click to hear pronunciation');
+        }
+    }
+
+    // Play correct answer sound
+    function playCorrectSound() {
+        if (!audioContext) {
+            console.log('AudioContext not available for sound effects');
+            return;
+        }
+
+        try {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Happy, ascending sound
+            oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+            oscillator.frequency.exponentialRampToValueAtTime(1046.50, audioContext.currentTime + 0.3); // C6
+            
+            oscillator.type = 'sine';
+            
+            // Smooth volume envelope
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+            
+            console.log('Played correct answer sound');
+        } catch (e) {
+            console.log('Correct sound failed:', e);
+        }
+    }
+
+    // Play incorrect answer sound
+    function playIncorrectSound() {
+        if (!audioContext) {
+            console.log('AudioContext not available for sound effects');
+            return;
+        }
+
+        try {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Sad, descending sound
+            oscillator.frequency.setValueAtTime(392.00, audioContext.currentTime); // G4
+            oscillator.frequency.exponentialRampToValueAtTime(261.63, audioContext.currentTime + 0.4); // C4
+            
+            oscillator.type = 'sawtooth';
+            
+            // Quick attack, slower release
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.6);
+            
+            console.log('Played incorrect answer sound');
+        } catch (e) {
+            console.log('Incorrect sound failed:', e);
+        }
+    }
+
+    // Play level up sound for excellent scores
+    function playLevelUpSound() {
+        if (!audioContext) return;
+
+        try {
+            const times = [0, 0.1, 0.2, 0.3, 0.4];
+            const frequencies = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+            
+            times.forEach((time, index) => {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(frequencies[index], audioContext.currentTime + time);
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0, audioContext.currentTime + time);
+                gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + time + 0.05);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.3);
+                
+                oscillator.start(audioContext.currentTime + time);
+                oscillator.stop(audioContext.currentTime + time + 0.3);
+            });
+            
+            console.log('Played level up sound');
+        } catch (e) {
+            console.log('Level up sound failed:', e);
+        }
+    }
 
     // Initialize Mobile Menu
     function initializeMobileMenu() {
@@ -824,11 +1091,21 @@
             <div class="text-center mb-6">
                 <div class="flex items-center justify-center mb-4">
                     <div class="sentence-character font-bold text-text-light mr-4">${question.sentence}</div>
+                    <button id="speech-button" class="speech-button p-3 rounded-full bg-card-bg text-text-light border border-text-muted/30 cursor-pointer hover:bg-card-bg/70 transition duration-300" title="Click to hear pronunciation" aria-label="Click to hear pronunciation">
+                        <i class="fas fa-volume-up"></i>
+                    </button>
                 </div>
                 <div class="text-xl text-secondary-cyan mb-2">${question.pinyin}</div>
                 <div class="text-lg text-text-muted">What is the English translation of this sentence?</div>
             </div>
         `;
+        
+        // Add event listener to speech button
+        const speechButton = document.getElementById('speech-button');
+        speechButton.addEventListener('click', function() {
+            userInteractedWithSpeech = true;
+            speakText(question.sentence);
+        });
         
         optionsContainer.innerHTML = '';
         question.options.forEach((option, index) => {
@@ -863,6 +1140,11 @@
         if (userAnswers[currentQuestion] !== undefined) {
             highlightOption(userAnswers[currentQuestion], question.correctAnswer);
         }
+        
+        // Auto-speak the new question
+        setTimeout(() => {
+            autoSpeakQuestion(question.sentence);
+        }, 500);
     }
 
     // Select an option - SIMPLIFIED AND ROBUST
@@ -888,12 +1170,15 @@
         // Store user's answer
         userAnswers[currentQuestion] = selectedIndex;
         
+        // Play sound effect based on answer
         if (isCorrect) {
+            playCorrectSound();
             score += 10;
             correctAnswers++;
             feedbackElement.textContent = 'Correct! Well done.';
             feedbackElement.className = 'mb-6 text-center text-lg font-medium text-green-400';
         } else {
+            playIncorrectSound();
             incorrectAnswers++;
             feedbackElement.textContent = `Incorrect. The correct translation is: "${question.options[correctAnswerIndex]}"`;
             feedbackElement.className = 'mb-6 text-center text-lg font-medium text-red-400';
@@ -924,6 +1209,9 @@
 
     // Next question
     function nextQuestion() {
+        // Stop any ongoing speech
+        speechSynthesis.cancel();
+        
         if (currentQuestion < quizData.length - 1) {
             currentQuestion++;
             showQuestion();
@@ -936,6 +1224,9 @@
 
     // Previous question
     function prevQuestion() {
+        // Stop any ongoing speech
+        speechSynthesis.cancel();
+        
         if (currentQuestion > 0) {
             currentQuestion--;
             showQuestion();
@@ -959,9 +1250,17 @@
 
     // Finish quiz and show results
     async function finishQuiz() {
+        // Stop any ongoing speech
+        speechSynthesis.cancel();
+        
         // Calculate final results
         const percentage = Math.round((correctAnswers / quizData.length) * 100);
         const timeTaken = Math.round((new Date() - startTime) / 1000);
+        
+        // Play celebration sound for excellent scores
+        if (percentage >= 90) {
+            setTimeout(() => playLevelUpSound(), 500);
+        }
         
         // Update results section
         finalScoreElement.textContent = score;
@@ -1053,6 +1352,9 @@
         correctAnswers = 0;
         incorrectAnswers = 0;
         userAnswers = [];
+        
+        // Reset speech interaction flag for new quiz
+        userInteractedWithSpeech = false;
         
         resultsSection.classList.add('hidden');
         quizContent.classList.remove('hidden');
