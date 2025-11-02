@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learn Chinese - HSK1 Vocabulary & Sentences | RedCharger</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Georgia', 'serif'],
+                    },
+                    colors: {
+                        'primary-blue': '#5c7cfa',
+                        'secondary-cyan': '#33f0e8',
+                        'main-bg': '#1e293b',
+                        'card-bg': '#2a3a50',
+                        'text-light': '#e2e8f0',
+                        'text-muted': '#94a3b8',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        gradientShift: {
+                            '0%': { backgroundPosition: '0% 50%' },
+                            '100%': { backgroundPosition: '100% 50%' },
+                        },
+                        pulseGlow: {
+                            '0%': { boxShadow: '0 0 5px rgba(51, 240, 232, 0.5)' },
+                            '100%': { boxShadow: '0 0 20px rgba(51, 240, 232, 0.8), 0 0 30px rgba(51, 240, 232, 0.6)' },
+                        }
+                    },
+                    animation: {
+                        fadeInUp: 'fadeInUp 0.6s ease-out forwards',
+                        gradientShift: 'gradientShift 3s ease infinite alternate',
+                        pulseGlow: 'pulseGlow 2s ease-in-out infinite alternate',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1e293b;
+            min-height: 100vh;
+            color: #e2e8f0;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .nav-card {
+            background-color: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sophisticated-card {
+            background-color: #2a3a50;
+            border-radius: 0.75rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .sophisticated-card:hover {
+             transform: translateY(-5px) scale(1.01);
+             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(92, 124, 250, 0.3);
+        }
+
+        .cta-button-primary, .cta-button-secondary {
+            border: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cta-button-primary {
+            background: linear-gradient(135deg, #5c7cfa, #3d5ad8);
+            color: white;
+            box-shadow: 0 5px 20px rgba(92, 124, 250, 0.5);
+            background-size: 200% auto;
+            animation: gradientShift 3s ease infinite alternate;
+        }
+        
+        .cta-button-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(92, 124, 250, 0.7);
+        }
+
+        .cta-button-secondary {
+            background: linear-gradient(135deg, #33f0e8, #25c0b8);
+            color: #1e293b;
+            box-shadow: 0 5px 20px rgba(51, 240, 232, 0.4);
+        }
+
+        .cta-button-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(51, 240, 232, 0.6);
+        }
+
+        .learn-card {
+            background: linear-gradient(135deg, #2a3a50, #1e293b);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .learn-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(51, 240, 232, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .learn-card:hover::before {
+            left: 100%;
+        }
+
+        .learn-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(51, 240, 232, 0.3);
+        }
+
+        .chinese-character {
+            font-size: 2.5rem;
+            font-weight: bold;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .pinyin-text {
+            color: #33f0e8;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+
+        .speech-button {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+
+        .speech-button:hover {
+            transform: scale(1.1);
+            border-color: #33f0e8;
+            animation: pulseGlow 2s infinite;
+        }
+
+        .speech-button.playing {
+            color: #33f0e8;
+            border-color: #33f0e8;
+            animation: pulseGlow 1s infinite;
+        }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #5c7cfa;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile dropdown menu styles */
+        .mobile-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background-color: rgba(42, 58, 80, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 50;
+            opacity: 0;
+            transform: translateY(-10px);
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-dropdown-menu.open {
+            opacity: 1;
+            transform: translateY(0);
+            visibility: visible;
+        }
+
+        .mobile-dropdown-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 45;
+            background-color: transparent;
+            display: none;
+        }
+
+        /* Filter and search styles */
+        .search-input {
+            background: rgba(42, 58, 80, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #33f0e8;
+            box-shadow: 0 0 0 3px rgba(51, 240, 232, 0.1);
+        }
+
+        .filter-button {
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .filter-button.active {
+            background: linear-gradient(135deg, #5c7cfa, #3d5ad8);
+            border-color: #5c7cfa;
+        }
+
+        .filter-button:hover {
+            border-color: #33f0e8;
+        }
+    </style>
+</head>
+<body class="selection:bg-primary-blue selection:text-white">
+
+    <!-- Navigation Bar -->
+    <nav class="fixed top-0 left-0 right-0 z-50 p-4 lg:p-6 nav-card">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-2xl font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-text-light to-secondary-cyan">
+                RedCharger
+            </div>
+            
+            <!-- Desktop Menu -->
+            <div class="space-x-8 hidden md:flex font-medium">
+                <a href="/" class="text-text-muted hover:text-secondary-cyan transition duration-300">Home</a>
+                <a href="/words/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Words Quiz</a>
+                <a href="/sentences/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Sentences Quiz</a>
+                <a href="/learn" class="text-secondary-cyan transition duration-300">Learn</a>
+                <a href="/result" class="text-text-muted hover:text-secondary-cyan transition duration-300">Results</a>
+                <a href="/chat" class="text-text-muted hover:text-secondary-cyan transition duration-300">Community Chat</a>
+            </div>
+
+            <!-- Desktop View Results Button -->
+            <a href="/result" class="hidden md:flex py-2 px-5 rounded-full cta-button-secondary font-extrabold text-base shadow-xl hover:shadow-2xl transition duration-300">
+                View Results
+            </a>
+
+            <!-- Mobile Menu Container -->
+            <div class="md:hidden flex items-center space-x-3">
+                <!-- Mobile View Results Button -->
+                <a href="/result" class="py-1 px-3 rounded-full text-sm cta-button-secondary font-bold shadow-xl transition duration-300">
+                    Results
+                </a>
+
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-button" class="text-text-muted hover:text-secondary-cyan transition duration-300 relative z-50">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Dropdown Menu -->
+        <div id="mobile-dropdown-menu" class="mobile-dropdown-menu md:hidden w-full left-0">
+            <div class="p-4 space-y-3">
+                <a href="/" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-home mr-3 w-5 text-center"></i>
+                    <span>Home</span>
+                </a>
+                <a href="/words/quiz" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-book mr-3 w-5 text-center"></i>
+                    <span>Words Quiz</span>
+                </a>
+                <a href="/sentences/quiz" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-comments mr-3 w-5 text-center"></i>
+                    <span>Sentences Quiz</span>
+                </a>
+                <a href="/learn" class="flex items-center text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-graduation-cap mr-3 w-5 text-center"></i>
+                    <span>Learn</span>
+                </a>
+                <a href="/result" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-chart-bar mr-3 w-5 text-center"></i>
+                    <span>Results</span>
+                </a>
+                <a href="/chat" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-users mr-3 w-5 text-center"></i>
+                    <span>Community Chat</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Dropdown Backdrop -->
+    <div id="mobile-dropdown-backdrop" class="mobile-dropdown-backdrop md:hidden"></div>
+
+    <main class="pt-24 pb-16">
+        <!-- Header Section -->
+        <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-text-light">
+                    Learn <span class="text-secondary-cyan">HSK1</span>
+                </h1>
+                <p class="text-xl text-text-muted max-w-2xl mx-auto">
+                    Master essential Chinese vocabulary and sentences with pronunciation. Click the speaker icon to hear how each word or sentence sounds!
+                </p>
+            </div>
+        </section>
+
+        <!-- Learning Mode Selection -->
+        <section class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+            <div class="sophisticated-card p-6">
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-bold text-text-light mb-4">Choose What to Learn</h2>
+                    <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                        <button id="learn-words-btn" class="cta-button-primary py-4 px-8 rounded-lg font-bold text-lg flex items-center justify-center">
+                            <i class="fas fa-book mr-3"></i>
+                            Learn Words
+                        </button>
+                        <button id="learn-sentences-btn" class="cta-button-secondary py-4 px-8 rounded-lg font-bold text-lg flex items-center justify-center">
+                            <i class="fas fa-comments mr-3"></i>
+                            Learn Sentences
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Search and Filter Section -->
+        <section id="search-section" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 hidden">
+            <div class="sophisticated-card p-6">
+                <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div class="flex-1 w-full">
+                        <input type="text" id="search-input" placeholder="Search words or sentences..." 
+                               class="w-full search-input py-3 px-4 rounded-lg text-text-light placeholder-text-muted focus:outline-none">
+                    </div>
+                    <div class="flex gap-2 flex-wrap justify-center">
+                        <button class="filter-button py-2 px-4 rounded-lg text-text-light bg-card-bg active" data-filter="all">
+                            All
+                        </button>
+                        <button class="filter-button py-2 px-4 rounded-lg text-text-light bg-card-bg" data-filter="recent">
+                            Recent
+                        </button>
+                        <button class="filter-button py-2 px-4 rounded-lg text-text-light bg-card-bg" data-filter="difficult">
+                            Difficult
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading State -->
+        <section id="loading-state" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 hidden">
+            <div class="sophisticated-card p-12 text-center">
+                <div class="loading-spinner mx-auto mb-4"></div>
+                <p class="text-text-muted text-lg">Loading learning content...</p>
+            </div>
+        </section>
+
+        <!-- Words Learning Section -->
+        <section id="words-section" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 hidden">
+            <div class="mb-6">
+                <h2 class="text-3xl font-bold text-text-light mb-2">HSK1 Vocabulary</h2>
+                <p class="text-text-muted">Click the speaker icon to hear pronunciation</p>
+            </div>
+            
+            <div id="words-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Words will be dynamically inserted here -->
+            </div>
+
+            <div id="words-empty" class="text-center py-12 hidden">
+                <i class="fas fa-book-open text-5xl text-text-muted mb-4"></i>
+                <h3 class="text-xl font-bold text-text-light mb-2">No Words Found</h3>
+                <p class="text-text-muted">Try adjusting your search or filter</p>
+            </div>
+        </section>
+
+        <!-- Sentences Learning Section -->
+        <section id="sentences-section" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 hidden">
+            <div class="mb-6">
+                <h2 class="text-3xl font-bold text-text-light mb-2">HSK1 Sentences</h2>
+                <p class="text-text-muted">Click the speaker icon to hear pronunciation</p>
+            </div>
+            
+            <div id="sentences-container" class="grid grid-cols-1 gap-6">
+                <!-- Sentences will be dynamically inserted here -->
+            </div>
+
+            <div id="sentences-empty" class="text-center py-12 hidden">
+                <i class="fas fa-comments text-5xl text-text-muted mb-4"></i>
+                <h3 class="text-xl font-bold text-text-light mb-2">No Sentences Found</h3>
+                <p class="text-text-muted">Try adjusting your search or filter</p>
+            </div>
+        </section>
+
+        <!-- Error State -->
+        <section id="error-state" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 hidden">
+            <div class="sophisticated-card p-12 text-center">
+                <i class="fas fa-exclamation-triangle text-red-400 text-5xl mb-4"></i>
+                <h3 class="text-2xl font-bold text-text-light mb-2">Failed to Load Content</h3>
+                <p class="text-text-muted mb-6" id="error-message">There was an error loading the learning content.</p>
+                <button id="retry-btn" class="cta-button-primary py-3 px-6 rounded-lg font-medium">
+                    <i class="fas fa-redo mr-2"></i> Try Again
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-10 border-t border-main-bg/20 text-center text-text-muted bg-card-bg">
+        <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
+    </footer>
+
+    <!-- Learning Logic -->
+    <script>
+        // State management
+        let currentMode = null;
+        let wordsData = [];
+        let sentencesData = [];
+        let speechSynthesis = window.speechSynthesis;
+        let speechEnabled = true;
+
+        // DOM elements
+        const learnWordsBtn = document.getElementById('learn-words-btn');
+        const learnSentencesBtn = document.getElementById('learn-sentences-btn');
+        const searchSection = document.getElementById('search-section');
+        const loadingState = document.getElementById('loading-state');
+        const wordsSection = document.getElementById('words-section');
+        const sentencesSection = document.getElementById('sentences-section');
+        const errorState = document.getElementById('error-state');
+        const wordsContainer = document.getElementById('words-container');
+        const sentencesContainer = document.getElementById('sentences-container');
+        const wordsEmpty = document.getElementById('words-empty');
+        const sentencesEmpty = document.getElementById('sentences-empty');
+        const searchInput = document.getElementById('search-input');
+        const filterButtons = document.querySelectorAll('.filter-button');
+        const retryBtn = document.getElementById('retry-btn');
+        const errorMessage = document.getElementById('error-message');
+
+        // Mobile Menu Elements
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+        const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+        let isMenuOpen = false;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMobileMenu();
+            setupEventListeners();
+        });
+
+        // Initialize Mobile Menu
+        function initializeMobileMenu() {
+            function toggleMobileMenu() {
+                isMenuOpen = !isMenuOpen;
+                
+                if (isMenuOpen) {
+                    mobileDropdownMenu.classList.add('open');
+                    mobileDropdownBackdrop.style.display = 'block';
+                    document.body.style.overflow = 'hidden';
+                    mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+                    mobileMenuButton.classList.remove('text-text-muted');
+                    mobileMenuButton.classList.add('text-secondary-cyan');
+                } else {
+                    mobileDropdownMenu.classList.remove('open');
+                    mobileDropdownBackdrop.style.display = 'none';
+                    document.body.style.overflow = '';
+                    mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                    mobileMenuButton.classList.remove('text-secondary-cyan');
+                    mobileMenuButton.classList.add('text-text-muted');
+                }
+            }
+
+            function closeMobileMenu() {
+                isMenuOpen = false;
+                mobileDropdownMenu.classList.remove('open');
+                mobileDropdownBackdrop.style.display = 'none';
+                document.body.style.overflow = '';
+                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                mobileMenuButton.classList.remove('text-secondary-cyan');
+                mobileMenuButton.classList.add('text-text-muted');
+            }
+
+            mobileMenuButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleMobileMenu();
+            });
+
+            mobileDropdownBackdrop.addEventListener('click', closeMobileMenu);
+
+            const menuLinks = mobileDropdownMenu.querySelectorAll('a');
+            menuLinks.forEach(link => {
+                link.addEventListener('click', closeMobileMenu);
+            });
+
+            document.addEventListener('click', function(e) {
+                if (isMenuOpen && 
+                    !mobileDropdownMenu.contains(e.target) && 
+                    !mobileMenuButton.contains(e.target)) {
+                    closeMobileMenu();
+                }
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (isMenuOpen && e.key === 'Escape') {
+                    closeMobileMenu();
+                }
+            });
+
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 768 && isMenuOpen) {
+                    closeMobileMenu();
+                }
+            });
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            learnWordsBtn.addEventListener('click', () => switchMode('words'));
+            learnSentencesBtn.addEventListener('click', () => switchMode('sentences'));
+            searchInput.addEventListener('input', handleSearch);
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', handleFilter);
+            });
+            retryBtn.addEventListener('click', retryLoading);
+        }
+
+        // Switch between learning modes
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // Hide all sections first
+            wordsSection.classList.add('hidden');
+            sentencesSection.classList.add('hidden');
+            loadingState.classList.add('hidden');
+            errorState.classList.add('hidden');
+            
+            // Show search section
+            searchSection.classList.remove('hidden');
+            
+            // Reset active filter buttons
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            document.querySelector('[data-filter="all"]').classList.add('active');
+            
+            // Clear search
+            searchInput.value = '';
+            
+            if (mode === 'words') {
+                if (wordsData.length === 0) {
+                    loadWords();
+                } else {
+                    displayWords(wordsData);
+                    wordsSection.classList.remove('hidden');
+                }
+            } else if (mode === 'sentences') {
+                if (sentencesData.length === 0) {
+                    loadSentences();
+                } else {
+                    displaySentences(sentencesData);
+                    sentencesSection.classList.remove('hidden');
+                }
+            }
+        }
+
+        // Load words from backend
+        async function loadWords() {
+            showLoading();
+            
+            try {
+                const response = await fetch('/words/api/all-words');
+                const data = await response.json();
+                
+                if (data.success && data.words) {
+                    wordsData = data.words;
+                    displayWords(wordsData);
+                    wordsSection.classList.remove('hidden');
+                } else {
+                    throw new Error(data.message || 'Failed to load words');
+                }
+            } catch (error) {
+                console.error('Error loading words:', error);
+                showError('Failed to load words: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Load sentences from backend
+        async function loadSentences() {
+            showLoading();
+            
+            try {
+                const response = await fetch('/sentences/api/all-sentences');
+                const data = await response.json();
+                
+                if (data.success && data.sentences) {
+                    sentencesData = data.sentences;
+                    displaySentences(sentencesData);
+                    sentencesSection.classList.remove('hidden');
+                } else {
+                    throw new Error(data.message || 'Failed to load sentences');
+                }
+            } catch (error) {
+                console.error('Error loading sentences:', error);
+                showError('Failed to load sentences: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Display words in the grid
+        function displayWords(words) {
+            if (words.length === 0) {
+                wordsEmpty.classList.remove('hidden');
+                wordsContainer.innerHTML = '';
+                return;
+            }
+            
+            wordsEmpty.classList.add('hidden');
+            
+            wordsContainer.innerHTML = words.map(word => `
+                <div class="learn-card p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="chinese-character">${word.word}</div>
+                        <button class="speech-button p-3 rounded-full bg-card-bg text-text-light border border-text-muted/30 cursor-pointer hover:bg-card-bg/70"
+                                onclick="speakText('${word.word.replace(/'/g, "\\'")}')"
+                                title="Click to hear pronunciation">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                    </div>
+                    <div class="pinyin-text mb-2">${word.pinyin || ''}</div>
+                    <div class="text-text-light text-lg font-medium">${word.meaning || word.translation || ''}</div>
+                    ${word.example ? `
+                        <div class="mt-3 pt-3 border-t border-text-muted/20">
+                            <div class="text-sm text-text-muted mb-1">Example:</div>
+                            <div class="text-text-light text-sm">${word.example}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Display sentences
+        function displaySentences(sentences) {
+            if (sentences.length === 0) {
+                sentencesEmpty.classList.remove('hidden');
+                sentencesContainer.innerHTML = '';
+                return;
+            }
+            
+            sentencesEmpty.classList.add('hidden');
+            
+            sentencesContainer.innerHTML = sentences.map(sentence => `
+                <div class="learn-card p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="chinese-character text-2xl">${sentence.sentence}</div>
+                        <button class="speech-button p-3 rounded-full bg-card-bg text-text-light border border-text-muted/30 cursor-pointer hover:bg-card-bg/70"
+                                onclick="speakText('${sentence.sentence.replace(/'/g, "\\'")}')"
+                                title="Click to hear pronunciation">
+                            <i class="fas fa-volume-up"></i>
+                        </button>
+                    </div>
+                    <div class="pinyin-text mb-2">${sentence.pinyin || ''}</div>
+                    <div class="text-text-light text-lg font-medium">${sentence.translation || sentence.meaning || ''}</div>
+                    ${sentence.notes ? `
+                        <div class="mt-3 pt-3 border-t border-text-muted/20">
+                            <div class="text-sm text-text-muted mb-1">Notes:</div>
+                            <div class="text-text-light text-sm">${sentence.notes}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Handle search functionality
+        function handleSearch() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            
+            if (currentMode === 'words') {
+                const filteredWords = wordsData.filter(word => 
+                    word.word.toLowerCase().includes(searchTerm) ||
+                    (word.pinyin && word.pinyin.toLowerCase().includes(searchTerm)) ||
+                    (word.meaning && word.meaning.toLowerCase().includes(searchTerm)) ||
+                    (word.translation && word.translation.toLowerCase().includes(searchTerm))
+                );
+                displayWords(filteredWords);
+            } else if (currentMode === 'sentences') {
+                const filteredSentences = sentencesData.filter(sentence => 
+                    sentence.sentence.toLowerCase().includes(searchTerm) ||
+                    (sentence.pinyin && sentence.pinyin.toLowerCase().includes(searchTerm)) ||
+                    (sentence.translation && sentence.translation.toLowerCase().includes(searchTerm)) ||
+                    (sentence.meaning && sentence.meaning.toLowerCase().includes(searchTerm))
+                );
+                displaySentences(filteredSentences);
+            }
+        }
+
+        // Handle filter functionality
+        function handleFilter(e) {
+            const filter = e.target.dataset.filter;
+            
+            // Update active button
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            // For now, we'll just show all data
+            // In a real implementation, you would filter based on user progress
+            if (currentMode === 'words') {
+                displayWords(wordsData);
+            } else if (currentMode === 'sentences') {
+                displaySentences(sentencesData);
+            }
+        }
+
+        // Text-to-speech function
+        function speakText(text) {
+            if (!speechEnabled) return;
+            
+            // Stop any ongoing speech
+            speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-CN';
+            utterance.rate = 0.8;
+            utterance.pitch = 1.0;
+            
+            // Get Chinese voice if available
+            const voices = speechSynthesis.getVoices();
+            const chineseVoice = voices.find(voice => 
+                voice.lang.includes('zh') || voice.lang.includes('cn')
+            );
+            
+            if (chineseVoice) {
+                utterance.voice = chineseVoice;
+            }
+            
+            // Add visual feedback
+            const button = event.target.closest('button');
+            if (button) {
+                button.classList.add('playing');
+                utterance.onend = () => {
+                    button.classList.remove('playing');
+                };
+                utterance.onerror = () => {
+                    button.classList.remove('playing');
+                };
+            }
+            
+            speechSynthesis.speak(utterance);
+        }
+
+        // UI state management
+        function showLoading() {
+            loadingState.classList.remove('hidden');
+            errorState.classList.add('hidden');
+        }
+
+        function hideLoading() {
+            loadingState.classList.add('hidden');
+        }
+
+        function showError(message) {
+            errorState.classList.remove('hidden');
+            loadingState.classList.add('hidden');
+            wordsSection.classList.add('hidden');
+            sentencesSection.classList.add('hidden');
+            errorMessage.textContent = message;
+        }
+
+        function retryLoading() {
+            if (currentMode === 'words') {
+                loadWords();
+            } else if (currentMode === 'sentences') {
+                loadSentences();
+            }
+        }
+
+        // Initialize speech synthesis voices
+        speechSynthesis.onvoiceschanged = function() {
+            console.log('Voices loaded:', speechSynthesis.getVoices().length);
+        };
+    </script>
+</body>
+</html>

@@ -30,6 +30,11 @@ def chat():
     """Render the community chat page"""
     return render_template('chat.html')
 
+@main_bp.route('/learn')
+def chat():
+    """Render the community chat page"""
+    return render_template('learn.html')
+
 @main_bp.route('/api/quiz-results', methods=['POST'])
 def save_quiz_result():
     """API endpoint to save quiz results to database"""
@@ -500,6 +505,9 @@ def register_socket_events(socketio):
             'channel': channel,
             'user': user
         }, room=channel)
+        
+        
+    
 
     @socketio.on('user_left')
     def handle_user_left(data):
