@@ -463,7 +463,7 @@
 
     <!-- Quiz Logic -->
     <script>
-    // Quiz state
+        // Quiz state
     let currentQuestion = 0;
     let score = 0;
     let correctAnswers = 0;
@@ -874,7 +874,7 @@
         });
     }
 
-    // CRITICAL FIX: Data validation with forced corrections for known issues
+    // CRITICAL FIX: Enhanced data validation with comprehensive corrections
     function validateQuizData(data) {
         console.log('=== VALIDATING QUIZ DATA ===');
         
@@ -897,15 +897,24 @@
             }
             
             // Ensure it's a valid number
-            if (isNaN(correctAnswer)) {
-                console.warn(`Question ${index + 1}: Invalid correctAnswer, using 0 as fallback`);
+            if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= question.options.length) {
+                console.warn(`Question ${index + 1}: Invalid correctAnswer, attempting to find correct answer by content`);
+                
+                // Try to determine correct answer based on sentence meaning
+                const correctIndex = findCorrectAnswerByContent(question);
+                correctAnswer = correctIndex;
+                console.log(`Question ${index + 1}: Determined correct answer as index ${correctAnswer} based on content`);
+            }
+            
+            // Final validation - ensure it's within bounds
+            if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= question.options.length) {
+                console.error(`Question ${index + 1}: Still invalid, using fallback (0)`);
                 correctAnswer = 0;
             }
             
-            // CRITICAL FIX: Force correct answers for known problematic questions
-            cleanQuestion.correctAnswer = forceCorrectAnswer(question, correctAnswer);
+            cleanQuestion.correctAnswer = correctAnswer;
             
-            console.log(`Question ${index + 1} final:`, {
+            console.log(`Question ${index + 1} validated:`, {
                 sentence: cleanQuestion.sentence,
                 correctAnswer: cleanQuestion.correctAnswer,
                 correctOption: cleanQuestion.options[cleanQuestion.correctAnswer]
@@ -917,40 +926,86 @@
         return validatedData;
     }
 
-    // CRITICAL FIX: Force correct answers for specific known issues
-    function forceCorrectAnswer(question, currentCorrectAnswer) {
+    // CRITICAL FIX: Find correct answer by analyzing sentence content and options
+    function findCorrectAnswerByContent(question) {
         const sentence = question.sentence;
+        const pinyin = question.pinyin || '';
         const options = question.options;
         
-        // Known problematic questions and their forced correct answers
-        const forcedCorrections = {
-            "洗手间在二楼。": 0, // "The washroom is on the second floor"
-            "Xǐ shǒu jiān zài èr lóu.": 0, // Same sentence in pinyin
-            // Add more problematic questions here as they are discovered
+        // Common HSK1 sentence mappings with their correct English translations
+        const sentenceMeanings = {
+            '你好。': 'Hello.',
+            '你好吗？': 'How are you?',
+            '我很好。': 'I am fine.',
+            '谢谢。': 'Thank you.',
+            '不客气。': 'You are welcome.',
+            '对不起。': 'Sorry.',
+            '没关系。': 'It\'s okay.',
+            '再见。': 'Goodbye.',
+            '我叫小明。': 'My name is Xiaoming.',
+            '你叫什么名字？': 'What is your name?',
+            '我是学生。': 'I am a student.',
+            '他是老师。': 'He is a teacher.',
+            '这是什么？': 'What is this?',
+            '那是什么？': 'What is that?',
+            '这是书。': 'This is a book.',
+            '那是笔。': 'That is a pen.',
+            '我喜欢中国。': 'I like China.',
+            '我会说汉语。': 'I can speak Chinese.',
+            '今天天气很好。': 'The weather is good today.',
+            '明天见。': 'See you tomorrow.',
+            '洗手间在二楼。': 'The washroom is on the second floor.',
+            '图书馆在哪里？': 'Where is the library?',
+            '餐厅在那边。': 'The restaurant is over there.',
+            '多少钱？': 'How much is it?',
+            '太贵了。': 'It\'s too expensive.'
         };
         
-        // Check if this sentence needs forced correction
-        if (forcedCorrections.hasOwnProperty(sentence)) {
-            const forcedAnswer = forcedCorrections[sentence];
-            console.log(`🚨 FORCING CORRECTION: "${sentence}" from ${currentCorrectAnswer} to ${forcedAnswer}`);
-            console.log(`Expected: "${options[forcedAnswer]}"`);
-            return forcedAnswer;
-        }
-        
-        // Also check by matching the English meaning for additional safety
-        if (sentence.includes("二楼") || sentence.includes("èr lóu")) {
-            // Look for "second floor" in options
-            const secondFloorIndex = options.findIndex(opt => 
-                opt.toLowerCase().includes("second floor")
+        // Check if we have a known mapping for this sentence
+        if (sentenceMeanings[sentence]) {
+            const correctMeaning = sentenceMeanings[sentence];
+            const correctIndex = options.findIndex(option => 
+                option.toLowerCase().includes(correctMeaning.toLowerCase()) ||
+                option.toLowerCase() === correctMeaning.toLowerCase()
             );
-            if (secondFloorIndex !== -1 && secondFloorIndex !== currentCorrectAnswer) {
-                console.log(`🚨 AUTO-CORRECTING: "${sentence}" from ${currentCorrectAnswer} to ${secondFloorIndex} (second floor)`);
-                return secondFloorIndex;
+            if (correctIndex !== -1) {
+                return correctIndex;
             }
         }
         
-        // Return the original if no forced correction needed
-        return currentCorrectAnswer;
+        // Fallback: try to match based on keywords and patterns
+        for (let i = 0; i < options.length; i++) {
+            const option = options[i].toLowerCase();
+            
+            // Specific fixes for common problematic sentences
+            if (sentence === '洗手间在二楼。' && option.includes('washroom') && option.includes('second floor')) {
+                return i;
+            }
+            if (sentence === '图书馆在哪里？' && option.includes('library') && option.includes('where')) {
+                return i;
+            }
+            if (sentence === '餐厅在那边。' && option.includes('restaurant') && option.includes('over there')) {
+                return i;
+            }
+            
+            // General pattern matching
+            if (sentence.includes('你好') && option.includes('hello')) return i;
+            if (sentence.includes('谢谢') && option.includes('thank')) return i;
+            if (sentence.includes('再见') && option.includes('goodbye')) return i;
+            if (sentence.includes('老师') && option.includes('teacher')) return i;
+            if (sentence.includes('学生') && option.includes('student')) return i;
+            if (sentence.includes('书') && option.includes('book')) return i;
+            if (sentence.includes('笔') && option.includes('pen')) return i;
+            if (sentence.includes('中国') && option.includes('china')) return i;
+            if (sentence.includes('汉语') && option.includes('chinese')) return i;
+            if (sentence.includes('天气') && option.includes('weather')) return i;
+            if (sentence.includes('多少钱') && option.includes('how much')) return i;
+            if (sentence.includes('太贵') && option.includes('expensive')) return i;
+        }
+        
+        // Ultimate fallback - return first option
+        console.warn(`Could not determine correct answer for: "${sentence}", using first option as fallback`);
+        return 0;
     }
 
     // Load quiz data from Flask backend
@@ -958,10 +1013,17 @@
         try {
             showLoading();
             
+            console.log('Loading quiz data...');
             const response = await fetch('/sentences/api/quiz-sentences?count=20');
-            const data = await response.json();
             
-            if (data.success) {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('API Response:', data);
+            
+            if (data.success && data.sentences && Array.isArray(data.sentences)) {
                 // VALIDATE AND NORMALIZE THE DATA
                 quizData = validateQuizData(data.sentences);
                 
@@ -972,11 +1034,11 @@
                 showQuizContent();
                 initQuiz();
             } else {
-                throw new Error(data.message || 'Failed to load quiz data');
+                throw new Error(data.message || 'Invalid data structure received from API');
             }
         } catch (error) {
             console.error('Error loading quiz data:', error);
-            showError(error.message);
+            showError(`Failed to load quiz: ${error.message}. Please check if the server is running.`);
         }
     }
 
@@ -1009,7 +1071,16 @@
 
     // Initialize the quiz
     function initQuiz() {
+        currentQuestion = 0;
+        score = 0;
+        correctAnswers = 0;
+        incorrectAnswers = 0;
+        userAnswers = new Array(quizData.length).fill(null);
         startTime = new Date();
+        
+        // Reset speech interaction flag for new quiz
+        userInteractedWithSpeech = false;
+        
         showQuestion();
         updateProgress();
         updateScore();
@@ -1017,11 +1088,52 @@
         // Add event listeners
         nextButton.addEventListener('click', nextQuestion);
         prevButton.addEventListener('click', prevQuestion);
+        
+        // Setup interaction listeners for this quiz session
+        setupQuizInteractionListeners();
+    }
+
+    // Setup interaction listeners specifically for the quiz
+    function setupQuizInteractionListeners() {
+        // Remove any existing listeners and add new ones
+        document.removeEventListener('click', handleQuizInteraction);
+        document.removeEventListener('touchstart', handleQuizInteraction);
+        
+        document.addEventListener('click', handleQuizInteraction);
+        if (isMobile) {
+            document.addEventListener('touchstart', handleQuizInteraction);
+        }
+    }
+
+    function handleQuizInteraction() {
+        if (!userInteractedWithSpeech) {
+            userInteractedWithSpeech = true;
+            console.log('Quiz interaction detected - auto-speak now enabled');
+            
+            // Auto-speak the current question if this is the first interaction
+            if (speechEnabled && autoSpeakEnabled) {
+                const currentSentence = quizData[currentQuestion]?.sentence;
+                if (currentSentence) {
+                    setTimeout(() => {
+                        console.log('Auto-speaking after first interaction:', currentSentence);
+                        speakText(currentSentence);
+                    }, 300);
+                }
+            }
+        }
     }
 
     // Show current question
     function showQuestion() {
         const question = quizData[currentQuestion];
+        
+        if (!question || !question.sentence || !question.options || !Array.isArray(question.options)) {
+            console.error('Invalid question data:', question);
+            showError('Invalid question data. Please try restarting the quiz.');
+            return;
+        }
+        
+        console.log(`Showing question ${currentQuestion + 1}:`, question);
         
         questionContainer.innerHTML = `
             <div class="text-center mb-6">
@@ -1073,8 +1185,8 @@
         }
         
         // If user already answered this question, show their answer
-        if (userAnswers[currentQuestion] !== undefined) {
-            highlightOption(userAnswers[currentQuestion], question.correctAnswer);
+        if (userAnswers[currentQuestion] !== null) {
+            highlightOption(userAnswers[currentQuestion], quizData[currentQuestion].correctAnswer);
         }
         
         // Auto-speak the new question
@@ -1085,12 +1197,12 @@
 
     // Select an option - ULTRA-SAFE VERSION
     function selectOption(selectedIndex) {
-        if (userAnswers[currentQuestion] !== undefined) return; // Already answered
+        if (userAnswers[currentQuestion] !== null) return; // Already answered
         
         const question = quizData[currentQuestion];
         
         // ULTRA-SAFE: Use the validated correctAnswer directly
-        const correctAnswerIndex = question.correctAnswer;
+        const correctAnswerIndex = parseInt(question.correctAnswer);
         
         // EXTREME DEBUGGING
         console.log('=== ANSWER SELECTION DEBUG ===');
@@ -1131,6 +1243,8 @@
         const optionButtons = optionsContainer.querySelectorAll('.option-button');
         
         optionButtons.forEach((button, index) => {
+            button.classList.remove('correct', 'incorrect');
+            
             if (index === correctIndex) {
                 button.classList.add('correct');
             } else if (index === selectedIndex && index !== correctIndex) {
@@ -1304,6 +1418,7 @@
         loadingState.classList.remove('hidden');
         quizContent.classList.add('hidden');
         errorState.classList.add('hidden');
+        resultsSection.classList.add('hidden');
     }
 
     function hideLoading() {
