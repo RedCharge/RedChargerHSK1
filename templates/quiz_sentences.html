@@ -874,55 +874,9 @@
         });
     }
 
-    // ULTIMATE FIX: Complete sentence mapping with guaranteed correct answers
-    const sentenceAnswerMap = {
-        // Greetings and basic phrases
-        '你好。': 'Hello.',
-        '你好吗？': 'How are you?',
-        '我很好。': 'I am fine.',
-        '谢谢。': 'Thank you.',
-        '不客气。': 'You are welcome.',
-        '对不起。': 'Sorry.',
-        '没关系。': 'It\'s okay.',
-        '再见。': 'Goodbye.',
-        '明天见。': 'See you tomorrow.',
-        
-        // Personal information
-        '我叫小明。': 'My name is Xiaoming.',
-        '你叫什么名字？': 'What is your name?',
-        '我是学生。': 'I am a student.',
-        '他是老师。': 'He is a teacher.',
-        '我会说汉语。': 'I can speak Chinese.',
-        '我喜欢中国。': 'I like China.',
-        
-        // Questions and objects
-        '这是什么？': 'What is this?',
-        '那是什么？': 'What is that?',
-        '这是书。': 'This is a book.',
-        '那是笔。': 'That is a pen.',
-        '图书馆在哪里？': 'Where is the library?',
-        '餐厅在那边。': 'The restaurant is over there.',
-        '洗手间在二楼。': 'The washroom is on the second floor.',
-        
-        // Shopping and numbers
-        '多少钱？': 'How much is it?',
-        '太贵了。': 'It\'s too expensive.',
-        '我要这个。': 'I want this.',
-        
-        // Time and weather
-        '今天天气很好。': 'The weather is good today.',
-        '现在几点？': 'What time is it now?',
-        '今天星期一。': 'Today is Monday.',
-        
-        // Family
-        '这是我妈妈。': 'This is my mother.',
-        '这是我爸爸。': 'This is my father.',
-        '我没有兄弟姐妹。': 'I don\'t have siblings.'
-    };
-
-    // ULTIMATE FIX: Force correct answers for ALL questions
+    // SIMPLE FIX: Just ensure correctAnswer is a valid number
     function validateQuizData(data) {
-        console.log('=== ULTIMATE DATA VALIDATION ===');
+        console.log('=== SIMPLE DATA VALIDATION ===');
         
         const validatedData = data.map((question, index) => {
             // Create a clean copy
@@ -932,15 +886,26 @@
             console.log(`Question ${index + 1} original:`, {
                 sentence: question.sentence,
                 correctAnswer: question.correctAnswer,
+                type: typeof question.correctAnswer,
                 options: question.options
             });
             
-            // ULTIMATE FIX: Completely ignore the backend's correctAnswer and determine it ourselves
-            const correctAnswerIndex = findGuaranteedCorrectAnswer(question);
+            // Convert correctAnswer to number if it's a string
+            let correctAnswer = question.correctAnswer;
+            if (typeof correctAnswer === 'string') {
+                correctAnswer = parseInt(correctAnswer);
+            }
             
-            cleanQuestion.correctAnswer = correctAnswerIndex;
+            // Ensure it's a valid number within range
+            if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= question.options.length) {
+                console.error(`Question ${index + 1}: Invalid correctAnswer from backend: ${correctAnswer}`);
+                // Fallback to first option if backend data is wrong
+                correctAnswer = 0;
+            }
             
-            console.log(`🚀 Question ${index + 1} FORCED CORRECTION:`, {
+            cleanQuestion.correctAnswer = correctAnswer;
+            
+            console.log(`Question ${index + 1} validated:`, {
                 sentence: cleanQuestion.sentence,
                 correctAnswer: cleanQuestion.correctAnswer,
                 correctOption: cleanQuestion.options[cleanQuestion.correctAnswer]
@@ -950,110 +915,6 @@
         });
         
         return validatedData;
-    }
-
-    // ULTIMATE FIX: Find guaranteed correct answer by exact matching
-    function findGuaranteedCorrectAnswer(question) {
-        const sentence = question.sentence;
-        const options = question.options;
-        
-        // Method 1: Exact match from our predefined map
-        if (sentenceAnswerMap[sentence]) {
-            const correctEnglish = sentenceAnswerMap[sentence];
-            const correctIndex = options.findIndex(option => 
-                option.trim().toLowerCase() === correctEnglish.trim().toLowerCase()
-            );
-            if (correctIndex !== -1) {
-                console.log(`✓ Found exact match for "${sentence}": index ${correctIndex}`);
-                return correctIndex;
-            }
-        }
-        
-        // Method 2: Fuzzy match from our predefined map
-        if (sentenceAnswerMap[sentence]) {
-            const correctEnglish = sentenceAnswerMap[sentence];
-            const correctIndex = options.findIndex(option => 
-                option.toLowerCase().includes(correctEnglish.toLowerCase()) ||
-                correctEnglish.toLowerCase().includes(option.toLowerCase())
-            );
-            if (correctIndex !== -1) {
-                console.log(`✓ Found fuzzy match for "${sentence}": index ${correctIndex}`);
-                return correctIndex;
-            }
-        }
-        
-        // Method 3: Keyword-based matching for common patterns
-        const keywordMatches = {
-            '你好': ['hello', 'hi'],
-            '谢谢': ['thank'],
-            '再见': ['goodbye', 'bye'],
-            '老师': ['teacher'],
-            '学生': ['student'],
-            '书': ['book'],
-            '笔': ['pen'],
-            '中国': ['china'],
-            '汉语': ['chinese'],
-            '天气': ['weather'],
-            '多少钱': ['how much'],
-            '太贵': ['expensive'],
-            '洗手间': ['washroom', 'bathroom'],
-            '二楼': ['second floor'],
-            '图书馆': ['library'],
-            '餐厅': ['restaurant']
-        };
-        
-        for (const [chineseWord, englishKeywords] of Object.entries(keywordMatches)) {
-            if (sentence.includes(chineseWord)) {
-                for (let i = 0; i < options.length; i++) {
-                    const option = options[i].toLowerCase();
-                    for (const keyword of englishKeywords) {
-                        if (option.includes(keyword)) {
-                            console.log(`✓ Found keyword match for "${sentence}" with "${chineseWord}": index ${i}`);
-                            return i;
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Method 4: Fallback - find the most logical answer
-        console.warn(`⚠️ No perfect match found for "${sentence}", using intelligent fallback`);
-        
-        // Count occurrences of logical words
-        const optionScores = options.map(option => {
-            let score = 0;
-            const optionLower = option.toLowerCase();
-            
-            // Positive indicators
-            if (optionLower.includes('hello') && sentence.includes('你好')) score += 10;
-            if (optionLower.includes('thank') && sentence.includes('谢谢')) score += 10;
-            if (optionLower.includes('goodbye') && sentence.includes('再见')) score += 10;
-            if (optionLower.includes('teacher') && sentence.includes('老师')) score += 10;
-            if (optionLower.includes('student') && sentence.includes('学生')) score += 10;
-            if (optionLower.includes('book') && sentence.includes('书')) score += 10;
-            if (optionLower.includes('pen') && sentence.includes('笔')) score += 10;
-            if (optionLower.includes('china') && sentence.includes('中国')) score += 10;
-            if (optionLower.includes('chinese') && sentence.includes('汉语')) score += 10;
-            if (optionLower.includes('weather') && sentence.includes('天气')) score += 10;
-            if (optionLower.includes('how much') && sentence.includes('多少钱')) score += 10;
-            if (optionLower.includes('expensive') && sentence.includes('太贵')) score += 10;
-            if ((optionLower.includes('washroom') || optionLower.includes('bathroom')) && sentence.includes('洗手间')) score += 10;
-            if (optionLower.includes('second floor') && sentence.includes('二楼')) score += 10;
-            if (optionLower.includes('library') && sentence.includes('图书馆')) score += 10;
-            if (optionLower.includes('restaurant') && sentence.includes('餐厅')) score += 10;
-            
-            // Negative indicators (avoid these for wrong answers)
-            if (optionLower.includes('question') && !sentence.includes('吗？')) score -= 5;
-            if (optionLower.includes('what is your') && !sentence.includes('什么')) score -= 5;
-            
-            return score;
-        });
-        
-        const maxScore = Math.max(...optionScores);
-        const bestOption = optionScores.indexOf(maxScore);
-        
-        console.log(`✓ Using intelligent fallback for "${sentence}": index ${bestOption} (score: ${maxScore})`);
-        return bestOption;
     }
 
     // Load quiz data from Flask backend
@@ -1072,11 +933,8 @@
             console.log('API Response:', data);
             
             if (data.success && data.sentences && Array.isArray(data.sentences)) {
-                // ULTIMATE VALIDATION: Completely override backend answers
+                // Simple validation - just ensure correctAnswer is a number
                 quizData = validateQuizData(data.sentences);
-                
-                // Final verification
-                verifyAllAnswers();
                 
                 hideLoading();
                 showQuizContent();
@@ -1087,38 +945,6 @@
         } catch (error) {
             console.error('Error loading quiz data:', error);
             showError(`Failed to load quiz: ${error.message}. Please check if the server is running.`);
-        }
-    }
-
-    // Final verification that all answers are correct
-    function verifyAllAnswers() {
-        console.log('=== FINAL ANSWER VERIFICATION ===');
-        let allCorrect = true;
-        
-        quizData.forEach((question, index) => {
-            const correctAnswer = question.correctAnswer;
-            const correctOption = question.options[correctAnswer];
-            const expectedEnglish = sentenceAnswerMap[question.sentence];
-            
-            if (expectedEnglish) {
-                const isCorrect = correctOption.trim().toLowerCase() === expectedEnglish.trim().toLowerCase();
-                if (!isCorrect) {
-                    console.error(`✗ VERIFICATION FAILED: Question ${index + 1} - "${question.sentence}"`);
-                    console.error(`  Expected: "${expectedEnglish}"`);
-                    console.error(`  Got: "${correctOption}"`);
-                    allCorrect = false;
-                } else {
-                    console.log(`✓ Verified: Question ${index + 1} - "${question.sentence}" -> "${correctOption}"`);
-                }
-            } else {
-                console.log(`ℹ️ No predefined answer for: "${question.sentence}" -> "${correctOption}"`);
-            }
-        });
-        
-        if (allCorrect) {
-            console.log('🎉 ALL ANSWERS VERIFIED CORRECT!');
-        } else {
-            console.error('❌ SOME ANSWERS MAY BE INCORRECT!');
         }
     }
 
@@ -1252,24 +1078,21 @@
         }, 500);
     }
 
-    // Select an option - GUARANTEED CORRECT VERSION
+    // SIMPLE FIX: Just compare with the backend's correctAnswer
     function selectOption(selectedIndex) {
         if (userAnswers[currentQuestion] !== null) return; // Already answered
         
         const question = quizData[currentQuestion];
         
-        // GUARANTEED CORRECT: Use our pre-validated correctAnswer
+        // Use the backend's correctAnswer directly
         const correctAnswerIndex = question.correctAnswer;
         
-        // EXTREME DEBUGGING
-        console.log('=== ANSWER SELECTION DEBUG ===');
+        console.log('=== ANSWER DEBUG ===');
         console.log('Question:', question.sentence);
-        console.log('Selected index:', selectedIndex, '(', question.options[selectedIndex], ')');
-        console.log('Correct index:', correctAnswerIndex, '(', question.options[correctAnswerIndex], ')');
-        console.log('Expected English:', sentenceAnswerMap[question.sentence] || 'No predefined mapping');
-        console.log('Is correct:', selectedIndex === correctAnswerIndex);
+        console.log('Selected:', selectedIndex, '=', question.options[selectedIndex]);
+        console.log('Correct:', correctAnswerIndex, '=', question.options[correctAnswerIndex]);
         
-        // Simple, safe comparison
+        // Simple comparison
         const isCorrect = selectedIndex === correctAnswerIndex;
         
         // Store user's answer
