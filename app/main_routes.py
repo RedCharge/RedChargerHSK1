@@ -30,10 +30,6 @@ def chat():
     """Render the community chat page"""
     return render_template('chat.html')
 
-@main_bp.route('/learn')
-def chat():
-    """Render the community chat page"""
-    return render_template('learn.html')
 
 @main_bp.route('/api/quiz-results', methods=['POST'])
 def save_quiz_result():
