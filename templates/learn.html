@@ -466,12 +466,13 @@
         let speechSynthesis = window.speechSynthesis;
         let speechEnabled = true;
 
-        // Reading materials data
+                // Updated reading materials with Chinese characters
         const readingMaterials = [
             {
                 id: 1,
                 title: "My First Day in China",
-                pinyin: "Wǒ dì yī tiān zài Zhōngguó. Wǒ zǎoshang qī diǎn qǐchuáng. Wǒ hē chá hé chī miànbāo. Wǒ qù xuéxiào xuéxí Hànyǔ. Lǎoshī hěn hǎo. Tóngxuémen yě hěn yǒuhǎo. Wǒ xǐhuān Zhōngguó shēnghuó.",
+                chinese: "我在中国的第一天。我早上七点起床。我喝茶和吃面包。我去学校学习汉语。老师很好。同学们也很友好。我喜欢中国生活。",
+                pinyin: "Wǒ zài Zhōngguó de dì yī tiān. Wǒ zǎoshang qī diǎn qǐchuáng. Wǒ hē chá hé chī miànbāo. Wǒ qù xuéxiào xuéxí Hànyǔ. Lǎoshī hěn hǎo. Tóngxuémen yě hěn yǒuhǎo. Wǒ xǐhuān Zhōngguó shēnghuó.",
                 translation: "My first day in China. I wake up at 7 AM. I drink tea and eat bread. I go to school to learn Chinese. The teacher is very good. The classmates are also very friendly. I like life in China.",
                 level: "Beginner",
                 wordCount: 45
@@ -479,6 +480,7 @@
             {
                 id: 2,
                 title: "At the Restaurant",
+                chinese: "今天晚上我和朋友去餐厅。我们点了鸡肉，鱼和蔬菜。服务员很友好。菜很好吃。我们喝了茶。最后我付了钱。我们很高兴。",
                 pinyin: "Jīntiān wǎnshàng wǒ hé péngyǒu qù cāntīng. Wǒmen diǎnle jīròu, yú hé shūcài. Fúwùyuán hěn yǒuhǎo. Cài hěn hǎochī. Wǒmen hēle chá. Zuìhòu wǒ fùle qián. Wǒmen hěn gāoxìng.",
                 translation: "Tonight I go to a restaurant with my friend. We order chicken, fish, and vegetables. The waiter is very friendly. The food is delicious. We drink tea. Finally I pay the money. We are very happy.",
                 level: "Beginner",
@@ -487,6 +489,7 @@
             {
                 id: 3,
                 title: "Shopping Day",
+                chinese: "我喜欢购物。今天我去商店买衣服。我看了很多衣服。衣服有红色，蓝色和白色。有些衣服太贵了。最后我买了一件蓝色衬衫。我很满意。",
                 pinyin: "Wǒ xǐhuān gòuwù. Jīntiān wǒ qù shāngdiàn mǎi yīfu. Wǒ kànle hěn duō yīfu. Yīfu yǒu hóngsè, lánsè hé báisè. Yǒuxiē yīfu tài guì le. Zuìhòu wǒ mǎile yī jiàn lánsè chènshān. Wǒ hěn mǎnyì.",
                 translation: "I like shopping. Today I go to the store to buy clothes. I look at many clothes. The clothes have red, blue, and white colors. Some clothes are too expensive. Finally I buy a blue shirt. I am very satisfied.",
                 level: "Beginner",
@@ -495,6 +498,7 @@
             {
                 id: 4,
                 title: "Weather and Activities",
+                chinese: "今天天气很好。太阳很大。我和家人去公园。我们在公园里散步。孩子们玩手球。我们吃了水果。晚上我们回家。今天是很愉快的一天。",
                 pinyin: "Jīntiān tiānqì hěn hǎo. Tàiyáng hěn dà. Wǒ hé jiārén qù gōngyuán. Wǒmen zài gōngyuán lǐ sànbù. Háizi men wán shǎngqiú. Wǒmen chīle shuǐguǒ. Wǎnshàng wǒmen huí jiā. Jīntiān shì hěn yúkuài de yītiān.",
                 translation: "Today the weather is very good. The sun is very big. I go to the park with my family. We walk in the park. The children play with a ball. We eat fruit. In the evening we return home. Today is a very pleasant day.",
                 level: "Beginner",
@@ -503,6 +507,7 @@
             {
                 id: 5,
                 title: "Learning Chinese",
+                chinese: "我每天学习汉语。我早上念生词。我写完汉字。我听录音。我跟老师说话。汉语很有意思。有时候很难。但我很努力。我想说好汉语。",
                 pinyin: "Wǒ měitiān xuéxí Hànyǔ. Wǒ zǎoshang niàn shēngcí. Wǒ xiěwán Hànzì. Wǒ tīng lùyīn. Wǒ gēn lǎoshī shuōhuà. Hànyǔ hěn yǒuyìsi. Yǒushíhòu hěn nán. Dàn wǒ hěn nǔlì. Wǒ xiǎng shuō hǎo Hànyǔ.",
                 translation: "I study Chinese every day. I read vocabulary in the morning. I practice writing Chinese characters. I listen to recordings. I speak with my teacher. Chinese is very interesting. Sometimes it's very difficult. But I work very hard. I want to speak good Chinese.",
                 level: "Beginner",
@@ -511,6 +516,7 @@
             {
                 id: 6,
                 title: "Family Dinner",
+                chinese: "晚上我们全家一起吃饭。妈妈做了很多菜。有鸡汤，蔬菜和米饭。爸爸买了水果。我们谈论今天的事情。弟弟讲学校的故事。姐姐说她的工作。我们笑很多。",
                 pinyin: "Wǎnshàng wǒmen quánjiā yīqǐ chīfàn. Māmā zuòle hěn duō cài. Yǒu jītāng, shūcài hé mǐfàn. Bàba mǎile shuǐguǒ. Wǒmen tánlùn jīntiān de shìqíng. Dìdi jiǎng xuéxiào de gùshì. Jiějie shuō tā de gōngzuò. Wǒmen xiào hěn duō.",
                 translation: "In the evening our whole family eats together. Mom cooks many dishes. There is chicken soup, vegetables, and rice. Dad buys fruit. We discuss today's matters. Younger brother talks about school stories. Older sister talks about her work. We laugh a lot.",
                 level: "Beginner",
@@ -519,6 +525,7 @@
             {
                 id: 7,
                 title: "Weekend Plans",
+                chinese: "周末我想去看电影。我也想想买新书。如果天气好，我会去公园。我的朋友邀请我去他家。我们可以看电视和吃饭。我希望周末快点来。",
                 pinyin: "Zhōumò wǒ xiǎng qù kàn diànyǐng. Wǒ yě xiǎng mǎi xīn shū. Rúguǒ tiānqì hǎo, wǒ huì qù gōngyuán. Wǒ de péngyǒu yāoqǐng wǒ qù tā jiā. Wǒmen kěyǐ kàn diànshì hé chī fàn. Wǒ xīwàng zhōumò kuài diǎn lái.",
                 translation: "On the weekend I want to go watch a movie. I also want to buy new books. If the weather is good, I will go to the park. My friend invites me to go to his home. We can watch television and eat food. I hope the weekend comes quickly.",
                 level: "Beginner",
@@ -527,6 +534,7 @@
             {
                 id: 8,
                 title: "My Hobbies",
+                chinese: "我有很多爱好。我喜欢看书，听音乐和画画。有时我写文章。我也喜欢打篮球。周末我常常跟朋友一起玩。我们笑很多。生活很有意思。",
                 pinyin: "Wǒ yǒu hěn duō àihào. Wǒ xǐhuān kàn shū, tīng yīnyuè hé huà huà. Yǒushí wǒ xiě wénzhāng. Wǒ yě xǐhuān dǎ lánqiú. Zhōumò wǒ chángcháng gēn péngyǒu yīqǐ wán. Wǒmen xiào hěn duō. Shēnghuó hěn yǒuyìsi.",
                 translation: "I have many hobbies. I like reading books, listening to music, and drawing pictures. Sometimes I write articles. I also like playing basketball. On weekends I often play together with friends. We laugh a lot. Life is very interesting.",
                 level: "Beginner",
@@ -535,6 +543,7 @@
             {
                 id: 9,
                 title: "Seasons in China",
+                chinese: "中国有四个季节。春天暖和，花开了。夏天很热，我们吃冰淇淋。秋天凉快，树叶变红。冬天冷，有时下雪。我最喜欢秋天。天气不冷不热。",
                 pinyin: "Zhōngguó yǒu sì gè jìjié. Chūntiān nuǎnhuo, huā kāi le. Xiàtiān hěn rè, wǒmen chī bīngqílín. Qiūtiān liángkuai, shùyè biàn hóng. Dōngtiān lěng, yǒu shí xià xuě. Wǒ zuì xǐhuān qiūtiān. Tiānqì bù lěng bù rè.",
                 translation: "China has four seasons. Spring is warm, flowers bloom. Summer is very hot, we eat ice cream. Autumn is cool, leaves turn red. Winter is cold, sometimes it snows. I like autumn the most. The weather is not cold and not hot.",
                 level: "Beginner",
@@ -543,12 +552,122 @@
             {
                 id: 10,
                 title: "Making New Friends",
+                chinese: "在学校我认识了新朋友。他叫小明。他是中国人。他教我汉语。我教他英语。我们一起学习，一起吃饭。他很友善。我很高兴认识了他。",
                 pinyin: "Zài xuéxiào wǒ rènshile xīn péngyǒu. Tā jiào Xiǎo Míng. Tā shì Zhōngguó rén. Tā jiāo wǒ Hànyǔ. Wǒ jiāo tā Yīngyǔ. Wǒmen yīqǐ xuéxí, yīqǐ chīfàn. Tā hěn yǒushàn. Wǒ hěn gāoxìng rènshile tā.",
                 translation: "At school I met a new friend. His name is Xiao Ming. He is Chinese. He teaches me Chinese. I teach him English. We study together, eat together. He is very kind. I am very happy to have met him.",
                 level: "Beginner",
                 wordCount: 47
             }
         ];
+
+        // Fixed text-to-speech function
+        function speakText(text, isChinese = true) {
+            if (!speechEnabled) return;
+            
+            // Stop any ongoing speech
+            speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Set language to Chinese for Chinese text
+            if (isChinese) {
+                utterance.lang = 'zh-CN';
+                utterance.rate = 0.9; // Normal speed for Chinese
+                utterance.pitch = 1.0;
+            } else {
+                utterance.lang = 'en-US';
+                utterance.rate = 0.8;
+                utterance.pitch = 1.0;
+            }
+            
+            // Get appropriate voice
+            const voices = speechSynthesis.getVoices();
+            let selectedVoice = null;
+            
+            if (isChinese) {
+                // Try to find Chinese voice
+                selectedVoice = voices.find(voice => 
+                    voice.lang.includes('zh-CN') || 
+                    voice.lang.includes('zh') ||
+                    voice.lang.includes('cmn')
+                );
+                console.log('Chinese voices available:', voices.filter(v => v.lang.includes('zh')));
+            } else {
+                // For English, use default
+                selectedVoice = voices.find(voice => voice.default) || voices[0];
+            }
+            
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+                console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
+            } else {
+                console.log('No Chinese voice found, using default');
+            }
+            
+            // Add visual feedback
+            const button = event.target.closest('button');
+            if (button) {
+                button.classList.add('playing');
+                utterance.onend = () => {
+                    button.classList.remove('playing');
+                };
+                utterance.onerror = (e) => {
+                    console.error('Speech error:', e);
+                    button.classList.remove('playing');
+                };
+            }
+            
+            speechSynthesis.speak(utterance);
+        }
+
+        // Updated displayReadings function to use Chinese text for TTS
+        function displayReadings(readings) {
+            if (readings.length === 0) {
+                readingEmpty.classList.remove('hidden');
+                readingContainer.innerHTML = '';
+                return;
+            }
+            
+            readingEmpty.classList.add('hidden');
+            
+            readingContainer.innerHTML = readings.map(reading => `
+                <div class="learn-card p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <h3 class="text-xl font-bold text-text-light">${reading.title}</h3>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm bg-primary-blue text-white px-2 py-1 rounded">${reading.level}</span>
+                            <span class="text-sm bg-secondary-cyan text-main-bg px-2 py-1 rounded">${reading.wordCount} words</span>
+                            <button class="speech-button p-2 rounded-full bg-card-bg text-text-light border border-text-muted/30 cursor-pointer hover:bg-card-bg/70"
+                                    onclick="speakText('${reading.chinese.replace(/'/g, "\\'")}', true)"
+                                    title="Click to hear the Chinese reading">
+                                <i class="fas fa-volume-up"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="text-sm text-text-muted mb-2">Chinese Text:</div>
+                        <div class="chinese-character text-xl leading-relaxed bg-card-bg/50 p-4 rounded-lg">
+                            ${reading.chinese}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="text-sm text-text-muted mb-2">Pinyin Pronunciation:</div>
+                        <div class="pinyin-text text-lg leading-relaxed bg-card-bg/30 p-4 rounded-lg">
+                            ${reading.pinyin}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-sm text-text-muted mb-2">English Translation:</div>
+                        <div class="text-text-light text-lg leading-relaxed bg-card-bg/20 p-4 rounded-lg">
+                            ${reading.translation}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
 
         // DOM elements
         const learnWordsBtn = document.getElementById('learn-words-btn');
