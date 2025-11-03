@@ -38,9 +38,6 @@ def create_app():
     from .profile_routes import profile_bp
     from leaderboard_routes import leaderboard_bp
 
-
-
-
     app.register_blueprint(main_bp)
     app.register_blueprint(words_bp, url_prefix='/words')
     app.register_blueprint(sentence_bp, url_prefix='/sentences')
