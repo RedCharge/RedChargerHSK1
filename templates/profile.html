@@ -551,7 +551,7 @@
         <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
     </footer>
 
-    <!-- Profile Logic -->
+        <!-- Profile Logic -->
     <script>
         // DOM Elements
         const mobileMenuButton = document.getElementById('mobile-menu-button');
@@ -748,14 +748,108 @@
             }
         }
 
+        // UPDATED: Get real statistics from quiz results
         function updateStats() {
-            const profile = getProfile();
-            const stats = profile.stats || {};
+            const stats = calculateUserStats();
             
-            document.getElementById('total-words').textContent = stats.totalWords || 0;
-            document.getElementById('total-sentences').textContent = stats.totalSentences || 0;
-            document.getElementById('streak-days').textContent = stats.streakDays || 0;
-            document.getElementById('accuracy-rate').textContent = (stats.accuracyRate || 0) + '%';
+            document.getElementById('total-words').textContent = stats.totalWords;
+            document.getElementById('total-sentences').textContent = stats.totalSentences;
+            document.getElementById('streak-days').textContent = stats.streakDays;
+            document.getElementById('accuracy-rate').textContent = stats.accuracyRate + '%';
+            
+            // Update profile with new stats
+            const profile = getProfile();
+            profile.stats = stats;
+            localStorage.setItem('userProfile', JSON.stringify(profile));
+        }
+
+        // NEW: Calculate real statistics from quiz data
+        function calculateUserStats() {
+            // Get quiz history from localStorage (same as result.html)
+            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
+            const wordPerformance = JSON.parse(localStorage.getItem('hsk1WordPerformance') || '{}');
+            const sentencePerformance = JSON.parse(localStorage.getItem('hsk1SentencePerformance') || '{}');
+            
+            let totalWords = 0;
+            let totalSentences = 0;
+            let totalCorrect = 0;
+            let totalQuestions = 0;
+            let streakDays = 0;
+            
+            // Calculate from quiz history
+            quizHistory.forEach(quiz => {
+                totalCorrect += quiz.correct || 0;
+                totalQuestions += quiz.total || 0;
+                
+                // Count words vs sentences based on quiz type
+                if (quiz.quiz_type === 'words' || !quiz.quiz_type) {
+                    totalWords += quiz.correct || 0;
+                } else if (quiz.quiz_type === 'sentences') {
+                    totalSentences += quiz.correct || 0;
+                }
+            });
+            
+            // Calculate from word performance
+            Object.values(wordPerformance).forEach(performance => {
+                if (performance.correct > 0) {
+                    totalWords = Math.max(totalWords, Object.keys(wordPerformance).length);
+                }
+            });
+            
+            // Calculate from sentence performance
+            Object.values(sentencePerformance).forEach(performance => {
+                if (performance.correct > 0) {
+                    totalSentences = Math.max(totalSentences, Object.keys(sentencePerformance).length);
+                }
+            });
+            
+            // Calculate streak (simplified - checks last 7 days)
+            const today = new Date();
+            const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            
+            const recentQuizzes = quizHistory.filter(quiz => {
+                const quizDate = new Date(quiz.timestamp || quiz.date);
+                return quizDate >= lastWeek;
+            });
+            
+            // Simple streak calculation (you can make this more sophisticated)
+            streakDays = Math.min(recentQuizzes.length, 7);
+            
+            // Calculate accuracy rate
+            const accuracyRate = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+            
+            return {
+                totalWords: totalWords,
+                totalSentences: totalSentences,
+                streakDays: streakDays,
+                accuracyRate: accuracyRate
+            };
+        }
+
+        // NEW: Get learning progress from your HSK1 data
+        function getLearningProgress() {
+            // This would integrate with your actual HSK1 words and sentences data
+            // For now, we'll calculate based on quiz performance
+            
+            const wordPerformance = JSON.parse(localStorage.getItem('hsk1WordPerformance') || '{}');
+            const sentencePerformance = JSON.parse(localStorage.getItem('hsk1SentencePerformance') || '{}');
+            
+            // Count mastered words (words with high accuracy)
+            const masteredWords = Object.values(wordPerformance).filter(performance => {
+                return performance.correct >= 3; // Consider mastered if correct 3+ times
+            }).length;
+            
+            // Count mastered sentences
+            const masteredSentences = Object.values(sentencePerformance).filter(performance => {
+                return performance.correct >= 2; // Consider mastered if correct 2+ times
+            }).length;
+            
+            return {
+                masteredWords,
+                masteredSentences,
+                totalWords: Object.keys(wordPerformance).length,
+                totalSentences: Object.keys(sentencePerformance).length
+            };
         }
 
         function updateCompletion() {
@@ -777,15 +871,28 @@
 
         function exportData() {
             const profile = getProfile();
-            const dataStr = JSON.stringify(profile, null, 2);
+            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
+            const wordPerformance = JSON.parse(localStorage.getItem('hsk1WordPerformance') || '{}');
+            const sentencePerformance = JSON.parse(localStorage.getItem('hsk1SentencePerformance') || '{}');
+            
+            const exportData = {
+                profile: profile,
+                quizHistory: quizHistory,
+                wordPerformance: wordPerformance,
+                sentencePerformance: sentencePerformance,
+                learningProgress: getLearningProgress(),
+                exportDate: new Date().toISOString()
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
             const dataBlob = new Blob([dataStr], { type: 'application/json' });
             
             const link = document.createElement('a');
             link.href = URL.createObjectURL(dataBlob);
-            link.download = 'redcharger-profile-backup.json';
+            link.download = 'redcharger-learning-data.json';
             link.click();
             
-            showSuccess('Profile data exported successfully!');
+            showSuccess('All learning data exported successfully!');
         }
 
         function clearData() {
@@ -815,6 +922,13 @@
                 clearTimeout(saveTimeout);
                 saveTimeout = setTimeout(updateCompletion, 1000);
             });
+        });
+
+        // Refresh stats when page becomes visible
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                updateStats();
+            }
         });
     </script>
 </body>
