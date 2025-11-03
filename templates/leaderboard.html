@@ -245,143 +245,6 @@
             padding: 0.5rem 1rem;
             font-size: 0.875rem;
         }
-
-        /* Responsive leaderboard card styles */
-        .leaderboard-item {
-            transition: all 0.3s ease;
-        }
-
-        .leaderboard-item:hover {
-            transform: translateY(-2px);
-        }
-
-        /* Mobile-specific styles */
-        @media (max-width: 768px) {
-            .leaderboard-item {
-                padding: 1rem;
-                margin-bottom: 0.75rem;
-            }
-
-            .rank-badge {
-                width: 36px;
-                height: 36px;
-                font-size: 1rem;
-            }
-
-            .user-avatar {
-                width: 44px;
-                height: 44px;
-            }
-
-            .user-info {
-                min-width: 0;
-            }
-
-            .user-name {
-                font-size: 0.95rem;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                max-width: 120px;
-            }
-
-            .user-level {
-                font-size: 0.8rem;
-            }
-
-            .stats-grid {
-                display: grid;
-                grid-template-columns: repeat(2, 1fr);
-                gap: 0.5rem;
-                width: 100%;
-                margin-top: 0.75rem;
-            }
-
-            .stat-item {
-                text-align: center;
-                padding: 0.5rem;
-                background: rgba(255, 255, 255, 0.05);
-                border-radius: 0.5rem;
-            }
-
-            .stat-value {
-                font-size: 0.9rem;
-                font-weight: 600;
-                color: #33f0e8;
-            }
-
-            .stat-label {
-                font-size: 0.7rem;
-                color: #94a3b8;
-            }
-
-            .score-badge {
-                position: absolute;
-                top: 0.75rem;
-                right: 0.75rem;
-                background: linear-gradient(135deg, #5c7cfa, #33f0e8);
-                color: white;
-                padding: 0.25rem 0.75rem;
-                border-radius: 1rem;
-                font-size: 0.8rem;
-                font-weight: 600;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .leaderboard-item {
-                padding: 0.875rem;
-            }
-
-            .rank-badge {
-                width: 32px;
-                height: 32px;
-                font-size: 0.9rem;
-            }
-
-            .user-avatar {
-                width: 40px;
-                height: 40px;
-            }
-
-            .user-name {
-                font-size: 0.9rem;
-                max-width: 100px;
-            }
-
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 0.375rem;
-            }
-
-            .stat-value {
-                font-size: 0.85rem;
-            }
-
-            .stat-label {
-                font-size: 0.65rem;
-            }
-
-            .score-badge {
-                font-size: 0.75rem;
-                padding: 0.2rem 0.6rem;
-            }
-        }
-
-        /* Loading spinner styles */
-        .loading-spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid rgba(51, 240, 232, 0.3);
-            border-top: 4px solid #33f0e8;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
     </style>
 </head>
 <body class="selection:bg-primary-blue selection:text-white">
@@ -492,7 +355,7 @@
                     
                     <div class="flex items-center gap-4">
                         <div class="relative">
-                            <select id="sort-by" class="py-2 px-4 pr-8 rounded-lg bg-card-bg border border-text-muted/30 text-text-light focus:outline-none focus:border-secondary-cyan">
+                            <select id="sort-by" class="form-input py-2 px-4 pr-8 rounded-lg bg-card-bg border-text-muted/30 text-text-light">
                                 <option value="score">Sort by Score</option>
                                 <option value="words">Sort by Words</option>
                                 <option value="sentences">Sort by Sentences</option>
@@ -510,65 +373,65 @@
                 <!-- Left Column - Leaderboard -->
                 <div class="lg:col-span-3">
                     <!-- Leaderboard Card -->
-                    <div class="leaderboard-card p-4 md:p-6">
-                        <h2 class="text-2xl font-bold text-text-light mb-4 md:mb-6 flex items-center">
+                    <div class="leaderboard-card p-6">
+                        <h2 class="text-2xl font-bold text-text-light mb-6 flex items-center">
                             <i class="fas fa-trophy mr-3 text-yellow-400"></i>
                             Top Learners
                         </h2>
                         
-                        <div class="space-y-3 md:space-y-4" id="leaderboard-list">
+                        <div class="space-y-4" id="leaderboard-list">
                             <!-- Leaderboard items will be dynamically inserted here -->
                         </div>
                     </div>
 
                     <!-- Loading State -->
-                    <div id="loading-state" class="leaderboard-card p-8 md:p-12 text-center hidden">
+                    <div id="loading-state" class="leaderboard-card p-12 text-center hidden">
                         <div class="loading-spinner mx-auto mb-4"></div>
                         <p class="text-text-muted">Loading leaderboard...</p>
                     </div>
 
                     <!-- Empty State -->
-                    <div id="empty-state" class="leaderboard-card p-8 md:p-12 text-center hidden">
-                        <i class="fas fa-users text-4xl md:text-5xl text-text-muted mb-4"></i>
+                    <div id="empty-state" class="leaderboard-card p-12 text-center hidden">
+                        <i class="fas fa-users text-5xl text-text-muted mb-4"></i>
                         <h3 class="text-xl font-bold text-text-light mb-2">No Data Available</h3>
                         <p class="text-text-muted">Complete some quizzes to appear on the leaderboard!</p>
                     </div>
                 </div>
 
                 <!-- Right Column - User Stats and Achievements -->
-                <div class="space-y-6 md:space-y-8">
+                <div class="space-y-8">
                     <!-- Current User Rank Card -->
-                    <div class="leaderboard-card p-4 md:p-6">
-                        <h2 class="text-xl md:text-2xl font-bold text-text-light mb-3 md:mb-4 flex items-center">
+                    <div class="leaderboard-card p-6">
+                        <h2 class="text-2xl font-bold text-text-light mb-4 flex items-center">
                             <i class="fas fa-user mr-3 text-secondary-cyan"></i>
                             Your Rank
                         </h2>
                         
-                        <div id="current-user-rank" class="text-center py-4 md:py-6">
+                        <div id="current-user-rank" class="text-center py-6">
                             <!-- Current user rank will be dynamically inserted here -->
                         </div>
                     </div>
 
                     <!-- Achievements Card -->
-                    <div class="leaderboard-card p-4 md:p-6">
-                        <h2 class="text-xl md:text-2xl font-bold text-text-light mb-3 md:mb-4 flex items-center">
+                    <div class="leaderboard-card p-6">
+                        <h2 class="text-2xl font-bold text-text-light mb-4 flex items-center">
                             <i class="fas fa-medal mr-3 text-yellow-400"></i>
                             Recent Achievements
                         </h2>
                         
-                        <div class="space-y-2 md:space-y-3" id="achievements-list">
+                        <div class="space-y-3" id="achievements-list">
                             <!-- Achievements will be dynamically inserted here -->
                         </div>
                     </div>
 
                     <!-- Stats Summary -->
-                    <div class="leaderboard-card p-4 md:p-6">
-                        <h2 class="text-xl md:text-2xl font-bold text-text-light mb-3 md:mb-4 flex items-center">
+                    <div class="leaderboard-card p-6">
+                        <h2 class="text-2xl font-bold text-text-light mb-4 flex items-center">
                             <i class="fas fa-chart-line mr-3 text-primary-blue"></i>
                             Your Progress
                         </h2>
                         
-                        <div class="space-y-3 md:space-y-4">
+                        <div class="space-y-4">
                             <div>
                                 <div class="flex justify-between text-sm text-text-muted mb-1">
                                     <span>Words Mastered</span>
@@ -606,7 +469,7 @@
     </main>
 
     <!-- Footer -->
-    <footer class="py-8 md:py-10 border-t border-main-bg/20 text-center text-text-muted bg-card-bg">
+    <footer class="py-10 border-t border-main-bg/20 text-center text-text-muted bg-card-bg">
         <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
     </footer>
 
@@ -623,11 +486,7 @@
         const emptyState = document.getElementById('empty-state');
         const filterButtons = document.querySelectorAll('.filter-button');
         const sortSelect = document.getElementById('sort-by');
-        
-        // State
         let isMenuOpen = false;
-        let currentFilter = 'all';
-        let currentSort = 'score';
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
@@ -719,7 +578,10 @@
                 leaderboardList.innerHTML = '';
                 emptyState.classList.add('hidden');
 
-                const response = await fetch(`/api/leaderboard?timeframe=${currentFilter}&sort_by=${currentSort}`);
+                const timeframe = document.querySelector('.filter-button.active')?.dataset.filter || 'all';
+                const sortBy = sortSelect.value || 'score';
+
+                const response = await fetch(`/api/leaderboard?timeframe=${timeframe}&sort_by=${sortBy}`);
                 const data = await response.json();
 
                 if (data.success && data.leaderboard && data.leaderboard.length > 0) {
@@ -747,123 +609,71 @@
             });
         }
 
-        // Create leaderboard item HTML with responsive design
+        // Create leaderboard item HTML with profile pictures
         function createLeaderboardItem(user, rank) {
             const item = document.createElement('div');
             const rankClass = rank <= 3 ? `rank-${rank}` : 'bg-card-bg';
             const isCurrentUser = user.is_current_user ? 'current-user' : '';
-            const isMobile = window.innerWidth < 768;
             
-            // Use words_mastered and sentences_mastered from backend data
+            // Use backend data fields with fallbacks
+            const username = user.username || 'Anonymous';
+            const avatar = user.avatar || '';
+            const score = user.score || 0;
             const words = user.words_mastered || user.words || 0;
             const sentences = user.sentences_mastered || user.sentences || 0;
             const streak = user.current_streak || user.streak || 0;
             const accuracy = user.accuracy_rate || user.accuracy || 0;
-            const score = user.score || user.total_score || 0;
             const level = user.level || 'HSK1 Learner';
-            const username = user.username || 'Anonymous';
 
-            if (isMobile) {
-                // Mobile layout
-                item.className = `leaderboard-item relative p-4 rounded-lg border border-text-muted/20 ${isCurrentUser} bg-card-bg/80 backdrop-blur-sm`;
-                item.innerHTML = `
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center space-x-3 flex-1">
-                            <div class="rank-badge ${rankClass} flex-shrink-0">
-                                ${rank}
-                            </div>
-                            
-                            <div class="flex items-center space-x-3 flex-1 min-w-0">
-                                <div class="user-avatar w-10 h-10 rounded-full bg-gradient-to-br from-primary-blue to-secondary-cyan flex items-center justify-center text-white font-bold overflow-hidden flex-shrink-0">
-                                    ${user.avatar ? 
-                                        `<img src="${user.avatar}" alt="${username}" class="w-full h-full object-cover">` : 
-                                        `<i class="fas fa-user text-sm"></i>`
-                                    }
-                                </div>
-                                
-                                <div class="user-info min-w-0 flex-1">
-                                    <div class="user-name font-semibold text-text-light truncate">${username}</div>
-                                    <div class="user-level text-xs text-text-muted">${level}</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="score-badge">
-                            ${score.toLocaleString()}
-                        </div>
+            item.className = `flex items-center p-4 rounded-lg border border-text-muted/20 ${isCurrentUser}`;
+            item.innerHTML = `
+                <div class="flex items-center space-x-4 flex-1">
+                    <div class="rank-badge ${rankClass}">
+                        ${rank}
                     </div>
                     
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-value">${words}</div>
-                            <div class="stat-label">Words</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${sentences}</div>
-                            <div class="stat-label">Sentences</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${streak}d</div>
-                            <div class="stat-label">Streak</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${accuracy}%</div>
-                            <div class="stat-label">Accuracy</div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                // Desktop layout
-                item.className = `leaderboard-item flex items-center p-4 rounded-lg border border-text-muted/20 ${isCurrentUser} bg-card-bg/80 backdrop-blur-sm`;
-                item.innerHTML = `
-                    <div class="flex items-center space-x-4 flex-1">
-                        <div class="rank-badge ${rankClass}">
-                            ${rank}
+                    <div class="flex items-center space-x-3">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-blue to-secondary-cyan flex items-center justify-center text-white font-bold overflow-hidden">
+                            ${avatar ? 
+                                `<img src="${avatar}" alt="${username}" class="w-full h-full object-cover">` : 
+                                `<i class="fas fa-user text-lg"></i>`
+                            }
                         </div>
                         
-                        <div class="flex items-center space-x-3">
-                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-blue to-secondary-cyan flex items-center justify-center text-white font-bold overflow-hidden">
-                                ${user.avatar ? 
-                                    `<img src="${user.avatar}" alt="${username}" class="w-full h-full object-cover">` : 
-                                    `<i class="fas fa-user text-lg"></i>`
-                                }
-                            </div>
-                            
-                            <div>
-                                <div class="font-semibold text-text-light">${username}</div>
-                                <div class="text-sm text-text-muted">${level}</div>
-                            </div>
+                        <div>
+                            <div class="font-semibold text-text-light">${username}</div>
+                            <div class="text-sm text-text-muted">${level}</div>
                         </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-6 text-right">
+                    <div class="text-center">
+                        <div class="text-lg font-bold text-secondary-cyan">${score.toLocaleString()}</div>
+                        <div class="text-xs text-text-muted">Score</div>
                     </div>
                     
-                    <div class="flex items-center space-x-6 text-right">
-                        <div class="text-center">
-                            <div class="text-lg font-bold text-secondary-cyan">${score.toLocaleString()}</div>
-                            <div class="text-xs text-text-muted">Score</div>
-                        </div>
-                        
-                        <div class="text-center">
-                            <div class="text-sm font-semibold text-text-light">${words}W • ${sentences}S</div>
-                            <div class="text-xs text-text-muted">Progress</div>
-                        </div>
-                        
-                        <div class="text-center">
-                            <div class="text-sm font-semibold text-text-light">${streak} days</div>
-                            <div class="text-xs text-text-muted">Streak</div>
-                        </div>
-                        
-                        <div class="text-center">
-                            <div class="text-sm font-semibold text-text-light">${accuracy}%</div>
-                            <div class="text-xs text-text-muted">Accuracy</div>
-                        </div>
+                    <div class="text-center">
+                        <div class="text-sm font-semibold text-text-light">${words}W • ${sentences}S</div>
+                        <div class="text-xs text-text-muted">Progress</div>
                     </div>
-                `;
-            }
+                    
+                    <div class="text-center">
+                        <div class="text-sm font-semibold text-text-light">${streak} days</div>
+                        <div class="text-xs text-text-muted">Streak</div>
+                    </div>
+                    
+                    <div class="text-center">
+                        <div class="text-sm font-semibold text-text-light">${accuracy}%</div>
+                        <div class="text-xs text-text-muted">Accuracy</div>
+                    </div>
+                </div>
+            `;
             
             return item;
         }
 
-        // Update current user rank display
+        // Update current user rank display with real data
         async function updateCurrentUserRank(users) {
             try {
                 // Try to get current user data from dedicated endpoint
@@ -876,17 +686,17 @@
                     
                     currentUserRank.innerHTML = `
                         <div class="text-center">
-                            <div class="text-4xl md:text-5xl font-bold text-secondary-cyan mb-2">#${rank}</div>
-                            <div class="text-lg font-semibold text-text-light mb-1">${userData.username}</div>
-                            <div class="text-text-muted mb-3 md:mb-4">${userData.level}</div>
+                            <div class="text-5xl font-bold text-secondary-cyan mb-2">#${rank}</div>
+                            <div class="text-lg font-semibold text-text-light mb-1">${userData.username || 'You'}</div>
+                            <div class="text-text-muted mb-4">${userData.level || 'HSK1 Learner'}</div>
                             
-                            <div class="grid grid-cols-2 gap-3 md:gap-4 text-sm">
+                            <div class="grid grid-cols-2 gap-4 text-sm">
                                 <div class="text-center">
-                                    <div class="font-semibold text-text-light">${userData.score.toLocaleString()}</div>
+                                    <div class="font-semibold text-text-light">${(userData.score || 0).toLocaleString()}</div>
                                     <div class="text-text-muted">Score</div>
                                 </div>
                                 <div class="text-center">
-                                    <div class="font-semibold text-text-light">${userData.accuracy_rate || userData.accuracy}%</div>
+                                    <div class="font-semibold text-text-light">${userData.accuracy_rate || userData.accuracy || 0}%</div>
                                     <div class="text-text-muted">Accuracy</div>
                                 </div>
                             </div>
@@ -901,37 +711,42 @@
                         
                         currentUserRank.innerHTML = `
                             <div class="text-center">
-                                <div class="text-4xl md:text-5xl font-bold text-secondary-cyan mb-2">#${rank}</div>
-                                <div class="text-lg font-semibold text-text-light mb-1">${currentUser.username}</div>
-                                <div class="text-text-muted mb-3 md:mb-4">${currentUser.level}</div>
+                                <div class="text-5xl font-bold text-secondary-cyan mb-2">#${rank}</div>
+                                <div class="text-lg font-semibold text-text-light mb-1">${currentUser.username || 'You'}</div>
+                                <div class="text-text-muted mb-4">${currentUser.level || 'HSK1 Learner'}</div>
                                 
-                                <div class="grid grid-cols-2 gap-3 md:gap-4 text-sm">
+                                <div class="grid grid-cols-2 gap-4 text-sm">
                                     <div class="text-center">
-                                        <div class="font-semibold text-text-light">${currentUser.score.toLocaleString()}</div>
+                                        <div class="font-semibold text-text-light">${(currentUser.score || 0).toLocaleString()}</div>
                                         <div class="text-text-muted">Score</div>
                                     </div>
                                     <div class="text-center">
-                                        <div class="font-semibold text-text-light">${currentUser.accuracy_rate || currentUser.accuracy}%</div>
+                                        <div class="font-semibold text-text-light">${currentUser.accuracy_rate || currentUser.accuracy || 0}%</div>
                                         <div class="text-text-muted">Accuracy</div>
                                     </div>
                                 </div>
                             </div>
                         `;
+                    } else {
+                        showDefaultUserRank();
                     }
                 }
             } catch (error) {
                 console.error('Error loading current user rank:', error);
-                // Show generic message if current user data can't be loaded
-                currentUserRank.innerHTML = `
-                    <div class="text-center py-8">
-                        <i class="fas fa-user text-4xl text-text-muted mb-4"></i>
-                        <p class="text-text-muted">Complete quizzes to see your rank!</p>
-                    </div>
-                `;
+                showDefaultUserRank();
             }
         }
 
-        // Load user achievements
+        function showDefaultUserRank() {
+            currentUserRank.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-user text-4xl text-text-muted mb-4"></i>
+                    <p class="text-text-muted">Complete quizzes to see your rank!</p>
+                </div>
+            `;
+        }
+
+        // Load user achievements from backend
         async function loadAchievements() {
             try {
                 const response = await fetch('/api/leaderboard/achievements');
@@ -961,38 +776,31 @@
                 return;
             }
             
-            // Show only recent achievements (max 3)
-            const recentAchievements = achievements.slice(0, 3);
-            
-            recentAchievements.forEach(achievement => {
+            achievements.forEach(achievement => {
                 const achievementItem = document.createElement('div');
-                achievementItem.className = 'flex items-center justify-between p-2 md:p-3 rounded-lg bg-card-bg/50';
+                achievementItem.className = 'flex items-center justify-between p-3 rounded-lg bg-card-bg/50';
                 
                 if (achievement.unlocked) {
                     achievementItem.innerHTML = `
-                        <div class="flex items-center space-x-2 md:space-x-3">
-                            <i class="${achievement.icon} text-yellow-400 text-sm md:text-base"></i>
-                            <div class="min-w-0 flex-1">
-                                <div class="font-semibold text-text-light text-sm md:text-base truncate">${achievement.name}</div>
-                                <div class="text-xs text-text-muted truncate">${achievement.description}</div>
+                        <div class="flex items-center space-x-3">
+                            <i class="${achievement.icon} text-yellow-400"></i>
+                            <div>
+                                <div class="font-semibold text-text-light">${achievement.name}</div>
+                                <div class="text-xs text-text-muted">${achievement.description}</div>
                             </div>
                         </div>
-                        <div class="text-xs text-text-muted whitespace-nowrap">${achievement.date || 'Unlocked'}</div>
+                        <div class="text-xs text-text-muted">${achievement.date || 'Unlocked'}</div>
                     `;
                 } else {
-                    const progress = achievement.progress || 0;
                     achievementItem.innerHTML = `
-                        <div class="flex items-center space-x-2 md:space-x-3 opacity-60">
-                            <i class="${achievement.icon} text-text-muted text-sm md:text-base"></i>
-                            <div class="min-w-0 flex-1">
-                                <div class="font-semibold text-text-light text-sm md:text-base truncate">${achievement.name}</div>
-                                <div class="text-xs text-text-muted truncate">${achievement.description}</div>
-                                ${progress > 0 ? `<div class="w-full bg-gray-600 rounded-full h-1 mt-1">
-                                    <div class="bg-secondary-cyan h-1 rounded-full" style="width: ${progress}%"></div>
-                                </div>` : ''}
+                        <div class="flex items-center space-x-3 opacity-60">
+                            <i class="${achievement.icon} text-text-muted"></i>
+                            <div>
+                                <div class="font-semibold text-text-light">${achievement.name}</div>
+                                <div class="text-xs text-text-muted">${achievement.description}</div>
                             </div>
                         </div>
-                        <div class="text-xs text-text-muted whitespace-nowrap">${progress}%</div>
+                        <div class="text-xs text-text-muted">${achievement.progress || 0}%</div>
                     `;
                 }
                 
@@ -1000,7 +808,7 @@
             });
         }
 
-        // Load user stats and progress
+        // Load user stats and progress from backend
         async function loadUserStats() {
             try {
                 const response = await fetch('/api/leaderboard/stats');
@@ -1011,15 +819,15 @@
                     const progress = data.progress;
                     
                     // Update progress numbers
-                    document.getElementById('user-words').textContent = `${stats.words_mastered}/150`;
-                    document.getElementById('user-sentences').textContent = `${stats.sentences_mastered}/100`;
-                    document.getElementById('user-streak').textContent = `${stats.current_streak} days`;
+                    document.getElementById('user-words').textContent = `${stats.words_mastered || 0}/150`;
+                    document.getElementById('user-sentences').textContent = `${stats.sentences_mastered || 0}/100`;
+                    document.getElementById('user-streak').textContent = `${stats.current_streak || 0} days`;
                     
                     // Update progress bars with animation
                     setTimeout(() => {
-                        document.getElementById('words-progress').style.width = `${progress.words.percentage}%`;
-                        document.getElementById('sentences-progress').style.width = `${progress.sentences.percentage}%`;
-                        document.getElementById('streak-progress').style.width = `${progress.streak.percentage}%`;
+                        document.getElementById('words-progress').style.width = `${progress.words.percentage || 0}%`;
+                        document.getElementById('sentences-progress').style.width = `${progress.sentences.percentage || 0}%`;
+                        document.getElementById('streak-progress').style.width = `${progress.streak.percentage || 0}%`;
                     }, 300);
                 } else {
                     setDefaultProgress();
@@ -1045,7 +853,6 @@
         // Handle filter selection
         function handleFilter(e) {
             const filter = e.target.dataset.filter;
-            currentFilter = filter;
             
             // Update active filter button
             filterButtons.forEach(btn => {
@@ -1059,7 +866,6 @@
 
         // Handle sort selection
         function handleSort(e) {
-            currentSort = e.target.value;
             loadLeaderboard();
         }
 
@@ -1068,63 +874,66 @@
             emptyState.classList.remove('hidden');
             leaderboardList.innerHTML = '';
         }
-
-        // Handle window resize to update layouts
-        window.addEventListener('resize', function() {
-            // Re-render leaderboard with appropriate layout when screen size changes
-            if (this.previousWidth !== window.innerWidth) {
-                this.previousWidth = window.innerWidth;
-                loadLeaderboard(); // This will use the current window size to determine layout
-            }
-        });
-
-        // Initialize previous width
-        window.previousWidth = window.innerWidth;
-
-        // Auto-refresh leaderboard every 30 seconds
-        setInterval(() => {
-            loadLeaderboard();
-            loadUserStats();
-        }, 30000);
-
-        // Add click animation to leaderboard items
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.leaderboard-item')) {
-                const item = e.target.closest('.leaderboard-item');
-                item.style.transform = 'scale(0.98)';
-                setTimeout(() => {
-                    item.style.transform = '';
-                }, 150);
-            }
-        });
-
-        // Add loading states for better UX
-        function showLoadingState() {
-            loadingState.classList.remove('hidden');
-            leaderboardList.innerHTML = '';
-        }
-
-        function hideLoadingState() {
-            loadingState.classList.add('hidden');
-        }
-
-        // Error handling for network issues
-        function handleNetworkError(error) {
-            console.error('Network error:', error);
-            showEmptyState();
-            // Show error message to user
-            const errorMessage = document.createElement('div');
-            errorMessage.className = 'text-center p-4 text-red-400';
-            errorMessage.innerHTML = `
-                <i class="fas fa-wifi text-2xl mb-2"></i>
-                <p>Network error. Please check your connection.</p>
-            `;
-            leaderboardList.appendChild(errorMessage);
-        }
-
-        // Initialize with current filter and sort
-        currentFilter = 'all';
-        currentSort = 'score';
     </script>
+
+    <!-- Add loading spinner styles -->
+    <style>
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(51, 240, 232, 0.3);
+            border-top: 4px solid #33f0e8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .form-input {
+            appearance: none;
+            background-color: #2a3a50;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            border-radius: 0.5rem;
+            color: #e2e8f0;
+            font-size: 0.875rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus {
+            border-color: #33f0e8;
+            box-shadow: 0 0 0 3px rgba(51, 240, 232, 0.1);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .leaderboard-card .flex.space-x-6 {
+                flex-wrap: wrap;
+                justify-content: space-between;
+                gap: 1rem;
+            }
+            
+            .leaderboard-card .flex.space-x-6 > div {
+                flex: 1 1 45%;
+                min-width: 100px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .leaderboard-card .flex.items-center.space-x-4 {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .leaderboard-card .flex.items-center.space-x-4 > div:first-child {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+    </style>
 </body>
 </html>
