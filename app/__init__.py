@@ -1,15 +1,8 @@
 from flask import Flask
 import os
-# Remove these lines - we'll import from models
-# from flask_sqlalchemy import SQLAlchemy  
-# from flask_socketio import SocketIO
 
 # Import db and socketio from models
 from .models import db, socketio
-
-# Remove these - using imports from models instead
-# db = SQLAlchemy()
-# socketio = SocketIO()
 
 def create_app():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -37,7 +30,7 @@ def create_app():
     from .main_routes import main_bp
     from .words_routes import words_bp
     from .sentence_routes import sentence_bp
-    from learn_routes import learn_bp
+    from .learn_routes import learn_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(words_bp, url_prefix='/words')
