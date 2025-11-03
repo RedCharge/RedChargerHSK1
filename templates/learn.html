@@ -633,7 +633,7 @@
             }
         }
 
-        // Display words in the grid
+                // Display words in the grid
         function displayWords(words) {
             if (words.length === 0) {
                 wordsEmpty.classList.remove('hidden');
@@ -643,50 +643,29 @@
             
             wordsEmpty.classList.add('hidden');
             
-            wordsContainer.innerHTML = words.map(word => `
+            wordsContainer.innerHTML = words.map(word => {
+                // Debug: log the word object to see what fields are available
+                console.log('Word data:', word);
+                
+                // Get the meaning/translation from various possible field names
+                const meaning = word.meaning || word.translation || word.english || word.definition || 'No translation available';
+                const pinyin = word.pinyin || word.pronunciation || '';
+                
+                return `
                 <div class="learn-card p-6">
                     <div class="flex items-start justify-between mb-4">
-                        <div class="chinese-character">${word.word}</div>
+                        <div class="chinese-character">${word.word || word.chinese || 'N/A'}</div>
                         <button class="speech-button p-3 rounded-full bg-card-bg text-text-light border border-text-muted/30 cursor-pointer hover:bg-card-bg/70"
-                                onclick="speakText('${word.word.replace(/'/g, "\\'")}')"
+                                onclick="speakText('${(word.word || word.chinese || '').replace(/'/g, "\\'")}')"
                                 title="Click to hear pronunciation">
                             <i class="fas fa-volume-up"></i>
                         </button>
                     </div>
-                    <div class="pinyin-text mb-2">${word.pinyin || ''}</div>
-                    <div class="text-text-light text-lg font-medium mb-2">${word.meaning || word.translation || ''}</div>
-                    ${word.definition ? `
-                        <div class="mt-2 pt-2 border-t border-text-muted/20">
-                            <div class="text-sm text-text-muted mb-1">Definition:</div>
-                            <div class="text-text-light text-sm">${word.definition}</div>
-                        </div>
-                    ` : ''}
-                    ${word.partOfSpeech ? `
-                        <div class="mt-2 pt-2 border-t border-text-muted/20">
-                            <div class="text-sm text-text-muted mb-1">Part of Speech:</div>
-                            <div class="text-text-light text-sm">${word.partOfSpeech}</div>
-                        </div>
-                    ` : ''}
-                    ${word.example ? `
-                        <div class="mt-2 pt-2 border-t border-text-muted/20">
-                            <div class="text-sm text-text-muted mb-1">Example:</div>
-                            <div class="text-text-light text-sm">${word.example}</div>
-                        </div>
-                    ` : ''}
-                    ${word.usage ? `
-                        <div class="mt-2 pt-2 border-t border-text-muted/20">
-                            <div class="text-sm text-text-muted mb-1">Usage:</div>
-                            <div class="text-text-light text-sm">${word.usage}</div>
-                        </div>
-                    ` : ''}
-                    ${word.notes ? `
-                        <div class="mt-2 pt-2 border-t border-text-muted/20">
-                            <div class="text-sm text-text-muted mb-1">Notes:</div>
-                            <div class="text-text-light text-sm">${word.notes}</div>
-                        </div>
-                    ` : ''}
+                    <div class="pinyin-text mb-2">${pinyin}</div>
+                    <div class="text-text-light text-lg font-medium mb-2">${meaning}</div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Display sentences
@@ -699,62 +678,29 @@
             
             sentencesEmpty.classList.add('hidden');
             
-            sentencesContainer.innerHTML = sentences.map(sentence => `
+            sentencesContainer.innerHTML = sentences.map(sentence => {
+                // Debug: log the sentence object to see what fields are available
+                console.log('Sentence data:', sentence);
+                
+                // Get the translation from various possible field names
+                const translation = sentence.translation || sentence.meaning || sentence.english || 'No translation available';
+                const pinyin = sentence.pinyin || '';
+                
+                return `
                 <div class="learn-card p-6">
                     <div class="flex items-start justify-between mb-4">
-                        <div class="chinese-character text-2xl">${sentence.sentence}</div>
+                        <div class="chinese-character text-2xl">${sentence.sentence || sentence.chinese || 'N/A'}</div>
                         <button class="speech-button p-3 rounded-full bg-card-bg text-text-light border border-text-muted/30 cursor-pointer hover:bg-card-bg/70"
-                                onclick="speakText('${sentence.sentence.replace(/'/g, "\\'")}')"
+                                onclick="speakText('${(sentence.sentence || sentence.chinese || '').replace(/'/g, "\\'")}')"
                                 title="Click to hear pronunciation">
                             <i class="fas fa-volume-up"></i>
                         </button>
                     </div>
-                    <div class="pinyin-text mb-2">${sentence.pinyin || ''}</div>
-                    <div class="text-text-light text-lg font-medium mb-2">${sentence.translation || sentence.meaning || ''}</div>
-                    ${sentence.meaning && sentence.meaning !== sentence.translation ? `
-                        <div class="mt-2 pt-2 border-t border-text-muted/20">
-                            <div class="text-sm text-text-muted mb-1">Meaning:</div>
-                            <div class="text-text-light text-sm">${sentence.meaning}</div>
-                        </div>
-                    ` : ''}
-                    ${sentence.definition ? `
-                        <div class="mt-2 pt-2 border-t border-text-muted/20">
-                            <div class="text-sm text-text-muted mb-1">Definition:</div>
-                            <div class="text-text-light text-sm">${sentence.definition}</div>
-                        </div>
-                    ` : ''}
-                    ${sentence.structure ? `
-                        <div class="mt-2 pt-2 border-t border-text-muted/20">
-                            <div class="text-sm text-text-muted mb-1">Sentence Structure:</div>
-                            <div class="text-text-light text-sm">${sentence.structure}</div>
-                        </div>
-                    ` : ''}
-                    ${sentence.grammar ? `
-                        <div class="mt-2 pt-2 border-t border-text-muted/20">
-                            <div class="text-sm text-text-muted mb-1">Grammar:</div>
-                            <div class="text-text-light text-sm">${sentence.grammar}</div>
-                        </div>
-                    ` : ''}
-                    ${sentence.notes ? `
-                        <div class="mt-2 pt-2 border-t border-text-muted/20">
-                            <div class="text-sm text-text-muted mb-1">Notes:</div>
-                            <div class="text-text-light text-sm">${sentence.notes}</div>
-                        </div>
-                    ` : ''}
-                    ${sentence.example ? `
-                        <div class="mt-2 pt-2 border-t border-text-muted/20">
-                            <div class="text-sm text-text-muted mb-1">Example Usage:</div>
-                            <div class="text-text-light text-sm">${sentence.example}</div>
-                        </div>
-                    ` : ''}
-                    ${sentence.usage ? `
-                        <div class="mt-2 pt-2 border-t border-text-muted/20">
-                            <div class="text-sm text-text-muted mb-1">Usage:</div>
-                            <div class="text-text-light text-sm">${sentence.usage}</div>
-                        </div>
-                    ` : ''}
+                    <div class="pinyin-text mb-2">${pinyin}</div>
+                    <div class="text-text-light text-lg font-medium mb-2">${translation}</div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Handle search functionality
