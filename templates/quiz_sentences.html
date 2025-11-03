@@ -468,7 +468,7 @@
 
     <!-- Quiz Logic -->
     <script>
-        // Quiz state
+            // Quiz state
     let currentQuestion = 0;
     let score = 0;
     let correctAnswers = 0;
@@ -1183,6 +1183,58 @@
         incorrectCountElement.textContent = incorrectAnswers;
     }
 
+    // Save quiz results to localStorage for results page
+    function saveQuizResultsToLocalStorage() {
+        try {
+            // 1. Save to quiz history
+            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
+            
+            const quizResult = {
+                quiz_type: 'sentences', // Crucial for results page
+                correct_answers: correctAnswers,
+                total_questions: quizData.length,
+                percentage: Math.round((correctAnswers / quizData.length) * 100),
+                timestamp: new Date().toISOString(),
+                score: score
+            };
+            
+            quizHistory.unshift(quizResult); // Add to beginning
+            localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
+            
+            // 2. Save to performance data
+            let performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+            if (!performanceData.sentences) performanceData.sentences = {};
+            
+            // Track performance for each sentence in this quiz
+            quizData.forEach((question, index) => {
+                const sentence = question.sentence;
+                const isCorrect = userAnswers[index] === parseInt(question.correctAnswer);
+                
+                if (!performanceData.sentences[sentence]) {
+                    performanceData.sentences[sentence] = {
+                        pinyin: question.pinyin || '',
+                        meaning: question.options[question.correctAnswer] || '',
+                        correct: 0,
+                        incorrect: 0
+                    };
+                }
+                
+                if (isCorrect) {
+                    performanceData.sentences[sentence].correct++;
+                } else {
+                    performanceData.sentences[sentence].incorrect++;
+                }
+            });
+            
+            localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
+            
+            console.log('Sentences quiz results saved to localStorage!');
+            
+        } catch (error) {
+            console.error('Error saving sentences quiz results:', error);
+        }
+    }
+
     // Finish quiz and show results
     async function finishQuiz() {
         // Stop any ongoing speech
@@ -1242,6 +1294,9 @@
             quiz_data: quizData,
             quiz_type: 'sentences'
         };
+        
+        // Save to localStorage for results page
+        saveQuizResultsToLocalStorage();
         
         // Save results
         await saveResults();
