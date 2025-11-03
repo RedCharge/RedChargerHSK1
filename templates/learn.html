@@ -346,6 +346,10 @@
                             <i class="fas fa-comments mr-3"></i>
                             Learn Sentences
                         </button>
+                        <button id="practice-reading-btn" class="py-4 px-8 rounded-lg bg-purple-600 text-white font-bold text-lg flex items-center justify-center hover:bg-purple-700 transition duration-300">
+    <i class="fas fa-book-reader mr-3"></i>
+    Practice Reading
+</button>
                     </div>
                 </div>
             </div>
@@ -417,6 +421,23 @@
                 <p class="text-text-muted">Try adjusting your search or filter</p>
             </div>
         </section>
+        <!-- Reading Section -->
+<section id="reading-section" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 hidden">
+    <div class="mb-6">
+        <h2 class="text-3xl font-bold text-text-light mb-2">HSK1 Reading Practice</h2>
+        <p class="text-text-muted">Read interesting stories using HSK1 vocabulary. Click the speaker icon to hear the pronunciation!</p>
+    </div>
+    
+    <div id="reading-container" class="grid grid-cols-1 gap-6">
+        <!-- Reading materials will be dynamically inserted here -->
+    </div>
+
+    <div id="reading-empty" class="text-center py-12 hidden">
+        <i class="fas fa-book text-5xl text-text-muted mb-4"></i>
+        <h3 class="text-xl font-bold text-text-light mb-2">No Reading Materials Found</h3>
+        <p class="text-text-muted">Try adjusting your search or filter</p>
+    </div>
+</section>
 
         <!-- Error State -->
         <section id="error-state" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 hidden">
@@ -445,18 +466,106 @@
         let speechSynthesis = window.speechSynthesis;
         let speechEnabled = true;
 
+        // Reading materials data
+        const readingMaterials = [
+            {
+                id: 1,
+                title: "My First Day in China",
+                pinyin: "Wǒ dì yī tiān zài Zhōngguó. Wǒ zǎoshang qī diǎn qǐchuáng. Wǒ hē chá hé chī miànbāo. Wǒ qù xuéxiào xuéxí Hànyǔ. Lǎoshī hěn hǎo. Tóngxuémen yě hěn yǒuhǎo. Wǒ xǐhuān Zhōngguó shēnghuó.",
+                translation: "My first day in China. I wake up at 7 AM. I drink tea and eat bread. I go to school to learn Chinese. The teacher is very good. The classmates are also very friendly. I like life in China.",
+                level: "Beginner",
+                wordCount: 45
+            },
+            {
+                id: 2,
+                title: "At the Restaurant",
+                pinyin: "Jīntiān wǎnshàng wǒ hé péngyǒu qù cāntīng. Wǒmen diǎnle jīròu, yú hé shūcài. Fúwùyuán hěn yǒuhǎo. Cài hěn hǎochī. Wǒmen hēle chá. Zuìhòu wǒ fùle qián. Wǒmen hěn gāoxìng.",
+                translation: "Tonight I go to a restaurant with my friend. We order chicken, fish, and vegetables. The waiter is very friendly. The food is delicious. We drink tea. Finally I pay the money. We are very happy.",
+                level: "Beginner",
+                wordCount: 42
+            },
+            {
+                id: 3,
+                title: "Shopping Day",
+                pinyin: "Wǒ xǐhuān gòuwù. Jīntiān wǒ qù shāngdiàn mǎi yīfu. Wǒ kànle hěn duō yīfu. Yīfu yǒu hóngsè, lánsè hé báisè. Yǒuxiē yīfu tài guì le. Zuìhòu wǒ mǎile yī jiàn lánsè chènshān. Wǒ hěn mǎnyì.",
+                translation: "I like shopping. Today I go to the store to buy clothes. I look at many clothes. The clothes have red, blue, and white colors. Some clothes are too expensive. Finally I buy a blue shirt. I am very satisfied.",
+                level: "Beginner",
+                wordCount: 48
+            },
+            {
+                id: 4,
+                title: "Weather and Activities",
+                pinyin: "Jīntiān tiānqì hěn hǎo. Tàiyáng hěn dà. Wǒ hé jiārén qù gōngyuán. Wǒmen zài gōngyuán lǐ sànbù. Háizi men wán shǎngqiú. Wǒmen chīle shuǐguǒ. Wǎnshàng wǒmen huí jiā. Jīntiān shì hěn yúkuài de yītiān.",
+                translation: "Today the weather is very good. The sun is very big. I go to the park with my family. We walk in the park. The children play with a ball. We eat fruit. In the evening we return home. Today is a very pleasant day.",
+                level: "Beginner",
+                wordCount: 52
+            },
+            {
+                id: 5,
+                title: "Learning Chinese",
+                pinyin: "Wǒ měitiān xuéxí Hànyǔ. Wǒ zǎoshang niàn shēngcí. Wǒ xiěwán Hànzì. Wǒ tīng lùyīn. Wǒ gēn lǎoshī shuōhuà. Hànyǔ hěn yǒuyìsi. Yǒushíhòu hěn nán. Dàn wǒ hěn nǔlì. Wǒ xiǎng shuō hǎo Hànyǔ.",
+                translation: "I study Chinese every day. I read vocabulary in the morning. I practice writing Chinese characters. I listen to recordings. I speak with my teacher. Chinese is very interesting. Sometimes it's very difficult. But I work very hard. I want to speak good Chinese.",
+                level: "Beginner",
+                wordCount: 55
+            },
+            {
+                id: 6,
+                title: "Family Dinner",
+                pinyin: "Wǎnshàng wǒmen quánjiā yīqǐ chīfàn. Māmā zuòle hěn duō cài. Yǒu jītāng, shūcài hé mǐfàn. Bàba mǎile shuǐguǒ. Wǒmen tánlùn jīntiān de shìqíng. Dìdi jiǎng xuéxiào de gùshì. Jiějie shuō tā de gōngzuò. Wǒmen xiào hěn duō.",
+                translation: "In the evening our whole family eats together. Mom cooks many dishes. There is chicken soup, vegetables, and rice. Dad buys fruit. We discuss today's matters. Younger brother talks about school stories. Older sister talks about her work. We laugh a lot.",
+                level: "Beginner",
+                wordCount: 58
+            },
+            {
+                id: 7,
+                title: "Weekend Plans",
+                pinyin: "Zhōumò wǒ xiǎng qù kàn diànyǐng. Wǒ yě xiǎng mǎi xīn shū. Rúguǒ tiānqì hǎo, wǒ huì qù gōngyuán. Wǒ de péngyǒu yāoqǐng wǒ qù tā jiā. Wǒmen kěyǐ kàn diànshì hé chī fàn. Wǒ xīwàng zhōumò kuài diǎn lái.",
+                translation: "On the weekend I want to go watch a movie. I also want to buy new books. If the weather is good, I will go to the park. My friend invites me to go to his home. We can watch television and eat food. I hope the weekend comes quickly.",
+                level: "Beginner",
+                wordCount: 56
+            },
+            {
+                id: 8,
+                title: "My Hobbies",
+                pinyin: "Wǒ yǒu hěn duō àihào. Wǒ xǐhuān kàn shū, tīng yīnyuè hé huà huà. Yǒushí wǒ xiě wénzhāng. Wǒ yě xǐhuān dǎ lánqiú. Zhōumò wǒ chángcháng gēn péngyǒu yīqǐ wán. Wǒmen xiào hěn duō. Shēnghuó hěn yǒuyìsi.",
+                translation: "I have many hobbies. I like reading books, listening to music, and drawing pictures. Sometimes I write articles. I also like playing basketball. On weekends I often play together with friends. We laugh a lot. Life is very interesting.",
+                level: "Beginner",
+                wordCount: 49
+            },
+            {
+                id: 9,
+                title: "Seasons in China",
+                pinyin: "Zhōngguó yǒu sì gè jìjié. Chūntiān nuǎnhuo, huā kāi le. Xiàtiān hěn rè, wǒmen chī bīngqílín. Qiūtiān liángkuai, shùyè biàn hóng. Dōngtiān lěng, yǒu shí xià xuě. Wǒ zuì xǐhuān qiūtiān. Tiānqì bù lěng bù rè.",
+                translation: "China has four seasons. Spring is warm, flowers bloom. Summer is very hot, we eat ice cream. Autumn is cool, leaves turn red. Winter is cold, sometimes it snows. I like autumn the most. The weather is not cold and not hot.",
+                level: "Beginner",
+                wordCount: 53
+            },
+            {
+                id: 10,
+                title: "Making New Friends",
+                pinyin: "Zài xuéxiào wǒ rènshile xīn péngyǒu. Tā jiào Xiǎo Míng. Tā shì Zhōngguó rén. Tā jiāo wǒ Hànyǔ. Wǒ jiāo tā Yīngyǔ. Wǒmen yīqǐ xuéxí, yīqǐ chīfàn. Tā hěn yǒushàn. Wǒ hěn gāoxìng rènshile tā.",
+                translation: "At school I met a new friend. His name is Xiao Ming. He is Chinese. He teaches me Chinese. I teach him English. We study together, eat together. He is very kind. I am very happy to have met him.",
+                level: "Beginner",
+                wordCount: 47
+            }
+        ];
+
         // DOM elements
         const learnWordsBtn = document.getElementById('learn-words-btn');
         const learnSentencesBtn = document.getElementById('learn-sentences-btn');
+        const practiceReadingBtn = document.getElementById('practice-reading-btn');
         const searchSection = document.getElementById('search-section');
         const loadingState = document.getElementById('loading-state');
         const wordsSection = document.getElementById('words-section');
         const sentencesSection = document.getElementById('sentences-section');
+        const readingSection = document.getElementById('reading-section');
         const errorState = document.getElementById('error-state');
         const wordsContainer = document.getElementById('words-container');
         const sentencesContainer = document.getElementById('sentences-container');
+        const readingContainer = document.getElementById('reading-container');
         const wordsEmpty = document.getElementById('words-empty');
         const sentencesEmpty = document.getElementById('sentences-empty');
+        const readingEmpty = document.getElementById('reading-empty');
         const searchInput = document.getElementById('search-input');
         const filterButtons = document.querySelectorAll('.filter-button');
         const retryBtn = document.getElementById('retry-btn');
@@ -543,6 +652,7 @@
         function setupEventListeners() {
             learnWordsBtn.addEventListener('click', () => switchMode('words'));
             learnSentencesBtn.addEventListener('click', () => switchMode('sentences'));
+            practiceReadingBtn.addEventListener('click', () => switchMode('reading'));
             searchInput.addEventListener('input', handleSearch);
             filterButtons.forEach(btn => {
                 btn.addEventListener('click', handleFilter);
@@ -557,11 +667,16 @@
             // Hide all sections first
             wordsSection.classList.add('hidden');
             sentencesSection.classList.add('hidden');
+            readingSection.classList.add('hidden');
             loadingState.classList.add('hidden');
             errorState.classList.add('hidden');
             
-            // Show search section
-            searchSection.classList.remove('hidden');
+            // Show search section (except for reading)
+            if (mode !== 'reading') {
+                searchSection.classList.remove('hidden');
+            } else {
+                searchSection.classList.add('hidden');
+            }
             
             // Reset active filter buttons
             filterButtons.forEach(btn => btn.classList.remove('active'));
@@ -584,6 +699,9 @@
                     displaySentences(sentencesData);
                     sentencesSection.classList.remove('hidden');
                 }
+            } else if (mode === 'reading') {
+                displayReadings(readingMaterials);
+                readingSection.classList.remove('hidden');
             }
         }
 
@@ -633,7 +751,7 @@
             }
         }
 
-                // Display words in the grid
+        // Display words in the grid
         function displayWords(words) {
             if (words.length === 0) {
                 wordsEmpty.classList.remove('hidden');
@@ -644,9 +762,6 @@
             wordsEmpty.classList.add('hidden');
             
             wordsContainer.innerHTML = words.map(word => {
-                // Debug: log the word object to see what fields are available
-                console.log('Word data:', word);
-                
                 // Get the meaning/translation from various possible field names
                 const meaning = word.meaning || word.translation || word.english || word.definition || 'No translation available';
                 const pinyin = word.pinyin || word.pronunciation || '';
@@ -679,9 +794,6 @@
             sentencesEmpty.classList.add('hidden');
             
             sentencesContainer.innerHTML = sentences.map(sentence => {
-                // Debug: log the sentence object to see what fields are available
-                console.log('Sentence data:', sentence);
-                
                 // Get the translation from various possible field names
                 const translation = sentence.translation || sentence.meaning || sentence.english || 'No translation available';
                 const pinyin = sentence.pinyin || '';
@@ -701,6 +813,48 @@
                 </div>
                 `;
             }).join('');
+        }
+
+        // Display reading materials
+        function displayReadings(readings) {
+            if (readings.length === 0) {
+                readingEmpty.classList.remove('hidden');
+                readingContainer.innerHTML = '';
+                return;
+            }
+            
+            readingEmpty.classList.add('hidden');
+            
+            readingContainer.innerHTML = readings.map(reading => `
+                <div class="learn-card p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <h3 class="text-xl font-bold text-text-light">${reading.title}</h3>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm bg-primary-blue text-white px-2 py-1 rounded">${reading.level}</span>
+                            <span class="text-sm bg-secondary-cyan text-main-bg px-2 py-1 rounded">${reading.wordCount} words</span>
+                            <button class="speech-button p-2 rounded-full bg-card-bg text-text-light border border-text-muted/30 cursor-pointer hover:bg-card-bg/70"
+                                    onclick="speakText('${reading.pinyin.replace(/'/g, "\\'")}')"
+                                    title="Click to hear the reading">
+                                <i class="fas fa-volume-up"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="text-sm text-text-muted mb-2">Pinyin Reading:</div>
+                        <div class="pinyin-text text-lg leading-relaxed bg-card-bg/50 p-4 rounded-lg">
+                            ${reading.pinyin}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="text-sm text-text-muted mb-2">English Translation:</div>
+                        <div class="text-text-light text-lg leading-relaxed bg-card-bg/30 p-4 rounded-lg">
+                            ${reading.translation}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
         }
 
         // Handle search functionality
@@ -756,7 +910,7 @@
             
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'zh-CN';
-            utterance.rate = 0.8;
+            utterance.rate = 0.7; // Slower for better comprehension
             utterance.pitch = 1.0;
             
             // Get Chinese voice if available
@@ -799,6 +953,7 @@
             loadingState.classList.add('hidden');
             wordsSection.classList.add('hidden');
             sentencesSection.classList.add('hidden');
+            readingSection.classList.add('hidden');
             errorMessage.textContent = message;
         }
 
