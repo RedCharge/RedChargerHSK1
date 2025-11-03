@@ -24,7 +24,11 @@ def create_app():
     
     # Initialize extensions
     db.init_app(app)
-    socketio.init_app(app, cors_allowed_origins="*")
+    
+    # For PythonAnywhere, disable SocketIO or use polling
+    socketio.init_app(app, 
+                     cors_allowed_origins="*",
+                     async_mode='threading')  # Use threading instead of eventlet
     
     # Register blueprints
     from .main_routes import main_bp
@@ -37,9 +41,13 @@ def create_app():
     app.register_blueprint(sentence_bp, url_prefix='/sentences')
     app.register_blueprint(learn_bp)
     
-    # Import and register socket events
-    from .main_routes import register_socket_events
-    register_socket_events(socketio)
+    # Import and register socket events (comment out if causing issues)
+    try:
+        from .main_routes import register_socket_events
+        register_socket_events(socketio)
+    except Exception as e:
+        print(f"SocketIO events registration failed: {e}")
+        print("Continuing without SocketIO events...")
     
     # Create database tables
     with app.app_context():
