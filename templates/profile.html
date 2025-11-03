@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile - RedCharger HSK1</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Georgia', 'serif'],
+                    },
+                    colors: {
+                        'primary-blue': '#5c7cfa',
+                        'secondary-cyan': '#33f0e8',
+                        'main-bg': '#1e293b',
+                        'card-bg': '#2a3a50',
+                        'text-light': '#e2e8f0',
+                        'text-muted': '#94a3b8',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        gradientShift: {
+                            '0%': { backgroundPosition: '0% 50%' },
+                            '100%': { backgroundPosition: '100% 50%' },
+                        },
+                        pulseGlow: {
+                            '0%': { boxShadow: '0 0 5px rgba(51, 240, 232, 0.5)' },
+                            '100%': { boxShadow: '0 0 20px rgba(51, 240, 232, 0.8), 0 0 30px rgba(51, 240, 232, 0.6)' },
+                        }
+                    },
+                    animation: {
+                        fadeInUp: 'fadeInUp 0.6s ease-out forwards',
+                        gradientShift: 'gradientShift 3s ease infinite alternate',
+                        pulseGlow: 'pulseGlow 2s ease-in-out infinite alternate',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1e293b;
+            min-height: 100vh;
+            color: #e2e8f0;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .nav-card {
+            background-color: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sophisticated-card {
+            background-color: #2a3a50;
+            border-radius: 0.75rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .sophisticated-card:hover {
+             transform: translateY(-5px) scale(1.01);
+             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(92, 124, 250, 0.3);
+        }
+
+        .cta-button-primary, .cta-button-secondary {
+            border: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cta-button-primary {
+            background: linear-gradient(135deg, #5c7cfa, #3d5ad8);
+            color: white;
+            box-shadow: 0 5px 20px rgba(92, 124, 250, 0.5);
+            background-size: 200% auto;
+            animation: gradientShift 3s ease infinite alternate;
+        }
+        
+        .cta-button-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(92, 124, 250, 0.7);
+        }
+
+        .cta-button-secondary {
+            background: linear-gradient(135deg, #33f0e8, #25c0b8);
+            color: #1e293b;
+            box-shadow: 0 5px 20px rgba(51, 240, 232, 0.4);
+        }
+
+        .cta-button-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(51, 240, 232, 0.6);
+        }
+
+        .profile-card {
+            background: linear-gradient(135deg, #2a3a50, #1e293b);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .profile-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(51, 240, 232, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .profile-card:hover::before {
+            left: 100%;
+        }
+
+        .profile-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(51, 240, 232, 0.3);
+        }
+
+        .avatar-upload {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .avatar-upload:hover .avatar-overlay {
+            opacity: 1;
+        }
+
+        .avatar-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .form-input {
+            background: rgba(42, 58, 80, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            color: #e2e8f0;
+        }
+
+        .form-input:focus {
+            border-color: #33f0e8;
+            box-shadow: 0 0 0 3px rgba(51, 240, 232, 0.1);
+            outline: none;
+        }
+
+        .form-label {
+            color: #94a3b8;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, rgba(92, 124, 250, 0.1), rgba(51, 240, 232, 0.1));
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Mobile dropdown menu styles */
+        .mobile-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background-color: rgba(42, 58, 80, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 50;
+            opacity: 0;
+            transform: translateY(-10px);
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-dropdown-menu.open {
+            opacity: 1;
+            transform: translateY(0);
+            visibility: visible;
+        }
+
+        .mobile-dropdown-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 45;
+            background-color: transparent;
+            display: none;
+        }
+
+        .success-message {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            animation: fadeInUp 0.6s ease-out;
+        }
+    </style>
+</head>
+<body class="selection:bg-primary-blue selection:text-white">
+
+    <!-- Navigation Bar -->
+    <nav class="fixed top-0 left-0 right-0 z-50 p-4 lg:p-6 nav-card">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-2xl font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-text-light to-secondary-cyan">
+                RedCharger
+            </div>
+            
+            <!-- Desktop Menu -->
+            <div class="space-x-8 hidden md:flex font-medium">
+                <a href="/" class="text-text-muted hover:text-secondary-cyan transition duration-300">Home</a>
+                <a href="/words/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Words Quiz</a>
+                <a href="/sentences/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Sentences Quiz</a>
+                <a href="/learn" class="text-text-muted hover:text-secondary-cyan transition duration-300">Learn</a>
+                <a href="/profile" class="text-secondary-cyan transition duration-300">Profile</a>
+                <a href="/result" class="text-text-muted hover:text-secondary-cyan transition duration-300">Results</a>
+                <a href="/chat" class="text-text-muted hover:text-secondary-cyan transition duration-300">Community Chat</a>
+            </div>
+
+            <!-- Desktop View Results Button -->
+            <a href="/result" class="hidden md:flex py-2 px-5 rounded-full cta-button-secondary font-extrabold text-base shadow-xl hover:shadow-2xl transition duration-300">
+                View Results
+            </a>
+
+            <!-- Mobile Menu Container -->
+            <div class="md:hidden flex items-center space-x-3">
+                <!-- Mobile View Results Button -->
+                <a href="/result" class="py-1 px-3 rounded-full text-sm cta-button-secondary font-bold shadow-xl transition duration-300">
+                    Results
+                </a>
+
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-button" class="text-text-muted hover:text-secondary-cyan transition duration-300 relative z-50">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Dropdown Menu -->
+        <div id="mobile-dropdown-menu" class="mobile-dropdown-menu md:hidden w-full left-0">
+            <div class="p-4 space-y-3">
+                <a href="/" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-home mr-3 w-5 text-center"></i>
+                    <span>Home</span>
+                </a>
+                <a href="/words/quiz" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-book mr-3 w-5 text-center"></i>
+                    <span>Words Quiz</span>
+                </a>
+                <a href="/sentences/quiz" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-comments mr-3 w-5 text-center"></i>
+                    <span>Sentences Quiz</span>
+                </a>
+                <a href="/learn" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-graduation-cap mr-3 w-5 text-center"></i>
+                    <span>Learn</span>
+                </a>
+                <a href="/profile" class="flex items-center text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-user mr-3 w-5 text-center"></i>
+                    <span>Profile</span>
+                </a>
+                <a href="/result" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-chart-bar mr-3 w-5 text-center"></i>
+                    <span>Results</span>
+                </a>
+                <a href="/chat" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-users mr-3 w-5 text-center"></i>
+                    <span>Community Chat</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Dropdown Backdrop -->
+    <div id="mobile-dropdown-backdrop" class="mobile-dropdown-backdrop md:hidden"></div>
+
+    <main class="pt-24 pb-16">
+        <!-- Header Section -->
+        <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-text-light">
+                    Your <span class="text-secondary-cyan">Profile</span>
+                </h1>
+                <p class="text-xl text-text-muted max-w-2xl mx-auto">
+                    Manage your personal information and track your learning progress
+                </p>
+            </div>
+        </section>
+
+        <!-- Success Message -->
+        <div id="success-message" class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 hidden">
+            <div class="success-message flex items-center justify-between">
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle mr-3"></i>
+                    <span id="success-text">Profile updated successfully!</span>
+                </div>
+                <button onclick="hideSuccessMessage()" class="text-white hover:text-gray-200">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Left Column - Profile Info -->
+                <div class="lg:col-span-2 space-y-8">
+                    <!-- Personal Information Card -->
+                    <div class="profile-card p-6">
+                        <h2 class="text-2xl font-bold text-text-light mb-6 flex items-center">
+                            <i class="fas fa-user-circle mr-3 text-secondary-cyan"></i>
+                            Personal Information
+                        </h2>
+                        
+                        <div class="flex flex-col md:flex-row gap-6 mb-6">
+                            <!-- Avatar Section -->
+                            <div class="flex-shrink-0">
+                                <div class="avatar-upload">
+                                    <div class="w-32 h-32 rounded-full bg-card-bg border-2 border-primary-blue overflow-hidden">
+                                        <img id="avatar-preview" src="" alt="Avatar" class="w-full h-full object-cover hidden">
+                                        <div id="avatar-placeholder" class="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary-blue to-secondary-cyan text-white text-4xl font-bold">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                    </div>
+                                    <div class="avatar-overlay">
+                                        <i class="fas fa-camera text-white text-2xl"></i>
+                                    </div>
+                                </div>
+                                <input type="file" id="avatar-input" accept="image/*" class="hidden">
+                                <button onclick="document.getElementById('avatar-input').click()" class="mt-3 text-sm text-secondary-cyan hover:text-primary-blue transition duration-300">
+                                    Change Photo
+                                </button>
+                            </div>
+
+                            <!-- Basic Info Form -->
+                            <div class="flex-1 space-y-4">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="form-label">Username *</label>
+                                        <input type="text" id="username" class="form-input w-full py-3 px-4 rounded-lg" placeholder="Enter your username" required>
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Email</label>
+                                        <input type="email" id="email" class="form-input w-full py-3 px-4 rounded-lg" placeholder="Enter your email">
+                                    </div>
+                                </div>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="form-label">First Name</label>
+                                        <input type="text" id="firstName" class="form-input w-full py-3 px-4 rounded-lg" placeholder="Enter your first name">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Last Name</label>
+                                        <input type="text" id="lastName" class="form-input w-full py-3 px-4 rounded-lg" placeholder="Enter your last name">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="form-label">Bio</label>
+                                    <textarea id="bio" class="form-input w-full py-3 px-4 rounded-lg h-24" placeholder="Tell us about yourself and your Chinese learning journey..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Learning Preferences Card -->
+                    <div class="profile-card p-6">
+                        <h2 class="text-2xl font-bold text-text-light mb-6 flex items-center">
+                            <i class="fas fa-cog mr-3 text-secondary-cyan"></i>
+                            Learning Preferences
+                        </h2>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="form-label">Daily Learning Goal</label>
+                                <select id="dailyGoal" class="form-input w-full py-3 px-4 rounded-lg">
+                                    <option value="10">10 words/sentences per day</option>
+                                    <option value="20">20 words/sentences per day</option>
+                                    <option value="30">30 words/sentences per day</option>
+                                    <option value="50">50 words/sentences per day</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label class="form-label">Preferred Learning Mode</label>
+                                <select id="learningMode" class="form-input w-full py-3 px-4 rounded-lg">
+                                    <option value="both">Both Words and Sentences</option>
+                                    <option value="words">Words Only</option>
+                                    <option value="sentences">Sentences Only</option>
+                                </select>
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label class="form-label flex items-center">
+                                    <input type="checkbox" id="enableSpeech" class="mr-3 rounded bg-card-bg border-text-muted/30 text-secondary-cyan focus:ring-secondary-cyan">
+                                    Enable Text-to-Speech by default
+                                </label>
+                            </div>
+                            
+                            <div class="md:col-span-2">
+                                <label class="form-label flex items-center">
+                                    <input type="checkbox" id="showPinyin" class="mr-3 rounded bg-card-bg border-text-muted/30 text-secondary-cyan focus:ring-secondary-cyan" checked>
+                                    Always show Pinyin
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column - Stats and Actions -->
+                <div class="space-y-8">
+                    <!-- Stats Card -->
+                    <div class="profile-card p-6">
+                        <h2 class="text-2xl font-bold text-text-light mb-6 flex items-center">
+                            <i class="fas fa-chart-line mr-3 text-secondary-cyan"></i>
+                            Learning Stats
+                        </h2>
+                        
+                        <div class="space-y-4">
+                            <div class="stats-card">
+                                <div class="text-3xl font-bold text-secondary-cyan" id="total-words">0</div>
+                                <div class="text-text-muted">Words Learned</div>
+                            </div>
+                            
+                            <div class="stats-card">
+                                <div class="text-3xl font-bold text-primary-blue" id="total-sentences">0</div>
+                                <div class="text-text-muted">Sentences Mastered</div>
+                            </div>
+                            
+                            <div class="stats-card">
+                                <div class="text-3xl font-bold text-green-400" id="streak-days">0</div>
+                                <div class="text-text-muted">Day Streak</div>
+                            </div>
+                            
+                            <div class="stats-card">
+                                <div class="text-3xl font-bold text-yellow-400" id="accuracy-rate">0%</div>
+                                <div class="text-text-muted">Average Accuracy</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions Card -->
+                    <div class="profile-card p-6">
+                        <h2 class="text-2xl font-bold text-text-light mb-6 flex items-center">
+                            <i class="fas fa-bolt mr-3 text-secondary-cyan"></i>
+                            Quick Actions
+                        </h2>
+                        
+                        <div class="space-y-4">
+                            <button onclick="saveProfile()" class="cta-button-primary w-full py-3 px-6 rounded-lg font-medium">
+                                <i class="fas fa-save mr-2"></i> Save Profile
+                            </button>
+                            
+                            <button onclick="resetProfile()" class="w-full py-3 px-6 rounded-lg bg-card-bg text-text-light border border-text-muted/30 font-medium hover:bg-text-muted/10 transition duration-300">
+                                <i class="fas fa-undo mr-2"></i> Reset to Defaults
+                            </button>
+                            
+                            <button onclick="exportData()" class="w-full py-3 px-6 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 transition duration-300">
+                                <i class="fas fa-download mr-2"></i> Export Data
+                            </button>
+                            
+                            <button onclick="clearData()" class="w-full py-3 px-6 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition duration-300">
+                                <i class="fas fa-trash mr-2"></i> Clear All Data
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Account Status -->
+                    <div class="profile-card p-6">
+                        <h2 class="text-2xl font-bold text-text-light mb-4 flex items-center">
+                            <i class="fas fa-shield-alt mr-3 text-secondary-cyan"></i>
+                            Account Status
+                        </h2>
+                        
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-text-muted">Profile Completion</span>
+                                <span class="text-secondary-cyan font-medium" id="completion-percentage">0%</span>
+                            </div>
+                            <div class="w-full bg-card-bg rounded-full h-2">
+                                <div id="completion-bar" class="bg-secondary-cyan h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center pt-3">
+                                <span class="text-text-muted">Member Since</span>
+                                <span class="text-text-light font-medium" id="member-since">Today</span>
+                            </div>
+                            
+                            <div class="flex justify-between items-center">
+                                <span class="text-text-muted">Account Type</span>
+                                <span class="text-green-400 font-medium">Free</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-10 border-t border-main-bg/20 text-center text-text-muted bg-card-bg">
+        <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
+    </footer>
+
+    <!-- Profile Logic -->
+    <script>
+        // DOM Elements
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+        const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+        const successMessage = document.getElementById('success-message');
+        const successText = document.getElementById('success-text');
+        let isMenuOpen = false;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMobileMenu();
+            loadProfile();
+            updateStats();
+            updateCompletion();
+        });
+
+        // Initialize Mobile Menu
+        function initializeMobileMenu() {
+            function toggleMobileMenu() {
+                isMenuOpen = !isMenuOpen;
+                
+                if (isMenuOpen) {
+                    mobileDropdownMenu.classList.add('open');
+                    mobileDropdownBackdrop.style.display = 'block';
+                    document.body.style.overflow = 'hidden';
+                    mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+                    mobileMenuButton.classList.remove('text-text-muted');
+                    mobileMenuButton.classList.add('text-secondary-cyan');
+                } else {
+                    mobileDropdownMenu.classList.remove('open');
+                    mobileDropdownBackdrop.style.display = 'none';
+                    document.body.style.overflow = '';
+                    mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                    mobileMenuButton.classList.remove('text-secondary-cyan');
+                    mobileMenuButton.classList.add('text-text-muted');
+                }
+            }
+
+            function closeMobileMenu() {
+                isMenuOpen = false;
+                mobileDropdownMenu.classList.remove('open');
+                mobileDropdownBackdrop.style.display = 'none';
+                document.body.style.overflow = '';
+                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                mobileMenuButton.classList.remove('text-secondary-cyan');
+                mobileMenuButton.classList.add('text-text-muted');
+            }
+
+            mobileMenuButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleMobileMenu();
+            });
+
+            mobileDropdownBackdrop.addEventListener('click', closeMobileMenu);
+
+            const menuLinks = mobileDropdownMenu.querySelectorAll('a');
+            menuLinks.forEach(link => {
+                link.addEventListener('click', closeMobileMenu);
+            });
+
+            document.addEventListener('click', function(e) {
+                if (isMenuOpen && 
+                    !mobileDropdownMenu.contains(e.target) && 
+                    !mobileMenuButton.contains(e.target)) {
+                    closeMobileMenu();
+                }
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (isMenuOpen && e.key === 'Escape') {
+                    closeMobileMenu();
+                }
+            });
+
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 768 && isMenuOpen) {
+                    closeMobileMenu();
+                }
+            });
+        }
+
+        // Avatar Upload Handling
+        document.getElementById('avatar-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const avatarPreview = document.getElementById('avatar-preview');
+                    const avatarPlaceholder = document.getElementById('avatar-placeholder');
+                    
+                    avatarPreview.src = e.target.result;
+                    avatarPreview.classList.remove('hidden');
+                    avatarPlaceholder.classList.add('hidden');
+                    
+                    // Save to localStorage
+                    const profile = getProfile();
+                    profile.avatar = e.target.result;
+                    localStorage.setItem('userProfile', JSON.stringify(profile));
+                    
+                    showSuccess('Avatar updated successfully!');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Profile Management
+        function getProfile() {
+            const defaultProfile = {
+                username: '',
+                email: '',
+                firstName: '',
+                lastName: '',
+                bio: '',
+                avatar: '',
+                dailyGoal: '20',
+                learningMode: 'both',
+                enableSpeech: true,
+                showPinyin: true,
+                memberSince: new Date().toISOString(),
+                stats: {
+                    totalWords: 0,
+                    totalSentences: 0,
+                    streakDays: 0,
+                    accuracyRate: 0
+                }
+            };
+            
+            const saved = localStorage.getItem('userProfile');
+            return saved ? { ...defaultProfile, ...JSON.parse(saved) } : defaultProfile;
+        }
+
+        function saveProfile() {
+            const profile = {
+                username: document.getElementById('username').value,
+                email: document.getElementById('email').value,
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                bio: document.getElementById('bio').value,
+                dailyGoal: document.getElementById('dailyGoal').value,
+                learningMode: document.getElementById('learningMode').value,
+                enableSpeech: document.getElementById('enableSpeech').checked,
+                showPinyin: document.getElementById('showPinyin').checked,
+                memberSince: getProfile().memberSince,
+                stats: getProfile().stats
+            };
+
+            // Save avatar if exists
+            const avatarPreview = document.getElementById('avatar-preview');
+            if (avatarPreview.src && !avatarPreview.classList.contains('hidden')) {
+                profile.avatar = avatarPreview.src;
+            }
+
+            localStorage.setItem('userProfile', JSON.stringify(profile));
+            showSuccess('Profile saved successfully!');
+            updateCompletion();
+        }
+
+        function loadProfile() {
+            const profile = getProfile();
+            
+            document.getElementById('username').value = profile.username || '';
+            document.getElementById('email').value = profile.email || '';
+            document.getElementById('firstName').value = profile.firstName || '';
+            document.getElementById('lastName').value = profile.lastName || '';
+            document.getElementById('bio').value = profile.bio || '';
+            document.getElementById('dailyGoal').value = profile.dailyGoal || '20';
+            document.getElementById('learningMode').value = profile.learningMode || 'both';
+            document.getElementById('enableSpeech').checked = profile.enableSpeech !== false;
+            document.getElementById('showPinyin').checked = profile.showPinyin !== false;
+
+            // Load avatar
+            if (profile.avatar) {
+                const avatarPreview = document.getElementById('avatar-preview');
+                const avatarPlaceholder = document.getElementById('avatar-placeholder');
+                
+                avatarPreview.src = profile.avatar;
+                avatarPreview.classList.remove('hidden');
+                avatarPlaceholder.classList.add('hidden');
+            }
+
+            // Load member since
+            if (profile.memberSince) {
+                const date = new Date(profile.memberSince);
+                document.getElementById('member-since').textContent = date.toLocaleDateString();
+            }
+        }
+
+        function resetProfile() {
+            if (confirm('Are you sure you want to reset your profile to default values? This will clear all your personal information.')) {
+                localStorage.removeItem('userProfile');
+                loadProfile();
+                showSuccess('Profile reset to defaults!');
+            }
+        }
+
+        function updateStats() {
+            const profile = getProfile();
+            const stats = profile.stats || {};
+            
+            document.getElementById('total-words').textContent = stats.totalWords || 0;
+            document.getElementById('total-sentences').textContent = stats.totalSentences || 0;
+            document.getElementById('streak-days').textContent = stats.streakDays || 0;
+            document.getElementById('accuracy-rate').textContent = (stats.accuracyRate || 0) + '%';
+        }
+
+        function updateCompletion() {
+            const profile = getProfile();
+            let completedFields = 0;
+            const totalFields = 6; // username, email, firstName, lastName, bio, avatar
+            
+            if (profile.username) completedFields++;
+            if (profile.email) completedFields++;
+            if (profile.firstName) completedFields++;
+            if (profile.lastName) completedFields++;
+            if (profile.bio) completedFields++;
+            if (profile.avatar) completedFields++;
+            
+            const percentage = Math.round((completedFields / totalFields) * 100);
+            document.getElementById('completion-percentage').textContent = percentage + '%';
+            document.getElementById('completion-bar').style.width = percentage + '%';
+        }
+
+        function exportData() {
+            const profile = getProfile();
+            const dataStr = JSON.stringify(profile, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = 'redcharger-profile-backup.json';
+            link.click();
+            
+            showSuccess('Profile data exported successfully!');
+        }
+
+        function clearData() {
+            if (confirm('Are you sure you want to clear ALL your data? This includes your profile, learning progress, and cannot be undone.')) {
+                localStorage.clear();
+                loadProfile();
+                updateStats();
+                showSuccess('All data cleared successfully!');
+            }
+        }
+
+        function showSuccess(message) {
+            successText.textContent = message;
+            successMessage.classList.remove('hidden');
+            setTimeout(hideSuccessMessage, 5000);
+        }
+
+        function hideSuccessMessage() {
+            successMessage.classList.add('hidden');
+        }
+
+        // Auto-save when user stops typing
+        let saveTimeout;
+        const inputs = document.querySelectorAll('input, textarea, select');
+        inputs.forEach(input => {
+            input.addEventListener('input', () => {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(updateCompletion, 1000);
+            });
+        });
+    </script>
+</body>
+</html>

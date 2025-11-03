@@ -35,11 +35,15 @@ def create_app():
     from .words_routes import words_bp
     from .sentence_routes import sentence_bp
     from .learn_routes import learn_bp
-    
+    from .profile_routes import profile_bp
+
+
+
     app.register_blueprint(main_bp)
     app.register_blueprint(words_bp, url_prefix='/words')
     app.register_blueprint(sentence_bp, url_prefix='/sentences')
     app.register_blueprint(learn_bp)
+    app.register_blueprint(profile_bp)
     
     # Import and register socket events (comment out if causing issues)
     try:
