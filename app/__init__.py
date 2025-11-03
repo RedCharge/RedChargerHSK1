@@ -37,10 +37,12 @@ def create_app():
     from .main_routes import main_bp
     from .words_routes import words_bp
     from .sentence_routes import sentence_bp
+    from learn_routes import learn_bp
     
     app.register_blueprint(main_bp)
     app.register_blueprint(words_bp, url_prefix='/words')
     app.register_blueprint(sentence_bp, url_prefix='/sentences')
+    app.register_blueprint(learn_bp)
     
     # Import and register socket events
     from .main_routes import register_socket_events
