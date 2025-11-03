@@ -36,6 +36,8 @@ def create_app():
     from .sentence_routes import sentence_bp
     from .learn_routes import learn_bp
     from .profile_routes import profile_bp
+    from leaderboard_routes import leaderboard_bp
+
 
 
 
@@ -44,6 +46,7 @@ def create_app():
     app.register_blueprint(sentence_bp, url_prefix='/sentences')
     app.register_blueprint(learn_bp)
     app.register_blueprint(profile_bp)
+    app.register_blueprint(leaderboard_bp)
     
     # Import and register socket events (comment out if causing issues)
     try:
