@@ -490,22 +490,22 @@
 
         // Store the original rankings based on score
         let originalRankings = [];
-        let leaderboardData = [];
+        let realLeaderboardData = [];
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             initializeMobileMenu();
             setupEventListeners();
-            loadLeaderboardFromBackend();
+            loadRealLeaderboardData();
         });
 
-        // Load leaderboard data from backend
-        async function loadLeaderboardFromBackend() {
+        // Load real leaderboard data from backend
+        async function loadRealLeaderboardData() {
             try {
                 loadingState.classList.remove('hidden');
                 leaderboardList.innerHTML = '';
 
-                // Get timeframe and sort from UI
+                // Get timeframe and sort parameters
                 const timeframe = document.querySelector('.filter-button.active')?.dataset.filter || 'all';
                 const sortBy = sortSelect.value || 'score';
 
@@ -514,41 +514,75 @@
                 const data = await response.json();
 
                 if (data.success && data.leaderboard && data.leaderboard.length > 0) {
-                    leaderboardData = data.leaderboard;
-                    
-                    // Update current user data with actual profile
-                    updateCurrentUserData();
+                    realLeaderboardData = data.leaderboard;
                     
                     // Calculate and store original rankings based on score
                     calculateOriginalRankings();
                     
-                    // Render the leaderboard
-                    renderLeaderboard(leaderboardData);
-                    
-                    // Update current user rank display
-                    updateCurrentUserRank(leaderboardData);
+                    // Render the leaderboard with real data
+                    renderLeaderboardWithRealData();
                     
                     // Load user stats and achievements
-                    updateUserStats();
-                    loadAchievementsFromBackend();
+                    loadUserStats();
+                    loadAchievements();
                 } else {
                     showEmptyState();
                 }
             } catch (error) {
-                console.error('Error loading leaderboard from backend:', error);
+                console.error('Error loading leaderboard data:', error);
                 showEmptyState();
             } finally {
                 loadingState.classList.add('hidden');
             }
         }
 
-        // Calculate original rankings based on score
+        // Calculate original rankings based on score from real data
         function calculateOriginalRankings() {
-            const sortedByScore = [...leaderboardData].sort((a, b) => b.score - a.score);
+            const sortedByScore = [...realLeaderboardData].sort((a, b) => b.score - a.score);
             originalRankings = sortedByScore.map((user, index) => ({
                 ...user,
                 originalRank: index + 1
             }));
+        }
+
+        // Render leaderboard with real data
+        function renderLeaderboardWithRealData() {
+            leaderboardList.innerHTML = '';
+            emptyState.classList.add('hidden');
+
+            // Get the current sort type
+            const sortBy = sortSelect.value;
+            
+            // Sort data based on selection but keep original rankings
+            let sortedData;
+            switch(sortBy) {
+                case 'words':
+                    sortedData = [...realLeaderboardData].sort((a, b) => (b.words_mastered || b.words || 0) - (a.words_mastered || a.words || 0));
+                    break;
+                case 'sentences':
+                    sortedData = [...realLeaderboardData].sort((a, b) => (b.sentences_mastered || b.sentences || 0) - (a.sentences_mastered || a.sentences || 0));
+                    break;
+                case 'streak':
+                    sortedData = [...realLeaderboardData].sort((a, b) => (b.current_streak || b.streak || 0) - (a.current_streak || a.streak || 0));
+                    break;
+                case 'score':
+                default:
+                    sortedData = [...realLeaderboardData].sort((a, b) => b.score - a.score);
+                    break;
+            }
+
+            // Render leaderboard items with CORRECT rankings
+            sortedData.forEach((user, index) => {
+                // Find the user's original rank based on score
+                const originalUserData = originalRankings.find(u => u.user_id === user.user_id || u.id === user.id);
+                const rank = originalUserData ? originalUserData.originalRank : index + 1;
+                
+                const leaderboardItem = createLeaderboardItem(user, rank);
+                leaderboardList.appendChild(leaderboardItem);
+            });
+
+            // Update current user rank display with CORRECT ranking
+            updateCurrentUserRank(sortedData);
         }
 
         // Initialize Mobile Menu
@@ -625,97 +659,14 @@
             sortSelect.addEventListener('change', handleSort);
         }
 
-        // Render leaderboard with real data
-        function renderLeaderboard(users) {
-            leaderboardList.innerHTML = '';
-            
-            if (users.length === 0) {
-                showEmptyState();
-                return;
-            }
-            
-            emptyState.classList.add('hidden');
-            
-            // Render leaderboard items with CORRECT rankings
-            users.forEach((user, index) => {
-                // Find the user's original rank based on score
-                const originalUserData = originalRankings.find(u => u.user_id === user.user_id || u.id === user.id);
-                const rank = originalUserData ? originalUserData.originalRank : index + 1;
-                
-                const leaderboardItem = createLeaderboardItem(user, rank);
-                leaderboardList.appendChild(leaderboardItem);
-            });
-        }
-
-        // Update current user data with actual profile information
-        function updateCurrentUserData() {
-            const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-            
-            // Find current user in leaderboard data
-            const currentUser = leaderboardData.find(user => user.is_current_user || user.isCurrentUser);
-            if (currentUser && userProfile.username) {
-                currentUser.username = userProfile.username;
-                currentUser.avatar = userProfile.avatar || '';
-            }
-        }
-
-        // Calculate user score based on performance (your original function)
-        function calculateScore(stats) {
-            const wordScore = stats.totalWords * 10;
-            const sentenceScore = stats.totalSentences * 15;
-            const streakBonus = stats.streakDays * 5;
-            const accuracyBonus = stats.accuracyRate * 2;
-            
-            return wordScore + sentenceScore + streakBonus + accuracyBonus;
-        }
-
-        // Calculate user statistics (same as profile page - your original function)
-        function calculateUserStats() {
-            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
-            const wordPerformance = JSON.parse(localStorage.getItem('hsk1WordPerformance') || '{}');
-            const sentencePerformance = JSON.parse(localStorage.getItem('hsk1SentencePerformance') || '{}');
-            
-            let totalWords = Object.keys(wordPerformance).length;
-            let totalSentences = Object.keys(sentencePerformance).length;
-            let totalCorrect = 0;
-            let totalQuestions = 0;
-            let streakDays = 0;
-            
-            // Calculate from quiz history
-            quizHistory.forEach(quiz => {
-                totalCorrect += quiz.correct || 0;
-                totalQuestions += quiz.total || 0;
-            });
-            
-            // Calculate streak
-            const today = new Date();
-            const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-            const recentQuizzes = quizHistory.filter(quiz => {
-                const quizDate = new Date(quiz.timestamp || quiz.date);
-                return quizDate >= lastWeek;
-            });
-            
-            streakDays = Math.min(recentQuizzes.length, 7);
-            
-            // Calculate accuracy rate
-            const accuracyRate = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
-            
-            return {
-                totalWords: totalWords,
-                totalSentences: totalSentences,
-                streakDays: streakDays,
-                accuracyRate: accuracyRate
-            };
-        }
-
-        // Create leaderboard item HTML - MOBILE RESPONSIVE (your original design)
+        // Create leaderboard item HTML - MOBILE RESPONSIVE (using real data)
         function createLeaderboardItem(user, rank) {
             const item = document.createElement('div');
             const rankClass = rank <= 3 ? `rank-${rank}` : 'bg-card-bg';
-            const isCurrentUser = user.is_current_user || user.isCurrentUser ? 'current-user' : '';
+            const isCurrentUser = user.is_current_user ? 'current-user' : '';
             const isMobile = window.innerWidth < 768;
             
-            // Use backend data fields with fallbacks
+            // Use real data fields with fallbacks
             const username = user.username || 'Anonymous';
             const avatar = user.avatar || '';
             const score = user.score || 0;
@@ -724,7 +675,7 @@
             const streak = user.current_streak || user.streak || 0;
             const accuracy = user.accuracy_rate || user.accuracy || 0;
             const level = user.level || 'HSK1 Learner';
-            
+
             if (isMobile) {
                 // Mobile layout - shows ALL details in compact format
                 item.className = `mobile-leaderboard-item p-3 rounded-lg border border-text-muted/20 ${isCurrentUser} mb-3 bg-card-bg/80 backdrop-blur-sm`;
@@ -823,37 +774,33 @@
             return item;
         }
 
-        // Update current user rank display - MOBILE RESPONSIVE
+        // Update current user rank display - MOBILE RESPONSIVE (using real data)
         function updateCurrentUserRank(sortedData) {
-            const currentUser = sortedData.find(user => user.is_current_user || user.isCurrentUser);
+            // Try to find current user in the data
+            const currentUser = sortedData.find(user => user.is_current_user);
+            
             if (currentUser) {
                 // Find the user's original rank based on score
                 const originalUserData = originalRankings.find(u => u.user_id === currentUser.user_id || u.id === currentUser.id);
                 const rank = originalUserData ? originalUserData.originalRank : sortedData.indexOf(currentUser) + 1;
                 
-                const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+                const username = currentUser.username || 'You';
                 const isMobile = window.innerWidth < 768;
-                
-                // Use backend data fields with fallbacks
-                const username = currentUser.username || userProfile.username || 'You';
-                const score = currentUser.score || 0;
-                const accuracy = currentUser.accuracy_rate || currentUser.accuracy || 0;
-                const level = currentUser.level || 'HSK1 Learner';
                 
                 if (isMobile) {
                     currentUserRank.innerHTML = `
                         <div class="text-center">
                             <div class="text-4xl font-bold text-secondary-cyan mb-2">#${rank}</div>
                             <div class="text-lg font-semibold text-text-light mb-1">${username}</div>
-                            <div class="text-text-muted text-sm mb-4">${level}</div>
+                            <div class="text-text-muted text-sm mb-4">${currentUser.level || 'HSK1 Learner'}</div>
                             
                             <div class="grid grid-cols-2 gap-3 text-sm">
                                 <div class="text-center bg-card-bg/50 rounded-lg p-3">
-                                    <div class="font-bold text-text-light text-lg">${score}</div>
+                                    <div class="font-bold text-text-light text-lg">${currentUser.score || 0}</div>
                                     <div class="text-text-muted text-xs">Score</div>
                                 </div>
                                 <div class="text-center bg-card-bg/50 rounded-lg p-3">
-                                    <div class="font-bold text-text-light text-lg">${accuracy}%</div>
+                                    <div class="font-bold text-text-light text-lg">${currentUser.accuracy_rate || currentUser.accuracy || 0}%</div>
                                     <div class="text-text-muted text-xs">Accuracy</div>
                                 </div>
                             </div>
@@ -864,26 +811,34 @@
                         <div class="text-center">
                             <div class="text-5xl font-bold text-secondary-cyan mb-2">#${rank}</div>
                             <div class="text-lg font-semibold text-text-light mb-1">${username}</div>
-                            <div class="text-text-muted mb-4">${level}</div>
+                            <div class="text-text-muted mb-4">${currentUser.level || 'HSK1 Learner'}</div>
                             
                             <div class="grid grid-cols-2 gap-4 text-sm">
                                 <div class="text-center">
-                                    <div class="font-semibold text-text-light">${score}</div>
+                                    <div class="font-semibold text-text-light">${currentUser.score || 0}</div>
                                     <div class="text-text-muted">Score</div>
                                 </div>
                                 <div class="text-center">
-                                    <div class="font-semibold text-text-light">${accuracy}%</div>
+                                    <div class="font-semibold text-text-light">${currentUser.accuracy_rate || currentUser.accuracy || 0}%</div>
                                     <div class="text-text-muted">Accuracy</div>
                                 </div>
                             </div>
                         </div>
                     `;
                 }
+            } else {
+                // If current user not found in leaderboard, show default message
+                currentUserRank.innerHTML = `
+                    <div class="text-center py-8">
+                        <i class="fas fa-user text-4xl text-text-muted mb-4"></i>
+                        <p class="text-text-muted">Complete quizzes to appear on the leaderboard!</p>
+                    </div>
+                `;
             }
         }
 
         // Load user achievements from backend
-        async function loadAchievementsFromBackend() {
+        async function loadAchievements() {
             try {
                 const response = await fetch('/api/leaderboard/achievements');
                 const data = await response.json();
@@ -894,7 +849,7 @@
                     renderAchievements([]);
                 }
             } catch (error) {
-                console.error('Error loading achievements from backend:', error);
+                console.error('Error loading achievements:', error);
                 renderAchievements([]);
             }
         }
@@ -973,34 +928,38 @@
             });
         }
 
-        // Update user stats and progress bars - MOBILE RESPONSIVE
-        async function updateUserStats() {
+        // Load user stats and progress from backend
+        async function loadUserStats() {
             try {
                 const response = await fetch('/api/leaderboard/stats');
                 const data = await response.json();
                 
                 if (data.success) {
-                    const stats = data.stats;
-                    const progress = data.progress;
-                    
-                    // Update progress numbers
-                    document.getElementById('user-words').textContent = `${stats.words_mastered || 0}/150`;
-                    document.getElementById('user-sentences').textContent = `${stats.sentences_mastered || 0}/100`;
-                    document.getElementById('user-streak').textContent = `${stats.current_streak || 0} days`;
-                    
-                    // Update progress bars with animation
-                    setTimeout(() => {
-                        document.getElementById('words-progress').style.width = `${progress.words.percentage || 0}%`;
-                        document.getElementById('sentences-progress').style.width = `${progress.sentences.percentage || 0}%`;
-                        document.getElementById('streak-progress').style.width = `${progress.streak.percentage || 0}%`;
-                    }, 300);
+                    updateUserStatsWithRealData(data.stats, data.progress);
                 } else {
                     setDefaultProgress();
                 }
             } catch (error) {
-                console.error('Error loading user stats from backend:', error);
+                console.error('Error loading user stats:', error);
                 setDefaultProgress();
             }
+        }
+
+        // Update user stats and progress bars - MOBILE RESPONSIVE (using real data)
+        function updateUserStatsWithRealData(stats, progress) {
+            const isMobile = window.innerWidth < 768;
+            
+            // Update progress numbers
+            document.getElementById('user-words').textContent = `${stats.words_mastered || 0}/150`;
+            document.getElementById('user-sentences').textContent = `${stats.sentences_mastered || 0}/100`;
+            document.getElementById('user-streak').textContent = `${stats.current_streak || 0} days`;
+            
+            // Update progress bars with animation
+            setTimeout(() => {
+                document.getElementById('words-progress').style.width = `${progress.words.percentage || 0}%`;
+                document.getElementById('sentences-progress').style.width = `${progress.sentences.percentage || 0}%`;
+                document.getElementById('streak-progress').style.width = `${progress.streak.percentage || 0}%`;
+            }, 300);
         }
 
         function setDefaultProgress() {
@@ -1025,19 +984,26 @@
             });
             e.target.classList.add('active');
             
-            // Reload leaderboard with filter
-            loadLeaderboardFromBackend();
+            // Reload leaderboard with real data
+            loadRealLeaderboardData();
         }
 
         // Handle sort selection
         function handleSort(e) {
-            loadLeaderboardFromBackend();
+            // Re-render with current real data using the new sort
+            renderLeaderboardWithRealData();
         }
 
         // Show empty state
         function showEmptyState() {
             emptyState.classList.remove('hidden');
             leaderboardList.innerHTML = '';
+            currentUserRank.innerHTML = `
+                <div class="text-center py-8">
+                    <i class="fas fa-users text-4xl text-text-muted mb-4"></i>
+                    <p class="text-text-muted">No leaderboard data available yet.</p>
+                </div>
+            `;
         }
     </script>
 
