@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request, session
+from flask import Blueprint, jsonify, request, session, render_template
 from datetime import datetime, timedelta
 import json
 import os
@@ -10,6 +10,12 @@ leaderboard_bp = Blueprint('leaderboard', __name__)
 # Mock user data storage (in production, use a database)
 USERS_DATA_FILE = 'data/users.json'
 QUIZ_HISTORY_FILE = 'data/quiz_history.json'
+
+
+@leaderboard_bp.route('/leaderboard')
+def leaderboard_page():
+    """Serve the main leaderboard HTML page"""
+    return render_template('leaderboard.html')
 
 def load_users_data():
     """Load users data from JSON file"""
