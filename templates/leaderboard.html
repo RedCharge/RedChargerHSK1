@@ -473,7 +473,7 @@
         <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
     </footer>
 
-            <!-- Leaderboard Logic -->
+                <!-- Leaderboard Logic -->
     <script>
         // DOM Elements
         const mobileMenuButton = document.getElementById('mobile-menu-button');
@@ -488,17 +488,12 @@
         const sortSelect = document.getElementById('sort-by');
         let isMenuOpen = false;
 
-        // State management
-        let currentData = null;
-        let isLoading = false;
-
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             initializeMobileMenu();
             setupEventListeners();
             loadLeaderboard();
-            loadUserStats();
-            loadAchievements();
+            updateUserStats();
             
             // Add responsive behavior - NO AUTO REFRESH
             window.addEventListener('resize', handleResize);
@@ -580,41 +575,167 @@
 
         // Handle window resize for responsive behavior
         function handleResize() {
-            // Only re-render if we have data and layout needs to change
-            if (currentData) {
-                renderLeaderboard(currentData);
-            }
+            // Re-render leaderboard with appropriate layout - NO AUTO REFRESH OF DATA
+            const currentItems = leaderboardList.innerHTML;
+            leaderboardList.innerHTML = '';
+            leaderboardList.innerHTML = currentItems;
         }
 
-        // Load leaderboard data from backend - NO AUTO REFRESH
-        async function loadLeaderboard() {
-            if (isLoading) return;
-            
-            isLoading = true;
+        // Load leaderboard data - REMOVED AUTOMATIC REFRESH
+        function loadLeaderboard() {
             loadingState.classList.remove('hidden');
             leaderboardList.innerHTML = '';
-            emptyState.classList.add('hidden');
+            
+            // Use fetch to get real leaderboard data from backend
+            fetch('/api/leaderboard')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.leaderboard && data.leaderboard.length > 0) {
+                        // Use the sorted data from backend - all users see same rankings
+                        renderLeaderboard(data.leaderboard);
+                        updateCurrentUserRank(data.leaderboard);
+                    } else {
+                        showEmptyState();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading leaderboard:', error);
+                    // Fallback to your existing logic but with proper ranking
+                    updateCurrentUserData();
+                    const sortedData = getGlobalRankings(); // All users see same rankings
+                    renderLeaderboard(sortedData);
+                    updateCurrentUserRank(sortedData);
+                })
+                .finally(() => {
+                    loadingState.classList.add('hidden');
+                });
+        }
 
-            try {
-                const timeframe = document.querySelector('.filter-button.active')?.dataset.filter || 'all';
-                const sortBy = sortSelect.value || 'score';
-
-                const response = await fetch(`/api/leaderboard?timeframe=${timeframe}&sort_by=${sortBy}`);
-                const data = await response.json();
-
-                if (data.success && data.leaderboard && data.leaderboard.length > 0) {
-                    currentData = data.leaderboard;
-                    renderLeaderboard(currentData);
-                    updateCurrentUserRank(currentData);
-                } else {
-                    showEmptyState();
+        // Get global rankings that all users see
+        function getGlobalRankings() {
+            // This would come from your backend in real app
+            // For now, using your mock data but sorted globally
+            const globalRankings = [
+                {
+                    id: 1,
+                    username: "ChineseMaster",
+                    avatar: "",
+                    score: 2850,
+                    words: 150,
+                    sentences: 100,
+                    streak: 21,
+                    accuracy: 94,
+                    level: "HSK1 Expert",
+                    isCurrentUser: false
+                },
+                {
+                    id: 2,
+                    username: "PinyinPro",
+                    avatar: "",
+                    score: 2670,
+                    words: 148,
+                    sentences: 95,
+                    streak: 18,
+                    accuracy: 92,
+                    level: "HSK1 Advanced",
+                    isCurrentUser: false
+                },
+                {
+                    id: 3,
+                    username: "HanziHero",
+                    avatar: "",
+                    score: 2540,
+                    words: 142,
+                    sentences: 88,
+                    streak: 15,
+                    accuracy: 89,
+                    level: "HSK1 Intermediate",
+                    isCurrentUser: false
+                },
+                {
+                    id: 4,
+                    username: "MandarinLearner",
+                    avatar: "",
+                    score: 2380,
+                    words: 135,
+                    sentences: 82,
+                    streak: 12,
+                    accuracy: 87,
+                    level: "HSK1 Intermediate",
+                    isCurrentUser: false
+                },
+                {
+                    id: 5,
+                    username: "LanguagePro",
+                    avatar: "",
+                    score: 2250,
+                    words: 128,
+                    sentences: 78,
+                    streak: 8,
+                    accuracy: 85,
+                    level: "HSK1 Learner",
+                    isCurrentUser: false
+                },
+                {
+                    id: 6,
+                    username: "BeginnerBob",
+                    avatar: "",
+                    score: 1980,
+                    words: 115,
+                    sentences: 65,
+                    streak: 5,
+                    accuracy: 82,
+                    level: "HSK1 Beginner",
+                    isCurrentUser: false
+                },
+                {
+                    id: 7,
+                    username: "LanguageLover",
+                    avatar: "",
+                    score: 1760,
+                    words: 98,
+                    sentences: 58,
+                    streak: 3,
+                    accuracy: 79,
+                    level: "HSK1 Beginner",
+                    isCurrentUser: false
                 }
-            } catch (error) {
-                console.error('Error loading leaderboard:', error);
-                showEmptyState();
-            } finally {
-                loadingState.classList.add('hidden');
-                isLoading = false;
+            ];
+
+            // Add current user to the global rankings at their actual position
+            const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+            const currentUserStats = calculateUserStats();
+            const currentUserScore = calculateScore(currentUserStats);
+            
+            const currentUser = {
+                id: 999,
+                username: userProfile.username || "You",
+                avatar: userProfile.avatar || "",
+                score: currentUserScore,
+                words: currentUserStats.totalWords,
+                sentences: currentUserStats.totalSentences,
+                streak: currentUserStats.streakDays,
+                accuracy: currentUserStats.accuracyRate,
+                level: determineLevel(currentUserStats),
+                isCurrentUser: true
+            };
+
+            // Insert current user at their correct position in global rankings
+            const allUsers = [...globalRankings, currentUser];
+            return allUsers.sort((a, b) => b.score - a.score);
+        }
+
+        function determineLevel(stats) {
+            if (stats.totalWords >= 140 && stats.totalSentences >= 90 && stats.accuracyRate >= 90) {
+                return "HSK1 Expert";
+            } else if (stats.totalWords >= 120 && stats.totalSentences >= 75 && stats.accuracyRate >= 85) {
+                return "HSK1 Advanced";
+            } else if (stats.totalWords >= 80 && stats.totalSentences >= 50 && stats.accuracyRate >= 75) {
+                return "HSK1 Intermediate";
+            } else if (stats.totalWords >= 40 && stats.totalSentences >= 25) {
+                return "HSK1 Learner";
+            } else {
+                return "HSK1 Beginner";
             }
         }
 
@@ -622,7 +743,14 @@
         function renderLeaderboard(users) {
             leaderboardList.innerHTML = '';
             
-            // Always show top 10 users in consistent order
+            if (users.length === 0) {
+                showEmptyState();
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            
+            // Show top 10 users - all users see the same top rankings
             const topUsers = users.slice(0, 10);
             
             topUsers.forEach((user, index) => {
@@ -632,23 +760,67 @@
             });
         }
 
+        // Update current user data with actual profile information
+        function updateCurrentUserData() {
+            // This is handled in getGlobalRankings now
+        }
+
+        // Calculate user score based on performance
+        function calculateScore(stats) {
+            const wordScore = stats.totalWords * 10;
+            const sentenceScore = stats.totalSentences * 15;
+            const streakBonus = stats.streakDays * 5;
+            const accuracyBonus = stats.accuracyRate * 2;
+            
+            return wordScore + sentenceScore + streakBonus + accuracyBonus;
+        }
+
+        // Calculate user statistics (same as profile page)
+        function calculateUserStats() {
+            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
+            const wordPerformance = JSON.parse(localStorage.getItem('hsk1WordPerformance') || '{}');
+            const sentencePerformance = JSON.parse(localStorage.getItem('hsk1SentencePerformance') || '{}');
+            
+            let totalWords = Object.keys(wordPerformance).length;
+            let totalSentences = Object.keys(sentencePerformance).length;
+            let totalCorrect = 0;
+            let totalQuestions = 0;
+            let streakDays = 0;
+            
+            // Calculate from quiz history
+            quizHistory.forEach(quiz => {
+                totalCorrect += quiz.correct || 0;
+                totalQuestions += quiz.total || 0;
+            });
+            
+            // Calculate streak
+            const today = new Date();
+            const lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            const recentQuizzes = quizHistory.filter(quiz => {
+                const quizDate = new Date(quiz.timestamp || quiz.date);
+                return quizDate >= lastWeek;
+            });
+            
+            streakDays = Math.min(recentQuizzes.length, 7);
+            
+            // Calculate accuracy rate
+            const accuracyRate = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+            
+            return {
+                totalWords: totalWords,
+                totalSentences: totalSentences,
+                streakDays: streakDays,
+                accuracyRate: accuracyRate
+            };
+        }
+
         // Create responsive leaderboard item HTML
         function createLeaderboardItem(user, rank) {
             const item = document.createElement('div');
             const rankClass = rank <= 3 ? `rank-${rank}` : 'bg-card-bg';
-            const isCurrentUser = user.is_current_user ? 'current-user' : '';
+            const isCurrentUser = user.isCurrentUser ? 'current-user' : '';
             const isMobile = window.innerWidth < 768;
             
-            // Use consistent field names from backend
-            const username = user.username || 'Anonymous';
-            const avatar = user.avatar || '';
-            const score = user.score || 0;
-            const words = user.words_mastered || user.words || 0;
-            const sentences = user.sentences_mastered || user.sentences || 0;
-            const streak = user.current_streak || user.streak || 0;
-            const accuracy = user.accuracy_rate || user.accuracy || 0;
-            const level = user.level || 'HSK1 Learner';
-
             if (isMobile) {
                 // Mobile layout - compact and stacked
                 item.className = `leaderboard-item-mobile p-3 rounded-lg border border-text-muted/20 ${isCurrentUser} mb-3`;
@@ -660,37 +832,37 @@
                             </div>
                             <div class="flex items-center space-x-2">
                                 <div class="user-avatar-mobile w-8 h-8 rounded-full bg-gradient-to-br from-primary-blue to-secondary-cyan flex items-center justify-center text-white text-xs overflow-hidden">
-                                    ${avatar ? 
-                                        `<img src="${avatar}" alt="${username}" class="w-full h-full object-cover">` : 
+                                    ${user.avatar ? 
+                                        `<img src="${user.avatar}" alt="${user.username}" class="w-full h-full object-cover">` : 
                                         `<i class="fas fa-user"></i>`
                                     }
                                 </div>
                                 <div class="min-w-0">
-                                    <div class="font-semibold text-text-light text-sm truncate max-w-[100px]">${username}</div>
-                                    <div class="text-xs text-text-muted">${level}</div>
+                                    <div class="font-semibold text-text-light text-sm truncate max-w-[100px]">${user.username}</div>
+                                    <div class="text-xs text-text-muted">${user.level}</div>
                                 </div>
                             </div>
                         </div>
                         <div class="score-mobile text-secondary-cyan font-bold text-sm">
-                            ${score.toLocaleString()}
+                            ${user.score}
                         </div>
                     </div>
                     
                     <div class="grid grid-cols-4 gap-1 text-center">
                         <div class="stat-item-mobile">
-                            <div class="text-xs font-semibold text-text-light">${words}</div>
+                            <div class="text-xs font-semibold text-text-light">${user.words}</div>
                             <div class="text-[10px] text-text-muted">Words</div>
                         </div>
                         <div class="stat-item-mobile">
-                            <div class="text-xs font-semibold text-text-light">${sentences}</div>
+                            <div class="text-xs font-semibold text-text-light">${user.sentences}</div>
                             <div class="text-[10px] text-text-muted">Sentences</div>
                         </div>
                         <div class="stat-item-mobile">
-                            <div class="text-xs font-semibold text-text-light">${streak}</div>
+                            <div class="text-xs font-semibold text-text-light">${user.streak}</div>
                             <div class="text-[10px] text-text-muted">Streak</div>
                         </div>
                         <div class="stat-item-mobile">
-                            <div class="text-xs font-semibold text-text-light">${accuracy}%</div>
+                            <div class="text-xs font-semibold text-text-light">${user.accuracy}%</div>
                             <div class="text-[10px] text-text-muted">Accuracy</div>
                         </div>
                     </div>
@@ -706,37 +878,37 @@
                         
                         <div class="flex items-center space-x-3">
                             <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-blue to-secondary-cyan flex items-center justify-center text-white font-bold overflow-hidden">
-                                ${avatar ? 
-                                    `<img src="${avatar}" alt="${username}" class="w-full h-full object-cover">` : 
+                                ${user.avatar ? 
+                                    `<img src="${user.avatar}" alt="${user.username}" class="w-full h-full object-cover">` : 
                                     `<i class="fas fa-user text-lg"></i>`
                                 }
                             </div>
                             
                             <div>
-                                <div class="font-semibold text-text-light">${username}</div>
-                                <div class="text-sm text-text-muted">${level}</div>
+                                <div class="font-semibold text-text-light">${user.username}</div>
+                                <div class="text-sm text-text-muted">${user.level}</div>
                             </div>
                         </div>
                     </div>
                     
                     <div class="flex items-center space-x-6 text-right">
                         <div class="text-center">
-                            <div class="text-lg font-bold text-secondary-cyan">${score.toLocaleString()}</div>
+                            <div class="text-lg font-bold text-secondary-cyan">${user.score}</div>
                             <div class="text-xs text-text-muted">Score</div>
                         </div>
                         
                         <div class="text-center">
-                            <div class="text-sm font-semibold text-text-light">${words}W • ${sentences}S</div>
+                            <div class="text-sm font-semibold text-text-light">${user.words}W • ${user.sentences}S</div>
                             <div class="text-xs text-text-muted">Progress</div>
                         </div>
                         
                         <div class="text-center">
-                            <div class="text-sm font-semibold text-text-light">${streak} days</div>
+                            <div class="text-sm font-semibold text-text-light">${user.streak} days</div>
                             <div class="text-xs text-text-muted">Streak</div>
                         </div>
                         
                         <div class="text-center">
-                            <div class="text-sm font-semibold text-text-light">${accuracy}%</div>
+                            <div class="text-sm font-semibold text-text-light">${user.accuracy}%</div>
                             <div class="text-xs text-text-muted">Accuracy</div>
                         </div>
                     </div>
@@ -746,109 +918,89 @@
             return item;
         }
 
-        // Update current user rank display
-        async function updateCurrentUserRank(users) {
-            try {
-                // Get current user's specific rank from backend
-                const response = await fetch('/api/leaderboard/current-user');
-                const data = await response.json();
+        // Update current user rank display with responsive design
+        function updateCurrentUserRank(users) {
+            const currentUser = users.find(user => user.isCurrentUser);
+            if (currentUser) {
+                const rank = users.findIndex(user => user.isCurrentUser) + 1;
+                const isMobile = window.innerWidth < 768;
                 
-                if (data.success) {
-                    const userData = data.user_data;
-                    const rank = data.rank;
-                    const isMobile = window.innerWidth < 768;
-                    
-                    if (isMobile) {
-                        currentUserRank.innerHTML = `
-                            <div class="text-center">
-                                <div class="text-3xl font-bold text-secondary-cyan mb-1">#${rank}</div>
-                                <div class="text-base font-semibold text-text-light mb-1">${userData.username || 'You'}</div>
-                                <div class="text-text-muted text-sm mb-3">${userData.level || 'HSK1 Learner'}</div>
-                                
-                                <div class="grid grid-cols-2 gap-2 text-xs">
-                                    <div class="text-center bg-card-bg/50 rounded p-2">
-                                        <div class="font-semibold text-text-light">${(userData.score || 0).toLocaleString()}</div>
-                                        <div class="text-text-muted">Score</div>
-                                    </div>
-                                    <div class="text-center bg-card-bg/50 rounded p-2">
-                                        <div class="font-semibold text-text-light">${userData.accuracy_rate || userData.accuracy || 0}%</div>
-                                        <div class="text-text-muted">Accuracy</div>
-                                    </div>
+                if (isMobile) {
+                    currentUserRank.innerHTML = `
+                        <div class="text-center">
+                            <div class="text-3xl font-bold text-secondary-cyan mb-1">#${rank}</div>
+                            <div class="text-base font-semibold text-text-light mb-1">${currentUser.username}</div>
+                            <div class="text-text-muted text-sm mb-3">${currentUser.level}</div>
+                            
+                            <div class="grid grid-cols-2 gap-2 text-xs">
+                                <div class="text-center bg-card-bg/50 rounded p-2">
+                                    <div class="font-semibold text-text-light">${currentUser.score}</div>
+                                    <div class="text-text-muted">Score</div>
+                                </div>
+                                <div class="text-center bg-card-bg/50 rounded p-2">
+                                    <div class="font-semibold text-text-light">${currentUser.accuracy}%</div>
+                                    <div class="text-text-muted">Accuracy</div>
                                 </div>
                             </div>
-                        `;
-                    } else {
-                        currentUserRank.innerHTML = `
-                            <div class="text-center">
-                                <div class="text-5xl font-bold text-secondary-cyan mb-2">#${rank}</div>
-                                <div class="text-lg font-semibold text-text-light mb-1">${userData.username || 'You'}</div>
-                                <div class="text-text-muted mb-4">${userData.level || 'HSK1 Learner'}</div>
-                                
-                                <div class="grid grid-cols-2 gap-4 text-sm">
-                                    <div class="text-center">
-                                        <div class="font-semibold text-text-light">${(userData.score || 0).toLocaleString()}</div>
-                                        <div class="text-text-muted">Score</div>
-                                    </div>
-                                    <div class="text-center">
-                                        <div class="font-semibold text-text-light">${userData.accuracy_rate || userData.accuracy || 0}%</div>
-                                        <div class="text-text-muted">Accuracy</div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }
+                        </div>
+                    `;
                 } else {
-                    showDefaultUserRank();
+                    currentUserRank.innerHTML = `
+                        <div class="text-center">
+                            <div class="text-5xl font-bold text-secondary-cyan mb-2">#${rank}</div>
+                            <div class="text-lg font-semibold text-text-light mb-1">${currentUser.username}</div>
+                            <div class="text-text-muted mb-4">${currentUser.level}</div>
+                            
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div class="text-center">
+                                    <div class="font-semibold text-text-light">${currentUser.score}</div>
+                                    <div class="text-text-muted">Score</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="font-semibold text-text-light">${currentUser.accuracy}%</div>
+                                    <div class="text-text-muted">Accuracy</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
                 }
-            } catch (error) {
-                console.error('Error loading current user rank:', error);
-                showDefaultUserRank();
+                
+                // Load achievements with responsive design
+                loadAchievements();
             }
         }
 
-        function showDefaultUserRank() {
-            currentUserRank.innerHTML = `
-                <div class="text-center py-8">
-                    <i class="fas fa-user text-4xl text-text-muted mb-4"></i>
-                    <p class="text-text-muted">Complete quizzes to see your rank!</p>
-                </div>
-            `;
-        }
-
-        // Load user achievements from backend
-        async function loadAchievements() {
-            try {
-                const response = await fetch('/api/leaderboard/achievements');
-                const data = await response.json();
-                
-                if (data.success) {
-                    renderAchievements(data.achievements);
-                } else {
-                    renderAchievements([]);
-                }
-            } catch (error) {
-                console.error('Error loading achievements:', error);
-                renderAchievements([]);
-            }
-        }
-
-        function renderAchievements(achievements) {
+        // Load user achievements with responsive design
+        function loadAchievements() {
             achievementsList.innerHTML = '';
-            
-            if (achievements.length === 0) {
-                achievementsList.innerHTML = `
-                    <div class="text-center py-4">
-                        <i class="fas fa-trophy text-2xl text-text-muted mb-2"></i>
-                        <p class="text-text-muted text-sm">Complete challenges to earn achievements!</p>
-                    </div>
-                `;
-                return;
-            }
-            
             const isMobile = window.innerWidth < 768;
-            const achievementsToShow = achievements.slice(0, 3); // Show only 3 most recent
             
-            achievementsToShow.forEach(achievement => {
+            // Mock achievements data
+            const achievementsData = [
+                {
+                    name: "Word Master",
+                    description: "Master 100+ words",
+                    icon: "fas fa-book",
+                    unlocked: true,
+                    date: "2024-01-15"
+                },
+                {
+                    name: "Perfect Score",
+                    description: "Get 100% on any quiz",
+                    icon: "fas fa-star",
+                    unlocked: true,
+                    date: "2024-01-12"
+                },
+                {
+                    name: "Week Warrior",
+                    description: "7-day learning streak",
+                    icon: "fas fa-fire",
+                    unlocked: false,
+                    progress: 85
+                }
+            ];
+            
+            achievementsData.forEach(achievement => {
                 const achievementItem = document.createElement('div');
                 
                 if (isMobile) {
@@ -907,45 +1059,21 @@
             });
         }
 
-        // Load user stats and progress from backend
-        async function loadUserStats() {
-            try {
-                const response = await fetch('/api/leaderboard/stats');
-                const data = await response.json();
-                
-                if (data.success) {
-                    const stats = data.stats;
-                    const progress = data.progress;
-                    
-                    // Update progress numbers
-                    document.getElementById('user-words').textContent = `${stats.words_mastered || 0}/150`;
-                    document.getElementById('user-sentences').textContent = `${stats.sentences_mastered || 0}/100`;
-                    document.getElementById('user-streak').textContent = `${stats.current_streak || 0} days`;
-                    
-                    // Update progress bars with animation
-                    setTimeout(() => {
-                        document.getElementById('words-progress').style.width = `${progress.words.percentage || 0}%`;
-                        document.getElementById('sentences-progress').style.width = `${progress.sentences.percentage || 0}%`;
-                        document.getElementById('streak-progress').style.width = `${progress.streak.percentage || 0}%`;
-                    }, 300);
-                } else {
-                    setDefaultProgress();
-                }
-            } catch (error) {
-                console.error('Error loading user stats:', error);
-                setDefaultProgress();
-            }
-        }
-
-        function setDefaultProgress() {
-            document.getElementById('user-words').textContent = '0/150';
-            document.getElementById('user-sentences').textContent = '0/100';
-            document.getElementById('user-streak').textContent = '0 days';
+        // Update user stats and progress bars
+        function updateUserStats() {
+            const stats = calculateUserStats();
+            const isMobile = window.innerWidth < 768;
             
+            // Update progress numbers
+            document.getElementById('user-words').textContent = `${stats.totalWords}/150`;
+            document.getElementById('user-sentences').textContent = `${stats.totalSentences}/100`;
+            document.getElementById('user-streak').textContent = `${stats.streakDays} days`;
+            
+            // Update progress bars with animation
             setTimeout(() => {
-                document.getElementById('words-progress').style.width = '0%';
-                document.getElementById('sentences-progress').style.width = '0%';
-                document.getElementById('streak-progress').style.width = '0%';
+                document.getElementById('words-progress').style.width = `${(stats.totalWords / 150) * 100}%`;
+                document.getElementById('sentences-progress').style.width = `${(stats.totalSentences / 100) * 100}%`;
+                document.getElementById('streak-progress').style.width = `${(stats.streakDays / 7) * 100}%`;
             }, 300);
         }
 
@@ -959,13 +1087,30 @@
             });
             e.target.classList.add('active');
             
-            // Reload leaderboard with filter
-            loadLeaderboard();
+            // Show loading state
+            loadingState.classList.remove('hidden');
+            leaderboardList.innerHTML = '';
+            
+            // In real app, this would fetch filtered data from backend
+            // For now, we'll use the same global rankings
+            setTimeout(() => {
+                loadLeaderboard();
+            }, 500);
         }
 
         // Handle sort selection
         function handleSort(e) {
-            loadLeaderboard();
+            const sortBy = e.target.value;
+            
+            // Show loading state
+            loadingState.classList.remove('hidden');
+            leaderboardList.innerHTML = '';
+            
+            // In real app, this would fetch sorted data from backend
+            // For now, we'll use the same global rankings
+            setTimeout(() => {
+                loadLeaderboard();
+            }, 500);
         }
 
         // Show empty state
@@ -973,16 +1118,6 @@
             emptyState.classList.remove('hidden');
             leaderboardList.innerHTML = '';
         }
-
-        // Manual refresh function (call this if you want to refresh)
-        function refreshLeaderboard() {
-            loadLeaderboard();
-            loadUserStats();
-            loadAchievements();
-        }
-
-        // Expose refresh function globally if needed
-        window.refreshLeaderboard = refreshLeaderboard;
     </script>
 </body>
 </html>
