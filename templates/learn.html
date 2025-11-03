@@ -438,7 +438,7 @@
 
     <!-- Learning Logic -->
     <script>
-        // State management
+                // State management
         let currentMode = null;
         let wordsData = [];
         let sentencesData = [];
@@ -654,11 +654,35 @@
                         </button>
                     </div>
                     <div class="pinyin-text mb-2">${word.pinyin || ''}</div>
-                    <div class="text-text-light text-lg font-medium">${word.meaning || word.translation || ''}</div>
+                    <div class="text-text-light text-lg font-medium mb-2">${word.meaning || word.translation || ''}</div>
+                    ${word.definition ? `
+                        <div class="mt-2 pt-2 border-t border-text-muted/20">
+                            <div class="text-sm text-text-muted mb-1">Definition:</div>
+                            <div class="text-text-light text-sm">${word.definition}</div>
+                        </div>
+                    ` : ''}
+                    ${word.partOfSpeech ? `
+                        <div class="mt-2 pt-2 border-t border-text-muted/20">
+                            <div class="text-sm text-text-muted mb-1">Part of Speech:</div>
+                            <div class="text-text-light text-sm">${word.partOfSpeech}</div>
+                        </div>
+                    ` : ''}
                     ${word.example ? `
-                        <div class="mt-3 pt-3 border-t border-text-muted/20">
+                        <div class="mt-2 pt-2 border-t border-text-muted/20">
                             <div class="text-sm text-text-muted mb-1">Example:</div>
                             <div class="text-text-light text-sm">${word.example}</div>
+                        </div>
+                    ` : ''}
+                    ${word.usage ? `
+                        <div class="mt-2 pt-2 border-t border-text-muted/20">
+                            <div class="text-sm text-text-muted mb-1">Usage:</div>
+                            <div class="text-text-light text-sm">${word.usage}</div>
+                        </div>
+                    ` : ''}
+                    ${word.notes ? `
+                        <div class="mt-2 pt-2 border-t border-text-muted/20">
+                            <div class="text-sm text-text-muted mb-1">Notes:</div>
+                            <div class="text-text-light text-sm">${word.notes}</div>
                         </div>
                     ` : ''}
                 </div>
@@ -686,11 +710,47 @@
                         </button>
                     </div>
                     <div class="pinyin-text mb-2">${sentence.pinyin || ''}</div>
-                    <div class="text-text-light text-lg font-medium">${sentence.translation || sentence.meaning || ''}</div>
+                    <div class="text-text-light text-lg font-medium mb-2">${sentence.translation || sentence.meaning || ''}</div>
+                    ${sentence.meaning && sentence.meaning !== sentence.translation ? `
+                        <div class="mt-2 pt-2 border-t border-text-muted/20">
+                            <div class="text-sm text-text-muted mb-1">Meaning:</div>
+                            <div class="text-text-light text-sm">${sentence.meaning}</div>
+                        </div>
+                    ` : ''}
+                    ${sentence.definition ? `
+                        <div class="mt-2 pt-2 border-t border-text-muted/20">
+                            <div class="text-sm text-text-muted mb-1">Definition:</div>
+                            <div class="text-text-light text-sm">${sentence.definition}</div>
+                        </div>
+                    ` : ''}
+                    ${sentence.structure ? `
+                        <div class="mt-2 pt-2 border-t border-text-muted/20">
+                            <div class="text-sm text-text-muted mb-1">Sentence Structure:</div>
+                            <div class="text-text-light text-sm">${sentence.structure}</div>
+                        </div>
+                    ` : ''}
+                    ${sentence.grammar ? `
+                        <div class="mt-2 pt-2 border-t border-text-muted/20">
+                            <div class="text-sm text-text-muted mb-1">Grammar:</div>
+                            <div class="text-text-light text-sm">${sentence.grammar}</div>
+                        </div>
+                    ` : ''}
                     ${sentence.notes ? `
-                        <div class="mt-3 pt-3 border-t border-text-muted/20">
+                        <div class="mt-2 pt-2 border-t border-text-muted/20">
                             <div class="text-sm text-text-muted mb-1">Notes:</div>
                             <div class="text-text-light text-sm">${sentence.notes}</div>
+                        </div>
+                    ` : ''}
+                    ${sentence.example ? `
+                        <div class="mt-2 pt-2 border-t border-text-muted/20">
+                            <div class="text-sm text-text-muted mb-1">Example Usage:</div>
+                            <div class="text-text-light text-sm">${sentence.example}</div>
+                        </div>
+                    ` : ''}
+                    ${sentence.usage ? `
+                        <div class="mt-2 pt-2 border-t border-text-muted/20">
+                            <div class="text-sm text-text-muted mb-1">Usage:</div>
+                            <div class="text-text-light text-sm">${sentence.usage}</div>
                         </div>
                     ` : ''}
                 </div>
@@ -706,7 +766,9 @@
                     word.word.toLowerCase().includes(searchTerm) ||
                     (word.pinyin && word.pinyin.toLowerCase().includes(searchTerm)) ||
                     (word.meaning && word.meaning.toLowerCase().includes(searchTerm)) ||
-                    (word.translation && word.translation.toLowerCase().includes(searchTerm))
+                    (word.translation && word.translation.toLowerCase().includes(searchTerm)) ||
+                    (word.definition && word.definition.toLowerCase().includes(searchTerm)) ||
+                    (word.example && word.example.toLowerCase().includes(searchTerm))
                 );
                 displayWords(filteredWords);
             } else if (currentMode === 'sentences') {
@@ -714,7 +776,9 @@
                     sentence.sentence.toLowerCase().includes(searchTerm) ||
                     (sentence.pinyin && sentence.pinyin.toLowerCase().includes(searchTerm)) ||
                     (sentence.translation && sentence.translation.toLowerCase().includes(searchTerm)) ||
-                    (sentence.meaning && sentence.meaning.toLowerCase().includes(searchTerm))
+                    (sentence.meaning && sentence.meaning.toLowerCase().includes(searchTerm)) ||
+                    (sentence.definition && sentence.definition.toLowerCase().includes(searchTerm)) ||
+                    (sentence.notes && sentence.notes.toLowerCase().includes(searchTerm))
                 );
                 displaySentences(filteredSentences);
             }

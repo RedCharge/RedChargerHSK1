@@ -1,5 +1,4 @@
 from flask import Blueprint, render_template, jsonify
-import random
 
 # Create blueprint
 learn_bp = Blueprint('learn', __name__)
@@ -16,15 +15,23 @@ def get_all_words():
         # Import your actual words data
         from .words_routes import HSK1_WORDS
         
-        # Format the words for the learn page
+        # Pass ALL word data to the frontend
         formatted_words = []
         for word in HSK1_WORDS:
             formatted_word = {
                 'word': word.get('word', ''),
                 'pinyin': word.get('pinyin', ''),
-                'meaning': word.get('meaning', word.get('translation', '')),
-                'example': word.get('example', '')
+                'meaning': word.get('meaning', ''),
+                'translation': word.get('translation', ''),
+                'definition': word.get('definition', ''),
+                'example': word.get('example', ''),
+                # Include any other fields your words have
+                'partOfSpeech': word.get('partOfSpeech', ''),
+                'usage': word.get('usage', ''),
+                'notes': word.get('notes', '')
             }
+            # Remove empty fields
+            formatted_word = {k: v for k, v in formatted_word.items() if v}
             formatted_words.append(formatted_word)
         
         return jsonify({
@@ -45,16 +52,24 @@ def get_all_sentences():
         # Import your actual sentences data
         from .sentence_routes import HSK1_SENTENCES
         
-        # Format the sentences for the learn page
+        # Pass ALL sentence data to the frontend
         formatted_sentences = []
         for sentence in HSK1_SENTENCES:
             formatted_sentence = {
                 'sentence': sentence.get('sentence', ''),
                 'pinyin': sentence.get('pinyin', ''),
-                'translation': sentence.get('translation', sentence.get('meaning', '')),
-                'meaning': sentence.get('meaning', sentence.get('translation', '')),
-                'notes': sentence.get('notes', '')
+                'translation': sentence.get('translation', ''),
+                'meaning': sentence.get('meaning', ''),
+                'definition': sentence.get('definition', ''),
+                'notes': sentence.get('notes', ''),
+                'example': sentence.get('example', ''),
+                # Include any other fields your sentences have
+                'structure': sentence.get('structure', ''),
+                'grammar': sentence.get('grammar', ''),
+                'usage': sentence.get('usage', '')
             }
+            # Remove empty fields
+            formatted_sentence = {k: v for k, v in formatted_sentence.items() if v}
             formatted_sentences.append(formatted_sentence)
         
         return jsonify({
