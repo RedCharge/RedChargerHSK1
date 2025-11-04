@@ -1,4 +1,6 @@
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, session
+from models import db, User, QuizResult, UserAchievement
+from datetime import datetime, timedelta
 
 # Create blueprint
 profile_bp = Blueprint('profile', __name__)
@@ -10,7 +12,7 @@ def profile_page():
 
 @profile_bp.route('/api/profile/save', methods=['POST'])
 def save_profile():
-    """API endpoint to save profile data"""
+    """API endpoint to save profile data to database"""
     try:
         profile_data = request.get_json()
         
@@ -20,9 +22,30 @@ def save_profile():
                 'message': 'No profile data provided'
             }), 400
         
-        # Here you would typically save to a database
-        # For now, we'll just return success
-        print("Profile data received:", profile_data)
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': 'User not authenticated'
+            }), 401
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 404
+        
+        # Update user profile data
+        if 'username' in profile_data:
+            user.username = profile_data['username']
+        if 'avatar_color' in profile_data:
+            user.avatar_color = profile_data['avatar_color']
+        if 'learningPreferences' in profile_data:
+            # Store learning preferences if you add that field to User model
+            pass
+        
+        db.session.commit()
         
         return jsonify({
             'success': True,
@@ -30,6 +53,7 @@ def save_profile():
         })
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({
             'success': False,
             'message': f'Error saving profile: {str(e)}'
@@ -37,16 +61,41 @@ def save_profile():
 
 @profile_bp.route('/api/profile/stats')
 def get_profile_stats():
-    """API endpoint to get user statistics"""
+    """API endpoint to get REAL user statistics from database"""
     try:
-        # Mock data - replace with actual user statistics from your database
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': 'User not authenticated'
+            }), 401
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 404
+        
+        # Calculate real statistics from quiz results
+        quiz_results = QuizResult.query.filter_by(user_id=user_id).all()
+        total_quizzes = len(quiz_results)
+        
+        # Calculate total study time from quiz attempts
+        total_study_time = sum(quiz.time_taken for quiz in quiz_results) // 60  # Convert to minutes
+        
+        # Calculate accuracy rate from all quizzes
+        total_correct = sum(quiz.correct_answers for quiz in quiz_results)
+        total_questions = sum(quiz.total_questions for quiz in quiz_results)
+        accuracy_rate = round((total_correct / total_questions * 100), 1) if total_questions > 0 else 0
+        
         stats = {
-            'totalWords': 150,
-            'totalSentences': 75,
-            'streakDays': 12,
-            'accuracyRate': 85,
-            'quizzesCompleted': 8,
-            'totalStudyTime': 360  # in minutes
+            'totalWords': user.words_mastered,
+            'totalSentences': user.sentences_mastered,
+            'streakDays': user.current_streak,
+            'accuracyRate': accuracy_rate,
+            'quizzesCompleted': total_quizzes,
+            'totalStudyTime': total_study_time
         }
         
         return jsonify({
@@ -62,51 +111,116 @@ def get_profile_stats():
 
 @profile_bp.route('/api/profile/achievements')
 def get_achievements():
-    """API endpoint to get user achievements"""
+    """API endpoint to get REAL user achievements from database"""
     try:
-        # Mock achievements data
-        achievements = [
-            {
-                'id': 1,
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': 'User not authenticated'
+            }), 401
+        
+        # Get user's unlocked achievements
+        user_achievements = UserAchievement.query.filter_by(user_id=user_id).all()
+        
+        # Define achievement definitions
+        achievement_definitions = {
+            'first_steps': {
                 'name': 'First Steps',
                 'description': 'Complete your first quiz',
-                'icon': 'fas fa-footsteps',
-                'unlocked': True,
-                'dateUnlocked': '2024-01-15'
+                'icon': 'fas fa-footsteps'
             },
-            {
-                'id': 2,
-                'name': 'Word Master',
+            'word_master': {
+                'name': 'Word Master', 
                 'description': 'Learn 100 words',
-                'icon': 'fas fa-book',
-                'unlocked': True,
-                'dateUnlocked': '2024-01-20'
+                'icon': 'fas fa-book'
             },
-            {
-                'id': 3,
+            'sentence_builder': {
                 'name': 'Sentence Builder',
-                'description': 'Master 50 sentences',
-                'icon': 'fas fa-comments',
-                'unlocked': False,
-                'progress': 75  # 75 out of 50? This should be percentage
+                'description': 'Master 50 sentences', 
+                'icon': 'fas fa-comments'
             },
-            {
-                'id': 4,
+            'perfect_score': {
                 'name': 'Perfect Score',
                 'description': 'Get 100% on any quiz',
-                'icon': 'fas fa-star',
-                'unlocked': True,
-                'dateUnlocked': '2024-01-18'
+                'icon': 'fas fa-star'
             },
-            {
-                'id': 5,
+            'week_warrior': {
                 'name': 'Week Warrior',
                 'description': 'Maintain a 7-day streak',
-                'icon': 'fas fa-fire',
-                'unlocked': False,
-                'progress': 85  # 6 out of 7 days
+                'icon': 'fas fa-fire'
             }
-        ]
+        }
+        
+        achievements = []
+        
+        # Check each achievement type
+        user = User.query.get(user_id)
+        quiz_results = QuizResult.query.filter_by(user_id=user_id).all()
+        
+        # First Steps - completed any quiz
+        first_steps_unlocked = len(quiz_results) > 0
+        first_steps_achievement = user_achievements[0] if user_achievements else None
+        
+        achievements.append({
+            'id': 1,
+            'name': 'First Steps',
+            'description': 'Complete your first quiz',
+            'icon': 'fas fa-footsteps',
+            'unlocked': first_steps_unlocked,
+            'dateUnlocked': first_steps_achievement.unlocked_at.strftime('%Y-%m-%d') if first_steps_achievement else None
+        })
+        
+        # Word Master - 100 words
+        word_master_unlocked = user.words_mastered >= 100
+        word_master_progress = min(user.words_mastered, 100)
+        
+        achievements.append({
+            'id': 2,
+            'name': 'Word Master',
+            'description': 'Learn 100 words',
+            'icon': 'fas fa-book',
+            'unlocked': word_master_unlocked,
+            'progress': word_master_progress,
+            'dateUnlocked': None  # You'd track this in UserAchievement
+        })
+        
+        # Sentence Builder - 50 sentences  
+        sentence_builder_unlocked = user.sentences_mastered >= 50
+        sentence_builder_progress = min(user.sentences_mastered, 50)
+        
+        achievements.append({
+            'id': 3,
+            'name': 'Sentence Builder',
+            'description': 'Master 50 sentences',
+            'icon': 'fas fa-comments',
+            'unlocked': sentence_builder_unlocked,
+            'progress': sentence_builder_progress
+        })
+        
+        # Perfect Score - check quiz results
+        perfect_score_unlocked = any(quiz.percentage == 100 for quiz in quiz_results)
+        
+        achievements.append({
+            'id': 4,
+            'name': 'Perfect Score',
+            'description': 'Get 100% on any quiz',
+            'icon': 'fas fa-star',
+            'unlocked': perfect_score_unlocked
+        })
+        
+        # Week Warrior - 7 day streak
+        week_warrior_unlocked = user.current_streak >= 7
+        week_warrior_progress = min(user.current_streak, 7)
+        
+        achievements.append({
+            'id': 5,
+            'name': 'Week Warrior',
+            'description': 'Maintain a 7-day streak',
+            'icon': 'fas fa-fire',
+            'unlocked': week_warrior_unlocked,
+            'progress': week_warrior_progress
+        })
         
         return jsonify({
             'success': True,
@@ -121,46 +235,30 @@ def get_achievements():
 
 @profile_bp.route('/api/profile/learning-history')
 def get_learning_history():
-    """API endpoint to get user learning history"""
+    """API endpoint to get REAL user learning history from database"""
     try:
-        # Mock learning history data
-        learning_history = [
-            {
-                'date': '2024-01-20',
-                'activity': 'Words Quiz',
-                'score': 90,
-                'timeSpent': 15,
-                'itemsLearned': 20
-            },
-            {
-                'date': '2024-01-19',
-                'activity': 'Sentences Quiz',
-                'score': 85,
-                'timeSpent': 20,
-                'itemsLearned': 15
-            },
-            {
-                'date': '2024-01-18',
-                'activity': 'Reading Practice',
-                'score': None,
-                'timeSpent': 25,
-                'itemsLearned': 5
-            },
-            {
-                'date': '2024-01-17',
-                'activity': 'Words Quiz',
-                'score': 95,
-                'timeSpent': 18,
-                'itemsLearned': 20
-            },
-            {
-                'date': '2024-01-16',
-                'activity': 'Learning Session',
-                'score': None,
-                'timeSpent': 30,
-                'itemsLearned': 25
-            }
-        ]
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': 'User not authenticated'
+            }), 401
+        
+        # Get actual quiz results from database
+        quiz_results = QuizResult.query.filter_by(user_id=user_id)\
+            .order_by(QuizResult.timestamp.desc())\
+            .limit(20)\
+            .all()
+        
+        learning_history = []
+        for quiz in quiz_results:
+            learning_history.append({
+                'date': quiz.timestamp.strftime('%Y-%m-%d'),
+                'activity': f'{quiz.quiz_type.title()} Quiz',
+                'score': quiz.percentage,
+                'timeSpent': quiz.time_taken // 60,  # Convert to minutes
+                'itemsLearned': quiz.correct_answers
+            })
         
         return jsonify({
             'success': True,
@@ -175,46 +273,60 @@ def get_learning_history():
 
 @profile_bp.route('/api/profile/export-data')
 def export_user_data():
-    """API endpoint to export all user data"""
+    """API endpoint to export REAL user data"""
     try:
-        # Mock comprehensive user data
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': 'User not authenticated'
+            }), 401
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 404
+        
+        quiz_results = QuizResult.query.filter_by(user_id=user_id).all()
+        user_achievements = UserAchievement.query.filter_by(user_id=user_id).all()
+        
         user_data = {
             'profile': {
-                'username': 'current_user',
-                'email': 'user@example.com',
-                'firstName': 'John',
-                'lastName': 'Doe',
-                'memberSince': '2024-01-01',
-                'learningPreferences': {
-                    'dailyGoal': 20,
-                    'learningMode': 'both',
-                    'enableSpeech': True,
-                    'showPinyin': True
-                }
+                'username': user.username,
+                'level': user.level,
+                'avatar_color': user.avatar_color,
+                'memberSince': user.created_at.strftime('%Y-%m-%d')
             },
             'statistics': {
-                'totalWords': 150,
-                'totalSentences': 75,
-                'streakDays': 12,
-                'accuracyRate': 85,
-                'totalQuizzes': 8,
-                'totalStudyTime': 360
+                'totalWords': user.words_mastered,
+                'totalSentences': user.sentences_mastered,
+                'streakDays': user.current_streak,
+                'accuracyRate': user.accuracy_rate,
+                'totalQuizzes': len(quiz_results),
+                'totalStudyTime': sum(quiz.time_taken for quiz in quiz_results) // 60
             },
             'achievements': [
-                {'name': 'First Steps', 'unlocked': True},
-                {'name': 'Word Master', 'unlocked': True},
-                {'name': 'Perfect Score', 'unlocked': True}
+                {
+                    'name': achievement.achievement_name,
+                    'unlocked': True,
+                    'unlockedAt': achievement.unlocked_at.strftime('%Y-%m-%d')
+                } for achievement in user_achievements
             ],
             'learningHistory': [
-                {'date': '2024-01-20', 'activity': 'Words Quiz', 'score': 90},
-                {'date': '2024-01-19', 'activity': 'Sentences Quiz', 'score': 85}
+                {
+                    'date': quiz.timestamp.strftime('%Y-%m-%d'),
+                    'activity': f'{quiz.quiz_type.title()} Quiz',
+                    'score': quiz.percentage
+                } for quiz in quiz_results[:10]  # Last 10 quizzes
             ]
         }
         
         return jsonify({
             'success': True,
             'data': user_data,
-            'exportDate': '2024-01-21'
+            'exportDate': datetime.utcnow().strftime('%Y-%m-%d')
         })
         
     except Exception as e:
@@ -223,12 +335,65 @@ def export_user_data():
             'message': f'Error exporting data: {str(e)}'
         }), 500
 
+@profile_bp.route('/api/profile/update-progress', methods=['POST'])
+def update_progress():
+    """Update user progress after quiz completion"""
+    try:
+        data = request.get_json()
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': 'User not authenticated'
+            }), 401
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 404
+        
+        # Update user progress based on quiz results
+        if 'words_mastered' in data:
+            user.words_mastered = data['words_mastered']
+        if 'sentences_mastered' in data:
+            user.sentences_mastered = data['sentences_mastered']
+        if 'total_score' in data:
+            user.total_score = data['total_score']
+        if 'accuracy_rate' in data:
+            user.accuracy_rate = data['accuracy_rate']
+        
+        # Update streak
+        today = datetime.utcnow().date()
+        last_activity = user.last_activity_date.date() if user.last_activity_date else None
+        
+        if last_activity == today - timedelta(days=1):
+            user.current_streak += 1
+        elif last_activity != today:
+            user.current_streak = 1
+        
+        user.last_activity_date = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Progress updated successfully'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error updating progress: {str(e)}'
+        }), 500
+
+# Keep your existing upload-avatar and delete-account routes
 @profile_bp.route('/api/profile/upload-avatar', methods=['POST'])
 def upload_avatar():
     """API endpoint to handle avatar uploads"""
     try:
-        # This would typically handle file uploads
-        # For now, we'll just return success
         avatar_data = request.get_json()
         
         if not avatar_data or 'avatar' not in avatar_data:
@@ -237,7 +402,12 @@ def upload_avatar():
                 'message': 'No avatar data provided'
             }), 400
         
-        print("Avatar data received (base64 encoded)")
+        user_id = session.get('user_id')
+        if user_id:
+            user = User.query.get(user_id)
+            if user:
+                # Store avatar data if you add avatar field to User model
+                pass
         
         return jsonify({
             'success': True,
@@ -254,7 +424,6 @@ def upload_avatar():
 def delete_account():
     """API endpoint to delete user account"""
     try:
-        # This would typically delete user data from the database
         confirmation = request.get_json()
         
         if not confirmation or not confirmation.get('confirm'):
@@ -263,7 +432,15 @@ def delete_account():
                 'message': 'Account deletion not confirmed'
             }), 400
         
-        print("Account deletion requested")
+        user_id = session.get('user_id')
+        if user_id:
+            user = User.query.get(user_id)
+            if user:
+                # Delete user data
+                QuizResult.query.filter_by(user_id=user_id).delete()
+                UserAchievement.query.filter_by(user_id=user_id).delete()
+                db.session.delete(user)
+                db.session.commit()
         
         return jsonify({
             'success': True,
@@ -271,6 +448,7 @@ def delete_account():
         })
         
     except Exception as e:
+        db.session.rollback()
         return jsonify({
             'success': False,
             'message': f'Error deleting account: {str(e)}'
