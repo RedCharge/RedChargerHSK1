@@ -712,7 +712,7 @@
             sortSelect.addEventListener('change', handleSort);
         }
 
-        // Load leaderboard data
+                // Load leaderboard data
         function loadLeaderboard() {
             loadingState.classList.remove('hidden');
             leaderboardList.innerHTML = '';
@@ -724,7 +724,7 @@
                 // Get the current sort type
                 const sortBy = sortSelect.value;
                 
-                // Sort data based on selection but keep original rankings
+                // Sort data based on selection but ALWAYS use score-based rankings for display
                 let sortedData;
                 switch(sortBy) {
                     case 'words':
@@ -751,9 +751,10 @@
                 emptyState.classList.add('hidden');
                 loadingState.classList.add('hidden');
                 
-                // Render leaderboard items with CORRECT rankings
+                // FIX: Always use the original score-based rankings for display
+                // regardless of how the data is sorted for viewing
                 sortedData.forEach((user, index) => {
-                    // Find the user's original rank based on score
+                    // ALWAYS use the original score-based rank for display
                     const originalUserData = originalRankings.find(u => u.id === user.id);
                     const rank = originalUserData ? originalUserData.originalRank : index + 1;
                     
@@ -761,10 +762,44 @@
                     leaderboardList.appendChild(leaderboardItem);
                 });
                 
-                // Update current user rank display with CORRECT ranking
+                // Update current user rank display with CORRECT ranking (always score-based)
                 updateCurrentUserRank(sortedData);
                 
             }, 1000);
+        }
+
+        // Handle sort selection
+        function handleSort(e) {
+            const sortBy = e.target.value;
+            
+            // Sort the leaderboard data based on selection but ALWAYS show score-based rankings
+            let sortedData;
+            switch(sortBy) {
+                case 'words':
+                    sortedData = [...leaderboardData].sort((a, b) => b.words - a.words);
+                    break;
+                case 'sentences':
+                    sortedData = [...leaderboardData].sort((a, b) => b.sentences - a.sentences);
+                    break;
+                case 'streak':
+                    sortedData = [...leaderboardData].sort((a, b) => b.streak - a.streak);
+                    break;
+                case 'score':
+                default:
+                    sortedData = [...leaderboardData].sort((a, b) => b.score - a.score);
+                    break;
+            }
+            
+            // FIX: Update the leaderboard display but ALWAYS use score-based rankings
+            leaderboardList.innerHTML = '';
+            sortedData.forEach((user, index) => {
+                // ALWAYS use the original score-based rank for display
+                const originalUserData = originalRankings.find(u => u.id === user.id);
+                const rank = originalUserData ? originalUserData.originalRank : index + 1;
+                
+                const leaderboardItem = createLeaderboardItem(user, rank);
+                leaderboardList.appendChild(leaderboardItem);
+            });
         }
 
         // Update current user data with actual profile information
