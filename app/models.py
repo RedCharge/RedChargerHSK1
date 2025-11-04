@@ -4,7 +4,7 @@ import json
 import uuid
 
 db = SQLAlchemy()
-# REMOVE SocketIO from here - it should be in __init__.py only
+# REMOVED: socketio = SocketIO()
 
 class QuizResult(db.Model):
     id = db.Column(db.Integer, primary_key=True)

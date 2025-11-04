@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, jsonify, request, session
-from models import db, User, QuizResult, UserAchievement
+from .models import db, User, QuizResult, UserAchievement
 from datetime import datetime, timedelta
 
 # Create blueprint

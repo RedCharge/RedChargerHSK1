@@ -4,15 +4,6 @@ import os
 # Import db from models
 from .models import db
 
-# Import socketio but we'll handle it conditionally for PythonAnywhere
-try:
-    from flask_socketio import SocketIO
-    SOCKETIO_AVAILABLE = True
-    socketio = SocketIO()
-except ImportError:
-    SOCKETIO_AVAILABLE = False
-    socketio = None
-
 def create_app():
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     template_dir = os.path.join(base_dir, 'templates')
@@ -33,23 +24,6 @@ def create_app():
     
     # Initialize extensions
     db.init_app(app)
-    
-    # Conditionally initialize SocketIO for PythonAnywhere compatibility
-    if SOCKETIO_AVAILABLE and socketio:
-        try:
-            # For PythonAnywhere compatibility - disable WebSockets
-            socketio.init_app(app, 
-                             cors_allowed_origins="*",
-                             async_mode='threading',
-                             logger=False,  # Disable logging to reduce errors
-                             engineio_logger=False)
-            print("SocketIO initialized successfully")
-        except Exception as e:
-            print(f"SocketIO initialization failed: {e}")
-            print("Continuing without SocketIO...")
-            socketio = None
-    else:
-        print("SocketIO not available, running without real-time features")
     
     # Register blueprints - use relative imports
     from .main_routes import main_bp
@@ -82,16 +56,6 @@ def create_app():
     app.register_blueprint(learn_bp)
     app.register_blueprint(profile_bp)
     
-    # Import and register socket events only if SocketIO is available
-    if SOCKETIO_AVAILABLE and socketio:
-        try:
-            from .main_routes import register_socket_events
-            register_socket_events(socketio)
-            print("SocketIO events registered")
-        except Exception as e:
-            print(f"SocketIO events registration failed: {e}")
-            print("Continuing without SocketIO events...")
-    
     # Create database tables
     with app.app_context():
         try:
@@ -105,4 +69,4 @@ def create_app():
         except Exception as e:
             print(f"Database setup error: {e}")
     
-    return app, socketio if SOCKETIO_AVAILABLE else None
+    return app  # Return only app, no socketio

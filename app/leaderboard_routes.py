@@ -13,13 +13,25 @@ def get_all_users_data():
         # Import inside function to avoid circular imports
         from .models import User, QuizResult
         
+        print("🔍 Fetching all users from database...")
+        
         # Get all users from database
         all_users = User.query.all()
+        print(f"✅ Found {len(all_users)} total users in database")
+        
+        if not all_users:
+            print("❌ No users found in database!")
+            return []
+        
         all_users_stats = []
         
         for user in all_users:
+            print(f"👤 Processing user: {user.username} - ID: {user.id}")
+            print(f"   Raw data - Words: {user.words_mastered}, Sentences: {user.sentences_mastered}, Score: {user.total_score}")
+            
             # Get user's quiz results
             user_quizzes = QuizResult.query.filter_by(user_id=user.id).all()
+            print(f"   📊 User has {len(user_quizzes)} quiz results")
             
             # Calculate stats from actual data
             total_correct = sum(quiz.correct_answers for quiz in user_quizzes)
@@ -34,6 +46,12 @@ def get_all_users_data():
                 'accuracy_rate': accuracy_rate
             })
             
+            print(f"   🎯 Calculated score: {score} (from formula)")
+            print(f"   📈 Stored score: {user.total_score} (in database)")
+            
+            # Use the higher score between calculated and stored
+            final_score = max(score, user.total_score or 0)
+            
             # Determine level
             level = determine_level(user.words_mastered, user.sentences_mastered, accuracy_rate)
             
@@ -43,8 +61,8 @@ def get_all_users_data():
             user_stats = {
                 'user_id': user.id,
                 'username': user.username,
-                'avatar': user.avatar_color,  # Using avatar_color from your model
-                'score': score,
+                'avatar': user.avatar_color,
+                'score': final_score,
                 'words_mastered': user.words_mastered,
                 'sentences_mastered': user.sentences_mastered,
                 'current_streak': user.current_streak,
@@ -55,11 +73,15 @@ def get_all_users_data():
             }
             
             all_users_stats.append(user_stats)
+            print(f"   ✅ Added {user.username} to leaderboard with score: {final_score}")
         
+        print(f"🎉 Returning {len(all_users_stats)} users for leaderboard")
         return all_users_stats
         
     except Exception as e:
-        print(f"Error getting all users data from database: {e}")
+        print(f"❌ Error getting all users data from database: {e}")
+        import traceback
+        traceback.print_exc()
         return []
 
 def calculate_user_score(user_data: Dict) -> int:
@@ -74,7 +96,15 @@ def calculate_user_score(user_data: Dict) -> int:
     streak_bonus = current_streak * 5
     accuracy_bonus = accuracy_rate * 2
     
-    return word_score + sentence_score + streak_bonus + accuracy_bonus
+    total_score = word_score + sentence_score + streak_bonus + accuracy_bonus
+    
+    print(f"   🧮 Score calculation: {words_mastered} words × 10 = {word_score}")
+    print(f"   🧮 {sentences_mastered} sentences × 15 = {sentence_score}")
+    print(f"   🧮 {current_streak} streak × 5 = {streak_bonus}")
+    print(f"   🧮 {accuracy_rate}% accuracy × 2 = {accuracy_bonus}")
+    print(f"   🧮 TOTAL: {total_score}")
+    
+    return total_score
 
 def determine_level(words: int, sentences: int, accuracy: int) -> str:
     """Determine user level based on their progress"""
@@ -92,18 +122,36 @@ def determine_level(words: int, sentences: int, accuracy: int) -> str:
 @leaderboard_bp.route('/leaderboard')
 def leaderboard_page():
     """Serve the main leaderboard HTML page"""
+    print("🌐 Serving leaderboard page...")
     return render_template('leaderboard.html')
 
 @leaderboard_bp.route('/api/leaderboard', methods=['GET'])
 def get_leaderboard():
     """Get REAL leaderboard data from DATABASE with optional filtering and sorting"""
     try:
+        print("🚀 API: /api/leaderboard called")
+        
         # Get query parameters
         timeframe = request.args.get('timeframe', 'all')
         sort_by = request.args.get('sort_by', 'score')
         
+        print(f"📋 Parameters - timeframe: {timeframe}, sort_by: {sort_by}")
+        
         # Get all users data from DATABASE
         all_users_stats = get_all_users_data()
+        
+        if not all_users_stats:
+            print("❌ No user data available for leaderboard")
+            return jsonify({
+                'success': True,
+                'leaderboard': [],
+                'timeframe': timeframe,
+                'sort_by': sort_by,
+                'total_users': 0,
+                'message': 'No users found in database'
+            })
+        
+        print(f"📊 Sorting {len(all_users_stats)} users by {sort_by}...")
         
         # Sort the data based on parameter
         if sort_by == 'words':
@@ -126,6 +174,10 @@ def get_leaderboard():
         # Limit to top 100 users
         limited_data = sorted_data[:100]
         
+        print(f"✅ Returning leaderboard with {len(limited_data)} users")
+        for i, user in enumerate(limited_data[:5]):  # Show top 5 for debugging
+            print(f"   {i+1}. {user['username']} - Score: {user['score']} - Rank: {user['rank']}")
+        
         return jsonify({
             'success': True,
             'leaderboard': limited_data,
@@ -135,6 +187,9 @@ def get_leaderboard():
         })
         
     except Exception as e:
+        print(f"❌ Failed to load leaderboard: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': f'Failed to load leaderboard: {str(e)}'
@@ -145,7 +200,10 @@ def get_current_user_rank():
     """Get current user's rank and stats from DATABASE"""
     try:
         current_user_id = session.get('user_id')
+        print(f"🔍 Getting current user rank for user_id: {current_user_id}")
+        
         if not current_user_id:
+            print("❌ User not authenticated")
             return jsonify({
                 'success': False,
                 'error': 'User not authenticated'
@@ -157,12 +215,22 @@ def get_current_user_rank():
         # Get user from database
         current_user = User.query.get(current_user_id)
         if not current_user:
+            print("❌ User not found in database")
             return jsonify({
                 'success': False,
                 'error': 'User not found'
             }), 404
         
+        print(f"👤 Found current user: {current_user.username}")
+        
         all_users_stats = get_all_users_data()
+        
+        if not all_users_stats:
+            print("❌ No users in leaderboard")
+            return jsonify({
+                'success': False,
+                'error': 'No users in leaderboard'
+            }), 404
         
         # Sort by score to calculate rank
         sorted_by_score = sorted(all_users_stats, key=lambda x: x['score'], reverse=True)
@@ -178,10 +246,13 @@ def get_current_user_rank():
                 break
         
         if not current_user_data:
+            print("❌ Current user not found in leaderboard data")
             return jsonify({
                 'success': False,
                 'error': 'User data not found in leaderboard'
             }), 404
+        
+        print(f"✅ Current user rank: #{current_user_rank} out of {len(sorted_by_score)} users")
         
         return jsonify({
             'success': True,
@@ -191,6 +262,9 @@ def get_current_user_rank():
         })
         
     except Exception as e:
+        print(f"❌ Failed to get user rank: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'success': False,
             'error': f'Failed to get user rank: {str(e)}'
@@ -201,6 +275,8 @@ def get_leaderboard_achievements():
     """Get achievements for leaderboard display from DATABASE"""
     try:
         user_id = session.get('user_id')
+        print(f"🔍 Getting achievements for user_id: {user_id}")
+        
         if not user_id:
             return jsonify({
                 'success': False,
@@ -212,6 +288,8 @@ def get_leaderboard_achievements():
         
         # Get user's achievements from database
         user_achievements = UserAchievement.query.filter_by(user_id=user_id).all()
+        
+        print(f"🏆 Found {len(user_achievements)} achievements for user")
         
         achievements_data = []
         for achievement in user_achievements:
@@ -229,6 +307,7 @@ def get_leaderboard_achievements():
         })
         
     except Exception as e:
+        print(f"❌ Error retrieving achievements: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Error retrieving achievements: {str(e)}'
@@ -239,6 +318,8 @@ def get_leaderboard_stats():
     """Get user stats for leaderboard progress bars from DATABASE"""
     try:
         user_id = session.get('user_id')
+        print(f"🔍 Getting stats for user_id: {user_id}")
+        
         if not user_id:
             return jsonify({
                 'success': False,
@@ -254,6 +335,8 @@ def get_leaderboard_stats():
                 'success': False,
                 'message': 'User not found'
             }), 404
+        
+        print(f"📊 User stats - Words: {user.words_mastered}, Sentences: {user.sentences_mastered}, Streak: {user.current_streak}")
         
         # Calculate progress percentages
         words_progress = min((user.words_mastered / 150) * 100, 100)
@@ -292,6 +375,7 @@ def get_leaderboard_stats():
         })
         
     except Exception as e:
+        print(f"❌ Error retrieving stats: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Error retrieving stats: {str(e)}'
@@ -303,6 +387,9 @@ def update_leaderboard_scores():
     try:
         data = request.get_json()
         user_id = session.get('user_id')
+        
+        print(f"🔄 Updating scores for user_id: {user_id}")
+        print(f"📥 Update data: {data}")
         
         if not user_id:
             return jsonify({
@@ -340,6 +427,8 @@ def update_leaderboard_scores():
         user.last_activity_date = datetime.utcnow()
         db.session.commit()
         
+        print(f"✅ Scores updated successfully for {user.username}")
+        
         return jsonify({
             'success': True,
             'message': 'Scores updated successfully'
@@ -347,6 +436,7 @@ def update_leaderboard_scores():
         
     except Exception as e:
         db.session.rollback()
+        print(f"❌ Error updating scores: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Error updating scores: {str(e)}'
@@ -355,16 +445,26 @@ def update_leaderboard_scores():
 def initialize_sample_users():
     """Initialize sample users in database for testing"""
     try:
+        print("🎯 Initializing sample users...")
+        
         # Import inside function to avoid circular imports
         from .models import User, db
         
         # Check if sample users already exist
         existing_users = User.query.filter(
             User.username.in_(['ChineseMaster', 'PinyinPro', 'HanziHero', 'MandarinLearner'])
-        ).count()
+        ).all()
         
-        if existing_users > 0:
+        print(f"🔍 Found {len(existing_users)} existing sample users")
+        
+        for user in existing_users:
+            print(f"   📝 Existing: {user.username} - Score: {user.total_score}")
+        
+        if existing_users:
+            print("✅ Sample users already exist, skipping initialization")
             return  # Sample users already exist
+        
+        print("🆕 Creating new sample users...")
         
         # Create sample users
         sample_users = [
@@ -412,13 +512,15 @@ def initialize_sample_users():
         
         for user in sample_users:
             db.session.add(user)
+            print(f"   ➕ Added: {user.username} - Score: {user.total_score}")
         
         db.session.commit()
-        print("Sample users initialized in database")
+        print("🎉 Sample users initialized in database successfully")
         
     except Exception as e:
-        print(f"Error initializing sample users: {e}")
+        print(f"❌ Error initializing sample users: {e}")
+        import traceback
+        traceback.print_exc()
         db.session.rollback()
 
-# Initialize sample users when the module is imported
-initialize_sample_users()
+# Don't call initialize_sample_users() here - let __init__.py call it within app context
