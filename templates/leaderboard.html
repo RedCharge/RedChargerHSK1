@@ -492,9 +492,6 @@
     let leaderboardData = [];
     let achievementsData = [];
 
-    // Store the original rankings based on score
-    let originalRankings = [];
-
     // Initialize the application
     document.addEventListener('DOMContentLoaded', function() {
         console.log('DOM loaded - initializing leaderboard');
@@ -508,12 +505,12 @@
     // Load real data from backend
     async function loadRealData() {
         try {
-            console.log('Starting to load real data from backend...');
+            console.log('🚀 Starting to load real data from backend...');
             loadingState.classList.remove('hidden');
             leaderboardList.innerHTML = '';
             
             // Fetch leaderboard data from backend
-            console.log('Fetching from /api/leaderboard...');
+            console.log('📡 Fetching from /api/leaderboard...');
             const leaderboardResponse = await fetch('/api/leaderboard', {
                 method: 'GET',
                 headers: {
@@ -521,57 +518,50 @@
                 }
             });
             
-            console.log('Leaderboard response status:', leaderboardResponse.status);
+            console.log('📊 Leaderboard response status:', leaderboardResponse.status);
             
             if (!leaderboardResponse.ok) {
                 throw new Error(`HTTP error! status: ${leaderboardResponse.status}`);
             }
             
             const leaderboardResult = await leaderboardResponse.json();
-            console.log('Leaderboard API response:', leaderboardResult);
+            console.log('📦 Leaderboard API response:', leaderboardResult);
             
             if (leaderboardResult.success) {
-                // Use the data directly from backend - it already has consistent rankings
-                leaderboardData = leaderboardResult.leaderboard.map(user => ({
-                    id: user.user_id,
-                    username: user.username,
-                    avatar: user.avatar || '',
-                    score: user.score,
-                    words: user.words_mastered,
-                    sentences: user.sentences_mastered,
-                    streak: user.current_streak,
-                    accuracy: user.accuracy_rate,
-                    level: user.level,
-                    achievements: user.achievements || [],
-                    isCurrentUser: user.is_current_user || false,
-                    rank: user.rank // Use the rank provided by backend
-                }));
+                leaderboardData = leaderboardResult.leaderboard;
+                console.log('✅ Loaded leaderboard data:', leaderboardData);
                 
-                console.log('Transformed leaderboard data:', leaderboardData);
+                if (leaderboardData.length === 0) {
+                    console.log('❌ No data in leaderboard response');
+                } else {
+                    console.log(`✅ Found ${leaderboardData.length} users in leaderboard`);
+                    leaderboardData.forEach((user, index) => {
+                        console.log(`   ${index + 1}. ${user.username} - Score: ${user.score} - Rank: ${user.rank}`);
+                    });
+                }
             } else {
                 throw new Error(leaderboardResult.error || 'Failed to load leaderboard');
             }
             
             // Fetch achievements data from backend
-            console.log('Fetching from /api/leaderboard/achievements...');
-            const achievementsResponse = await fetch('/api/leaderboard/achievements', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
+            console.log('📡 Fetching from /api/leaderboard/achievements...');
+            try {
+                const achievementsResponse = await fetch('/api/leaderboard/achievements', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (achievementsResponse.ok) {
+                    const achievementsResult = await achievementsResponse.json();
+                    if (achievementsResult.success) {
+                        achievementsData = achievementsResult.achievements;
+                        console.log('✅ Loaded achievements:', achievementsData);
+                    }
                 }
-            });
-            
-            console.log('Achievements response status:', achievementsResponse.status);
-            
-            if (achievementsResponse.ok) {
-                const achievementsResult = await achievementsResponse.json();
-                console.log('Achievements API response:', achievementsResult);
-                if (achievementsResult.success) {
-                    achievementsData = achievementsResult.achievements;
-                    console.log('Loaded achievements:', achievementsData);
-                }
-            } else {
-                console.warn('Failed to fetch achievements, using empty array');
+            } catch (achievementsError) {
+                console.warn('⚠️ Failed to fetch achievements:', achievementsError);
                 achievementsData = [];
             }
             
@@ -579,35 +569,31 @@
             processLeaderboardData();
             
         } catch (error) {
-            console.error('Error loading data:', error);
+            console.error('❌ Error loading data:', error);
             emptyState.classList.remove('hidden');
             loadingState.classList.add('hidden');
             
             // Show error message to user
             const errorMessage = document.createElement('div');
             errorMessage.className = 'text-red-400 text-center p-4';
-            errorMessage.textContent = `Failed to load leaderboard data. Please try again later.`;
+            errorMessage.textContent = `Failed to load leaderboard data: ${error.message}`;
             leaderboardList.appendChild(errorMessage);
         }
     }
 
     // Process and prepare leaderboard data
     function processLeaderboardData() {
-        console.log('Processing leaderboard data, user count:', leaderboardData.length);
-        // Calculate and store original rankings based on backend-provided ranks
-        calculateOriginalRankings();
+        console.log('🔄 Processing leaderboard data, user count:', leaderboardData.length);
+        
+        if (leaderboardData.length === 0) {
+            console.log('❌ No leaderboard data available');
+            emptyState.classList.remove('hidden');
+            loadingState.classList.add('hidden');
+            return;
+        }
+        
         loadLeaderboard();
         updateUserStats();
-    }
-
-    // Calculate original rankings based on score (using backend ranks)
-    function calculateOriginalRankings() {
-        // Use the ranks provided by backend - they're already consistent
-        originalRankings = leaderboardData.map(user => ({
-            ...user,
-            originalRank: user.rank
-        }));
-        console.log('Using backend rankings for', originalRankings.length, 'users');
     }
 
     // Initialize Mobile Menu
@@ -698,7 +684,7 @@
 
     // Load leaderboard data
     function loadLeaderboard() {
-        console.log('Loading leaderboard with', leaderboardData.length, 'users');
+        console.log('📋 Loading leaderboard with', leaderboardData.length, 'users');
         loadingState.classList.remove('hidden');
         leaderboardList.innerHTML = '';
         
@@ -708,18 +694,19 @@
             
             // Get the current sort type
             const sortBy = sortSelect.value;
+            console.log(`🔄 Sorting by: ${sortBy}`);
             
             // Sort data based on selection but keep original rankings
             let sortedData;
             switch(sortBy) {
                 case 'words':
-                    sortedData = [...leaderboardData].sort((a, b) => b.words - a.words);
+                    sortedData = [...leaderboardData].sort((a, b) => b.words_mastered - a.words_mastered);
                     break;
                 case 'sentences':
-                    sortedData = [...leaderboardData].sort((a, b) => b.sentences - a.sentences);
+                    sortedData = [...leaderboardData].sort((a, b) => b.sentences_mastered - a.sentences_mastered);
                     break;
                 case 'streak':
-                    sortedData = [...leaderboardData].sort((a, b) => b.streak - a.streak);
+                    sortedData = [...leaderboardData].sort((a, b) => b.current_streak - a.current_streak);
                     break;
                 case 'score':
                 default:
@@ -727,10 +714,10 @@
                     break;
             }
             
-            console.log('Sorted data for display:', sortedData);
+            console.log('📊 Sorted data for display:', sortedData);
             
             if (sortedData.length === 0) {
-                console.log('No data found, showing empty state');
+                console.log('❌ No data found, showing empty state');
                 emptyState.classList.remove('hidden');
                 loadingState.classList.add('hidden');
                 return;
@@ -743,10 +730,13 @@
             sortedData.forEach((user) => {
                 // Use the rank provided by backend (already consistent)
                 const rank = user.rank;
+                console.log(`🎯 Rendering user: ${user.username} - Rank: ${rank} - Score: ${user.score}`);
                 
                 const leaderboardItem = createLeaderboardItem(user, rank);
                 leaderboardList.appendChild(leaderboardItem);
             });
+            
+            console.log('✅ Leaderboard rendered successfully');
             
             // Update current user rank display with CORRECT ranking
             updateCurrentUserRankDisplay();
@@ -757,11 +747,11 @@
     // Update current user data with actual profile information
     function updateCurrentUserData() {
         const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-        console.log('Current user profile from localStorage:', userProfile);
+        console.log('👤 Current user profile from localStorage:', userProfile);
         
         // Find current user in leaderboard data
-        const currentUser = leaderboardData.find(user => user.isCurrentUser);
-        console.log('Found current user in leaderboard:', currentUser);
+        const currentUser = leaderboardData.find(user => user.is_current_user);
+        console.log('🔍 Found current user in leaderboard:', currentUser);
         
         if (currentUser && userProfile.username) {
             currentUser.username = userProfile.username;
@@ -773,8 +763,10 @@
     function createLeaderboardItem(user, rank) {
         const item = document.createElement('div');
         const rankClass = getRankClass(rank);
-        const isCurrentUser = user.isCurrentUser ? 'current-user' : '';
+        const isCurrentUser = user.is_current_user ? 'current-user' : '';
         const isMobile = window.innerWidth < 768;
+        
+        console.log(`🎨 Creating item for ${user.username} - Rank: ${rank} - Current: ${isCurrentUser}`);
         
         if (isMobile) {
             // Mobile layout - compact format
@@ -806,19 +798,19 @@
                 <!-- All stats in a compact grid -->
                 <div class="grid grid-cols-4 gap-1 text-center">
                     <div class="mobile-stat-item bg-card-bg/50 rounded p-2 border border-white/10">
-                        <div class="text-sm font-semibold text-text-light">${user.words}</div>
+                        <div class="text-sm font-semibold text-text-light">${user.words_mastered}</div>
                         <div class="text-xs text-text-muted mt-1">Words</div>
                     </div>
                     <div class="mobile-stat-item bg-card-bg/50 rounded p-2 border border-white/10">
-                        <div class="text-sm font-semibold text-text-light">${user.sentences}</div>
+                        <div class="text-sm font-semibold text-text-light">${user.sentences_mastered}</div>
                         <div class="text-xs text-text-muted mt-1">Sentences</div>
                     </div>
                     <div class="mobile-stat-item bg-card-bg/50 rounded p-2 border border-white/10">
-                        <div class="text-sm font-semibold text-text-light">${user.streak}</div>
+                        <div class="text-sm font-semibold text-text-light">${user.current_streak}</div>
                         <div class="text-xs text-text-muted mt-1">Streak</div>
                     </div>
                     <div class="mobile-stat-item bg-card-bg/50 rounded p-2 border border-white/10">
-                        <div class="text-sm font-semibold text-text-light">${user.accuracy}%</div>
+                        <div class="text-sm font-semibold text-text-light">${user.accuracy_rate}%</div>
                         <div class="text-xs text-text-muted mt-1">Accuracy</div>
                     </div>
                 </div>
@@ -854,17 +846,17 @@
                     </div>
                     
                     <div class="text-center min-w-24">
-                        <div class="text-md font-semibold text-text-light">${user.words}W • ${user.sentences}S</div>
+                        <div class="text-md font-semibold text-text-light">${user.words_mastered}W • ${user.sentences_mastered}S</div>
                         <div class="text-xs text-text-muted mt-1">Progress</div>
                     </div>
                     
                     <div class="text-center min-w-20">
-                        <div class="text-md font-semibold text-text-light">${user.streak} days</div>
+                        <div class="text-md font-semibold text-text-light">${user.current_streak} days</div>
                         <div class="text-xs text-text-muted mt-1">Streak</div>
                     </div>
                     
                     <div class="text-center min-w-20">
-                        <div class="text-md font-semibold text-text-light">${user.accuracy}%</div>
+                        <div class="text-md font-semibold text-text-light">${user.accuracy_rate}%</div>
                         <div class="text-xs text-text-muted mt-1">Accuracy</div>
                     </div>
                 </div>
@@ -890,10 +882,13 @@
 
     // Update current user rank display - MOBILE RESPONSIVE
     function updateCurrentUserRankDisplay() {
-        const currentUser = leaderboardData.find(user => user.isCurrentUser);
+        const currentUser = leaderboardData.find(user => user.is_current_user);
+        console.log('👤 Updating current user rank display:', currentUser);
+        
         if (currentUser) {
             // Use the rank provided by backend (already consistent)
             const rank = currentUser.rank;
+            console.log(`🎯 Current user rank: ${rank}`);
             
             const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
             const isMobile = window.innerWidth < 768;
@@ -911,7 +906,7 @@
                                 <div class="text-text-muted text-xs mt-1">Score</div>
                             </div>
                             <div class="text-center bg-card-bg/50 rounded-lg p-3 border border-white/10">
-                                <div class="font-bold text-text-light text-lg">${currentUser.accuracy}%</div>
+                                <div class="font-bold text-text-light text-lg">${currentUser.accuracy_rate}%</div>
                                 <div class="text-text-muted text-xs mt-1">Accuracy</div>
                             </div>
                         </div>
@@ -930,7 +925,7 @@
                                 <div class="text-text-muted text-sm mt-2">Score</div>
                             </div>
                             <div class="text-center">
-                                <div class="font-bold text-text-light text-2xl">${currentUser.accuracy}%</div>
+                                <div class="font-bold text-text-light text-2xl">${currentUser.accuracy_rate}%</div>
                                 <div class="text-text-muted text-sm mt-2">Accuracy</div>
                             </div>
                         </div>
@@ -938,10 +933,13 @@
                 `;
             }
             
+            console.log('✅ Current user rank updated successfully');
+            
             // Load achievements
             loadAchievements();
         } else {
             // If current user not found in leaderboard
+            console.log('❌ Current user not found in leaderboard');
             const isMobile = window.innerWidth < 768;
             if (isMobile) {
                 currentUserRank.innerHTML = `
@@ -965,6 +963,7 @@
 
     // Load user achievements - MOBILE RESPONSIVE
     function loadAchievements() {
+        console.log('🏆 Loading achievements:', achievementsData);
         achievementsList.innerHTML = '';
         const isMobile = window.innerWidth < 768;
         
@@ -1045,12 +1044,14 @@
             
             achievementsList.appendChild(achievementItem);
         });
+        
+        console.log(`✅ Loaded ${achievementsData.length} achievements`);
     }
 
     // Update user stats and progress bars - MOBILE RESPONSIVE
     async function updateUserStats() {
         try {
-            console.log('Fetching user stats from /api/leaderboard/stats...');
+            console.log('📊 Fetching user stats from /api/leaderboard/stats...');
             const statsResponse = await fetch('/api/leaderboard/stats', {
                 method: 'GET',
                 headers: {
@@ -1058,14 +1059,14 @@
                 }
             });
             
-            console.log('Stats response status:', statsResponse.status);
+            console.log('📈 Stats response status:', statsResponse.status);
             
             if (statsResponse.ok) {
                 const statsResult = await statsResponse.json();
-                console.log('Stats API response:', statsResult);
+                console.log('📊 Stats API response:', statsResult);
                 if (statsResult.success) {
-                    const stats = statsResult.stats;
-                    const progress = statsResult.progress;
+                    const stats = statsResult.stats.stats;
+                    const progress = statsResult.stats.progress;
                     const isMobile = window.innerWidth < 768;
                     
                     // Update progress numbers
@@ -1083,11 +1084,11 @@
                 }
             }
         } catch (error) {
-            console.error('Error loading user stats:', error);
+            console.error('❌ Error loading user stats:', error);
         }
         
         // Fallback to localStorage calculation if API fails
-        console.log('Using fallback stats calculation from localStorage');
+        console.log('🔄 Using fallback stats calculation from localStorage');
         const stats = calculateUserStats();
         const isMobile = window.innerWidth < 768;
         
@@ -1170,13 +1171,13 @@
         let sortedData;
         switch(sortBy) {
             case 'words':
-                sortedData = [...leaderboardData].sort((a, b) => b.words - a.words);
+                sortedData = [...leaderboardData].sort((a, b) => b.words_mastered - a.words_mastered);
                 break;
             case 'sentences':
-                sortedData = [...leaderboardData].sort((a, b) => b.sentences - a.sentences);
+                sortedData = [...leaderboardData].sort((a, b) => b.sentences_mastered - a.sentences_mastered);
                 break;
             case 'streak':
-                sortedData = [...leaderboardData].sort((a, b) => b.streak - a.streak);
+                sortedData = [...leaderboardData].sort((a, b) => b.current_streak - a.current_streak);
                 break;
             case 'score':
             default:
@@ -1197,7 +1198,7 @@
 
     // Refresh leaderboard data
     function refreshLeaderboard() {
-        console.log('Refreshing leaderboard data...');
+        console.log('🔄 Refreshing leaderboard data...');
         loadRealData();
     }
 

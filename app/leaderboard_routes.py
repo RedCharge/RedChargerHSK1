@@ -442,6 +442,179 @@ def update_leaderboard_scores():
             'message': f'Error updating scores: {str(e)}'
         }), 500
 
+# =============================================================================
+# DEBUG ROUTES - ADD THESE TO FIX THE "NO DATA" ISSUE
+# =============================================================================
+
+@leaderboard_bp.route('/api/debug/users')
+def debug_users():
+    """Debug endpoint to see all users in database"""
+    try:
+        from .models import User
+        all_users = User.query.all()
+        
+        users_data = []
+        for user in all_users:
+            users_data.append({
+                'id': user.id,
+                'username': user.username,
+                'words_mastered': user.words_mastered,
+                'sentences_mastered': user.sentences_mastered,
+                'total_score': user.total_score,
+                'current_streak': user.current_streak,
+                'accuracy_rate': user.accuracy_rate
+            })
+        
+        return jsonify({
+            'success': True,
+            'total_users': len(all_users),
+            'users': users_data
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@leaderboard_bp.route('/api/debug/create-sample-data')
+def create_sample_data():
+    """Force create sample data for testing"""
+    try:
+        initialize_sample_users()
+        return jsonify({
+            'success': True,
+            'message': 'Sample data created'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@leaderboard_bp.route('/api/debug/add-users-now')
+def add_users_now():
+    """Emergency route to add users directly"""
+    try:
+        from .models import User, db
+        
+        # Delete any existing users first
+        User.query.delete()
+        
+        # Create sample users with proper data
+        sample_users = [
+            User(
+                username='ChineseMaster',
+                level='HSK1 Expert',
+                avatar_color='primary-blue',
+                words_mastered=150,
+                sentences_mastered=100,
+                current_streak=21,
+                accuracy_rate=94,
+                total_score=2850
+            ),
+            User(
+                username='PinyinPro', 
+                level='HSK1 Advanced',
+                avatar_color='secondary-cyan',
+                words_mastered=148,
+                sentences_mastered=95,
+                current_streak=18,
+                accuracy_rate=92,
+                total_score=2670
+            ),
+            User(
+                username='HanziHero',
+                level='HSK1 Intermediate', 
+                avatar_color='accent-purple',
+                words_mastered=142,
+                sentences_mastered=88,
+                current_streak=15,
+                accuracy_rate=89,
+                total_score=2540
+            ),
+            User(
+                username='MandarinLearner',
+                level='HSK1 Intermediate',
+                avatar_color='success-green', 
+                words_mastered=135,
+                sentences_mastered=82,
+                current_streak=12,
+                accuracy_rate=87,
+                total_score=2380
+            ),
+            User(
+                username='RedCharger',  # Add yourself!
+                level='HSK1 Expert',
+                avatar_color='red-500',
+                words_mastered=200,
+                sentences_mastered=150,
+                current_streak=30,
+                accuracy_rate=95,
+                total_score=3369  # Your actual score
+            )
+        ]
+        
+        for user in sample_users:
+            db.session.add(user)
+            print(f"✅ Added user: {user.username}")
+        
+        db.session.commit()
+        
+        # Verify they were added
+        user_count = User.query.count()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Added {user_count} users to database',
+            'users_added': [user.username for user in sample_users]
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@leaderboard_bp.route('/api/debug/session')
+def debug_session():
+    """Check session data"""
+    return jsonify({
+        'session_data': dict(session),
+        'user_id': session.get('user_id')
+    })
+
+@leaderboard_bp.route('/api/debug/reset-database')
+def reset_database():
+    """Reset database and create sample data"""
+    try:
+        from .models import db, User, UserAchievement
+        
+        # Clear all data
+        UserAchievement.query.delete()
+        User.query.delete()
+        db.session.commit()
+        
+        # Create sample users
+        initialize_sample_users()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Database reset and sample data created'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# =============================================================================
+# SAMPLE USER INITIALIZATION
+# =============================================================================
+
 def initialize_sample_users():
     """Initialize sample users in database for testing"""
     try:
@@ -452,7 +625,7 @@ def initialize_sample_users():
         
         # Check if sample users already exist
         existing_users = User.query.filter(
-            User.username.in_(['ChineseMaster', 'PinyinPro', 'HanziHero', 'MandarinLearner'])
+            User.username.in_(['ChineseMaster', 'PinyinPro', 'HanziHero', 'MandarinLearner', 'RedCharger'])
         ).all()
         
         print(f"🔍 Found {len(existing_users)} existing sample users")
@@ -507,6 +680,16 @@ def initialize_sample_users():
                 current_streak=12,
                 accuracy_rate=87,
                 total_score=2380
+            ),
+            User(
+                username='RedCharger',
+                level='HSK1 Expert',
+                avatar_color='red-500',
+                words_mastered=200,
+                sentences_mastered=150,
+                current_streak=30,
+                accuracy_rate=95,
+                total_score=3369
             )
         ]
         
