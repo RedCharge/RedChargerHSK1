@@ -7,16 +7,74 @@ from typing import Dict, List, Any
 # Create Blueprint for leaderboard routes
 leaderboard_bp = Blueprint('leaderboard', __name__)
 
-# Mock user data storage (in production, use a database)
+# Shared user data storage
 USERS_DATA_FILE = 'data/users.json'
 QUIZ_HISTORY_FILE = 'data/quiz_history.json'
 
+def get_all_users_data():
+    """Get comprehensive data for all users for leaderboard"""
+    try:
+        users_data = load_users_data()
+        quiz_history = load_quiz_history()
+        
+        all_users_stats = []
+        
+        for user_id, user_data in users_data.items():
+            # Calculate user stats (same as your existing get_user_stats function)
+            user_quizzes = quiz_history.get(user_id, [])
+            
+            # Calculate basic stats
+            total_words = user_data.get('words_mastered', 0)
+            total_sentences = user_data.get('sentences_mastered', 0)
+            current_streak = user_data.get('current_streak', 0)
+            
+            # Calculate accuracy from quiz history
+            total_correct = 0
+            total_questions = 0
+            
+            for quiz in user_quizzes:
+                total_correct += quiz.get('correct_answers', 0)
+                total_questions += quiz.get('total_questions', 0)
+            
+            accuracy_rate = round((total_correct / total_questions * 100)) if total_questions > 0 else 0
+            
+            # Calculate score
+            score = calculate_user_score({
+                'words_mastered': total_words,
+                'sentences_mastered': total_sentences,
+                'current_streak': current_streak,
+                'accuracy_rate': accuracy_rate
+            })
+            
+            # Determine level
+            level = determine_level(total_words, total_sentences, accuracy_rate)
+            
+            # Mark current user
+            is_current_user = user_id == session.get('user_id')
+            
+            user_stats = {
+                'user_id': user_id,
+                'username': user_data.get('username', 'Anonymous'),
+                'avatar': user_data.get('avatar', ''),
+                'score': score,
+                'words_mastered': total_words,
+                'sentences_mastered': total_sentences,
+                'current_streak': current_streak,
+                'accuracy_rate': accuracy_rate,
+                'level': level,
+                'achievements': user_data.get('achievements', []),
+                'is_current_user': is_current_user
+            }
+            
+            all_users_stats.append(user_stats)
+        
+        return all_users_stats
+        
+    except Exception as e:
+        print(f"Error getting all users data: {e}")
+        return []
 
-@leaderboard_bp.route('/leaderboard')
-def leaderboard_page():
-    """Serve the main leaderboard HTML page"""
-    return render_template('leaderboard.html')
-
+# Your existing functions remain the same...
 def load_users_data():
     """Load users data from JSON file"""
     try:
@@ -60,51 +118,6 @@ def calculate_user_score(user_data: Dict) -> int:
     
     return word_score + sentence_score + streak_bonus + accuracy_bonus
 
-def get_user_stats(user_id: str) -> Dict[str, Any]:
-    """Calculate comprehensive user statistics"""
-    users_data = load_users_data()
-    quiz_history = load_quiz_history()
-    
-    user_data = users_data.get(user_id, {})
-    user_quizzes = quiz_history.get(user_id, [])
-    
-    # Calculate basic stats
-    total_words = user_data.get('words_mastered', 0)
-    total_sentences = user_data.get('sentences_mastered', 0)
-    current_streak = user_data.get('current_streak', 0)
-    
-    # Calculate accuracy from quiz history
-    total_correct = 0
-    total_questions = 0
-    
-    for quiz in user_quizzes:
-        total_correct += quiz.get('correct_answers', 0)
-        total_questions += quiz.get('total_questions', 0)
-    
-    accuracy_rate = round((total_correct / total_questions * 100)) if total_questions > 0 else 0
-    
-    # Calculate score
-    score = calculate_user_score({
-        'words_mastered': total_words,
-        'sentences_mastered': total_sentences,
-        'current_streak': current_streak,
-        'accuracy_rate': accuracy_rate
-    })
-    
-    return {
-        'user_id': user_id,
-        'username': user_data.get('username', 'Anonymous'),
-        'avatar': user_data.get('avatar', ''),
-        'score': score,
-        'words_mastered': total_words,
-        'sentences_mastered': total_sentences,
-        'current_streak': current_streak,
-        'accuracy_rate': accuracy_rate,
-        'level': determine_level(total_words, total_sentences, accuracy_rate),
-        'achievements': user_data.get('achievements', []),
-        'is_current_user': False  # This will be set when building leaderboard
-    }
-
 def determine_level(words: int, sentences: int, accuracy: int) -> str:
     """Determine user level based on their progress"""
     if words >= 140 and sentences >= 90 and accuracy >= 90:
@@ -118,34 +131,11 @@ def determine_level(words: int, sentences: int, accuracy: int) -> str:
     else:
         return "HSK1 Beginner"
 
-def filter_leaderboard_by_timeframe(leaderboard_data: List[Dict], timeframe: str) -> List[Dict]:
-    """Filter leaderboard data based on timeframe"""
-    if timeframe == 'all':
-        return leaderboard_data
-    
-    now = datetime.now()
-    if timeframe == 'weekly':
-        cutoff_date = now - timedelta(days=7)
-    elif timeframe == 'monthly':
-        cutoff_date = now - timedelta(days=30)
-    else:
-        return leaderboard_data
-    
-    # In a real implementation, you would filter quiz history by date
-    # and recalculate scores for the timeframe
-    # For now, we'll return all data as we don't have date-based scoring
-    return leaderboard_data
-
-def sort_leaderboard_data(leaderboard_data: List[Dict], sort_by: str) -> List[Dict]:
-    """Sort leaderboard data based on the specified criteria"""
-    if sort_by == 'words':
-        return sorted(leaderboard_data, key=lambda x: x['words_mastered'], reverse=True)
-    elif sort_by == 'sentences':
-        return sorted(leaderboard_data, key=lambda x: x['sentences_mastered'], reverse=True)
-    elif sort_by == 'streak':
-        return sorted(leaderboard_data, key=lambda x: x['current_streak'], reverse=True)
-    else:  # Default to score
-        return sorted(leaderboard_data, key=lambda x: x['score'], reverse=True)
+# Your existing routes remain the same...
+@leaderboard_bp.route('/leaderboard')
+def leaderboard_page():
+    """Serve the main leaderboard HTML page"""
+    return render_template('leaderboard.html')
 
 @leaderboard_bp.route('/api/leaderboard', methods=['GET'])
 def get_leaderboard():
@@ -154,28 +144,19 @@ def get_leaderboard():
         # Get query parameters
         timeframe = request.args.get('timeframe', 'all')
         sort_by = request.args.get('sort_by', 'score')
-        current_user_id = session.get('user_id')
         
-        # Load all users data
-        users_data = load_users_data()
-        
-        # Calculate stats for all users
-        leaderboard_data = []
-        for user_id in users_data.keys():
-            user_stats = get_user_stats(user_id)
-            leaderboard_data.append(user_stats)
-        
-        # Filter by timeframe
-        filtered_data = filter_leaderboard_by_timeframe(leaderboard_data, timeframe)
+        # Get all users data
+        all_users_stats = get_all_users_data()
         
         # Sort the data
-        sorted_data = sort_leaderboard_data(filtered_data, sort_by)
-        
-        # Mark current user
-        for user in sorted_data:
-            if user['user_id'] == current_user_id:
-                user['is_current_user'] = True
-                break
+        if sort_by == 'words':
+            sorted_data = sorted(all_users_stats, key=lambda x: x['words_mastered'], reverse=True)
+        elif sort_by == 'sentences':
+            sorted_data = sorted(all_users_stats, key=lambda x: x['sentences_mastered'], reverse=True)
+        elif sort_by == 'streak':
+            sorted_data = sorted(all_users_stats, key=lambda x: x['current_streak'], reverse=True)
+        else:  # Default to score
+            sorted_data = sorted(all_users_stats, key=lambda x: x['score'], reverse=True)
         
         # Limit to top 100 users
         limited_data = sorted_data[:100]
@@ -194,35 +175,10 @@ def get_leaderboard():
             'error': f'Failed to load leaderboard: {str(e)}'
         }), 500
 
-@leaderboard_bp.route('/api/leaderboard/user/<user_id>', methods=['GET'])
-def get_user_leaderboard_data(user_id):
-    """Get specific user's leaderboard data"""
-    try:
-        user_stats = get_user_stats(user_id)
-        
-        # Calculate rank
-        users_data = load_users_data()
-        all_users_stats = [get_user_stats(uid) for uid in users_data.keys()]
-        sorted_users = sorted(all_users_stats, key=lambda x: x['score'], reverse=True)
-        
-        rank = next((i + 1 for i, user in enumerate(sorted_users) if user['user_id'] == user_id), None)
-        
-        return jsonify({
-            'success': True,
-            'user_data': user_stats,
-            'rank': rank,
-            'total_users': len(sorted_users)
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Failed to load user data: {str(e)}'
-        }), 500
-
-@leaderboard_bp.route('/api/leaderboard/current-user', methods=['GET'])
-def get_current_user_leaderboard():
-    """Get current user's leaderboard data and rank"""
+# Add this new endpoint to get current user's rank and stats
+@leaderboard_bp.route('/api/leaderboard/current-user-rank')
+def get_current_user_rank():
+    """Get current user's rank and stats"""
     try:
         current_user_id = session.get('user_id')
         if not current_user_id:
@@ -231,137 +187,52 @@ def get_current_user_leaderboard():
                 'error': 'User not authenticated'
             }), 401
         
-        user_stats = get_user_stats(current_user_id)
-        user_stats['is_current_user'] = True
+        all_users_stats = get_all_users_data()
         
-        # Calculate rank
-        users_data = load_users_data()
-        all_users_stats = [get_user_stats(uid) for uid in users_data.keys()]
-        sorted_users = sorted(all_users_stats, key=lambda x: x['score'], reverse=True)
+        # Sort by score to calculate rank
+        sorted_by_score = sorted(all_users_stats, key=lambda x: x['score'], reverse=True)
         
-        rank = next((i + 1 for i, user in enumerate(sorted_users) if user['user_id'] == current_user_id), None)
+        # Find current user and their rank
+        current_user_data = None
+        current_user_rank = None
+        
+        for rank, user in enumerate(sorted_by_score, 1):
+            if user['user_id'] == current_user_id:
+                current_user_data = user
+                current_user_rank = rank
+                break
+        
+        if not current_user_data:
+            return jsonify({
+                'success': False,
+                'error': 'User data not found'
+            }), 404
         
         return jsonify({
             'success': True,
-            'user_data': user_stats,
-            'rank': rank,
-            'total_users': len(sorted_users)
+            'rank': current_user_rank,
+            'user_data': current_user_data,
+            'total_users': len(sorted_by_score)
         })
         
     except Exception as e:
         return jsonify({
             'success': False,
-            'error': f'Failed to load current user data: {str(e)}'
+            'error': f'Failed to get user rank: {str(e)}'
         }), 500
 
+# Your other existing routes...
 @leaderboard_bp.route('/api/leaderboard/achievements', methods=['GET'])
 def get_user_achievements():
-    """Get current user's achievements"""
-    try:
-        current_user_id = session.get('user_id')
-        if not current_user_id:
-            return jsonify({
-                'success': False,
-                'error': 'User not authenticated'
-            }), 401
-        
-        users_data = load_users_data()
-        user_data = users_data.get(current_user_id, {})
-        
-        achievements = user_data.get('achievements', [])
-        
-        # Mock achievements data (in production, calculate based on user progress)
-        all_achievements = [
-            {
-                'name': 'Word Master',
-                'description': 'Master 100+ words',
-                'icon': 'fas fa-book',
-                'unlocked': len([a for a in achievements if a.get('name') == 'Word Master']) > 0,
-                'date': next((a.get('date') for a in achievements if a.get('name') == 'Word Master'), None)
-            },
-            {
-                'name': 'Perfect Score',
-                'description': 'Get 100% on any quiz',
-                'icon': 'fas fa-star',
-                'unlocked': len([a for a in achievements if a.get('name') == 'Perfect Score']) > 0,
-                'date': next((a.get('date') for a in achievements if a.get('name') == 'Perfect Score'), None)
-            },
-            {
-                'name': 'Week Warrior',
-                'description': '7-day learning streak',
-                'icon': 'fas fa-fire',
-                'unlocked': len([a for a in achievements if a.get('name') == 'Week Warrior']) > 0,
-                'progress': user_data.get('current_streak', 0) / 7 * 100
-            },
-            {
-                'name': 'Sentence Builder',
-                'description': 'Master 50+ sentences',
-                'icon': 'fas fa-comments',
-                'unlocked': len([a for a in achievements if a.get('name') == 'Sentence Builder']) > 0,
-                'date': next((a.get('date') for a in achievements if a.get('name') == 'Sentence Builder'), None)
-            }
-        ]
-        
-        return jsonify({
-            'success': True,
-            'achievements': all_achievements
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Failed to load achievements: {str(e)}'
-        }), 500
+    # ... your existing achievements code
+    pass
 
 @leaderboard_bp.route('/api/leaderboard/stats', methods=['GET'])
 def get_user_stats_route():
-    """Get current user's detailed statistics"""
-    try:
-        current_user_id = session.get('user_id')
-        if not current_user_id:
-            return jsonify({
-                'success': False,
-                'error': 'User not authenticated'
-            }), 401
-        
-        user_stats = get_user_stats(current_user_id)
-        
-        return jsonify({
-            'success': True,
-            'stats': {
-                'words_mastered': user_stats['words_mastered'],
-                'sentences_mastered': user_stats['sentences_mastered'],
-                'current_streak': user_stats['current_streak'],
-                'accuracy_rate': user_stats['accuracy_rate'],
-                'total_score': user_stats['score'],
-                'level': user_stats['level']
-            },
-            'progress': {
-                'words': {
-                    'current': user_stats['words_mastered'],
-                    'total': 150,
-                    'percentage': round((user_stats['words_mastered'] / 150) * 100)
-                },
-                'sentences': {
-                    'current': user_stats['sentences_mastered'],
-                    'total': 100,
-                    'percentage': round((user_stats['sentences_mastered'] / 100) * 100)
-                },
-                'streak': {
-                    'current': user_stats['current_streak'],
-                    'total': 7,
-                    'percentage': round((user_stats['current_streak'] / 7) * 100)
-                }
-            }
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'Failed to load user stats: {str(e)}'
-        }), 500
+    # ... your existing stats code
+    pass
 
-# Mock data initialization (for development)
+# Mock data initialization (UPDATED WITH MORE USERS)
 def initialize_mock_data():
     """Initialize mock data for development and testing"""
     users_data = {
@@ -417,6 +288,27 @@ def initialize_mock_data():
             'current_streak': 5,
             'achievements': [
                 {'name': 'First Steps', 'date': '2024-01-08'}
+            ]
+        },
+        'user_006': {
+            'username': 'LanguageLover',
+            'avatar': '',
+            'words_mastered': 98,
+            'sentences_mastered': 58,
+            'current_streak': 3,
+            'achievements': [
+                {'name': 'First Steps', 'date': '2024-01-05'}
+            ]
+        },
+        'user_007': {
+            'username': 'CurrentUser',  # This will be the logged-in user
+            'avatar': '',
+            'words_mastered': 128,
+            'sentences_mastered': 78,
+            'current_streak': 8,
+            'achievements': [
+                {'name': 'First Steps', 'date': '2024-01-07'},
+                {'name': 'Quick Starter', 'date': '2024-01-14'}
             ]
         }
     }
