@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 import json
 import os
 from typing import Dict, List, Any
-from models import db, User, QuizResult, UserAchievement
 
 # Create Blueprint for leaderboard routes
 leaderboard_bp = Blueprint('leaderboard', __name__)
@@ -11,6 +10,9 @@ leaderboard_bp = Blueprint('leaderboard', __name__)
 def get_all_users_data():
     """Get comprehensive data for all users for leaderboard from DATABASE"""
     try:
+        # Import inside function to avoid circular imports
+        from .models import User, QuizResult
+        
         # Get all users from database
         all_users = User.query.all()
         all_users_stats = []
@@ -149,6 +151,9 @@ def get_current_user_rank():
                 'error': 'User not authenticated'
             }), 401
         
+        # Import inside function to avoid circular imports
+        from .models import User
+        
         # Get user from database
         current_user = User.query.get(current_user_id)
         if not current_user:
@@ -202,6 +207,9 @@ def get_leaderboard_achievements():
                 'message': 'User not authenticated'
             }), 401
         
+        # Import inside function to avoid circular imports
+        from .models import UserAchievement
+        
         # Get user's achievements from database
         user_achievements = UserAchievement.query.filter_by(user_id=user_id).all()
         
@@ -236,6 +244,9 @@ def get_leaderboard_stats():
                 'success': False,
                 'message': 'User not authenticated'
             }), 401
+        
+        # Import inside function to avoid circular imports
+        from .models import User
         
         user = User.query.get(user_id)
         if not user:
@@ -299,6 +310,9 @@ def update_leaderboard_scores():
                 'message': 'User not authenticated'
             }), 401
         
+        # Import inside function to avoid circular imports
+        from .models import User, db
+        
         user = User.query.get(user_id)
         if not user:
             return jsonify({
@@ -341,6 +355,9 @@ def update_leaderboard_scores():
 def initialize_sample_users():
     """Initialize sample users in database for testing"""
     try:
+        # Import inside function to avoid circular imports
+        from .models import User, db
+        
         # Check if sample users already exist
         existing_users = User.query.filter(
             User.username.in_(['ChineseMaster', 'PinyinPro', 'HanziHero', 'MandarinLearner'])
