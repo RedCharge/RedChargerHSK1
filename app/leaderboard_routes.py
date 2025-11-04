@@ -707,7 +707,7 @@ def initialize_sample_users():
         db.session.rollback()
         
         
-        @leaderboard_bp.route('/api/leaderboard/populate-real-data', methods=['POST'])
+@leaderboard_bp.route('/api/leaderboard/populate-real-data', methods=['POST'])
 def populate_real_data():
     """Populate leaderboard with real user data from quiz results"""
     try:
