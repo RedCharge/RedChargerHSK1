@@ -473,9 +473,7 @@
         <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
     </footer>
 
-    <!-- Leaderboard Logic -->
-<script>
-    // DOM Elements
+        // DOM Elements
     const mobileMenuButton = document.getElementById('mobile-menu-button');
     const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
     const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
@@ -508,6 +506,7 @@
             console.log('🚀 Starting to load real data from backend...');
             loadingState.classList.remove('hidden');
             leaderboardList.innerHTML = '';
+            emptyState.classList.add('hidden');
             
             // Fetch leaderboard data from backend
             console.log('📡 Fetching from /api/leaderboard...');
@@ -515,7 +514,8 @@
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                }
+                },
+                credentials: 'include'
             });
             
             console.log('📊 Leaderboard response status:', leaderboardResponse.status);
@@ -528,17 +528,19 @@
             console.log('📦 Leaderboard API response:', leaderboardResult);
             
             if (leaderboardResult.success) {
-                leaderboardData = leaderboardResult.leaderboard;
+                leaderboardData = leaderboardResult.leaderboard || [];
                 console.log('✅ Loaded leaderboard data:', leaderboardData);
                 
                 if (leaderboardData.length === 0) {
                     console.log('❌ No data in leaderboard response');
-                } else {
-                    console.log(`✅ Found ${leaderboardData.length} users in leaderboard`);
-                    leaderboardData.forEach((user, index) => {
-                        console.log(`   ${index + 1}. ${user.username} - Score: ${user.score} - Rank: ${user.rank}`);
-                    });
+                    showEmptyState();
+                    return;
                 }
+                
+                console.log(`✅ Found ${leaderboardData.length} users in leaderboard`);
+                leaderboardData.forEach((user, index) => {
+                    console.log(`   ${index + 1}. ${user.username} - Score: ${user.score} - Rank: ${user.rank}`);
+                });
             } else {
                 throw new Error(leaderboardResult.error || 'Failed to load leaderboard');
             }
@@ -550,13 +552,14 @@
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
-                    }
+                    },
+                    credentials: 'include'
                 });
                 
                 if (achievementsResponse.ok) {
                     const achievementsResult = await achievementsResponse.json();
                     if (achievementsResult.success) {
-                        achievementsData = achievementsResult.achievements;
+                        achievementsData = achievementsResult.achievements || [];
                         console.log('✅ Loaded achievements:', achievementsData);
                     }
                 }
@@ -570,15 +573,41 @@
             
         } catch (error) {
             console.error('❌ Error loading data:', error);
-            emptyState.classList.remove('hidden');
-            loadingState.classList.add('hidden');
-            
-            // Show error message to user
-            const errorMessage = document.createElement('div');
-            errorMessage.className = 'text-red-400 text-center p-4';
-            errorMessage.textContent = `Failed to load leaderboard data: ${error.message}`;
-            leaderboardList.appendChild(errorMessage);
+            showErrorState(error);
         }
+    }
+
+    function showEmptyState() {
+        emptyState.classList.remove('hidden');
+        loadingState.classList.add('hidden');
+        leaderboardList.innerHTML = `
+            <div class="text-center p-8">
+                <i class="fas fa-users text-4xl text-text-muted mb-4"></i>
+                <h3 class="text-xl font-bold text-text-light mb-2">No Users Found</h3>
+                <p class="text-text-muted mb-4">Complete quizzes or add sample users to see the leaderboard.</p>
+                <button onclick="window.location.href='/api/debug/add-users-now'" class="cta-button-primary py-2 px-4 rounded-lg">
+                    <i class="fas fa-user-plus mr-2"></i>Add Sample Users
+                </button>
+            </div>
+        `;
+    }
+
+    function showErrorState(error) {
+        emptyState.classList.remove('hidden');
+        loadingState.classList.add('hidden');
+        leaderboardList.innerHTML = `
+            <div class="text-center p-8">
+                <i class="fas fa-exclamation-triangle text-4xl text-yellow-400 mb-4"></i>
+                <h3 class="text-xl font-bold text-text-light mb-2">Connection Error</h3>
+                <p class="text-text-muted mb-4">Failed to load leaderboard: ${error.message}</p>
+                <button onclick="loadRealData()" class="cta-button-primary py-2 px-4 rounded-lg mr-2">
+                    <i class="fas fa-redo mr-2"></i>Retry
+                </button>
+                <button onclick="window.location.href='/api/debug/add-users-now'" class="cta-button-secondary py-2 px-4 rounded-lg">
+                    <i class="fas fa-user-plus mr-2"></i>Add Users
+                </button>
+            </div>
+        `;
     }
 
     // Process and prepare leaderboard data
@@ -587,8 +616,7 @@
         
         if (leaderboardData.length === 0) {
             console.log('❌ No leaderboard data available');
-            emptyState.classList.remove('hidden');
-            loadingState.classList.add('hidden');
+            showEmptyState();
             return;
         }
         
@@ -1056,7 +1084,8 @@
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                }
+                },
+                credentials: 'include'
             });
             
             console.log('📈 Stats response status:', statsResponse.status);
@@ -1204,6 +1233,5 @@
 
     // Auto-refresh every 30 seconds (optional)
     // setInterval(refreshLeaderboard, 30000);
-</script>
 </body>
 </html>
