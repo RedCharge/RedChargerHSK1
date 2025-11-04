@@ -724,25 +724,26 @@
                 // Get the current sort type
                 const sortBy = sortSelect.value;
                 
-                // Sort data based on selection but ALWAYS use score-based rankings for display
-                let sortedData;
+                // Sort data based on selection but ALWAYS use original rankings for display
+                let displayData;
                 switch(sortBy) {
                     case 'words':
-                        sortedData = [...leaderboardData].sort((a, b) => b.words - a.words);
+                        displayData = [...leaderboardData].sort((a, b) => b.words - a.words);
                         break;
                     case 'sentences':
-                        sortedData = [...leaderboardData].sort((a, b) => b.sentences - a.sentences);
+                        displayData = [...leaderboardData].sort((a, b) => b.sentences - a.sentences);
                         break;
                     case 'streak':
-                        sortedData = [...leaderboardData].sort((a, b) => b.streak - a.streak);
+                        displayData = [...leaderboardData].sort((a, b) => b.streak - a.streak);
                         break;
                     case 'score':
                     default:
-                        sortedData = [...leaderboardData].sort((a, b) => b.score - a.score);
+                        // For score sorting, use the original rankings directly
+                        displayData = [...originalRankings];
                         break;
                 }
                 
-                if (sortedData.length === 0) {
+                if (displayData.length === 0) {
                     emptyState.classList.remove('hidden');
                     loadingState.classList.add('hidden');
                     return;
@@ -751,19 +752,18 @@
                 emptyState.classList.add('hidden');
                 loadingState.classList.add('hidden');
                 
-                // FIX: Always use the original score-based rankings for display
-                // regardless of how the data is sorted for viewing
-                sortedData.forEach((user, index) => {
-                    // ALWAYS use the original score-based rank for display
+                // ALWAYS use the original score-based rankings for display
+                displayData.forEach((user) => {
+                    // Find the user's original rank based on score
                     const originalUserData = originalRankings.find(u => u.id === user.id);
-                    const rank = originalUserData ? originalUserData.originalRank : index + 1;
+                    const rank = originalUserData ? originalUserData.originalRank : user.originalRank;
                     
                     const leaderboardItem = createLeaderboardItem(user, rank);
                     leaderboardList.appendChild(leaderboardItem);
                 });
                 
-                // Update current user rank display with CORRECT ranking (always score-based)
-                updateCurrentUserRank(sortedData);
+                // Update current user rank display with CORRECT ranking
+                updateCurrentUserRank(displayData);
                 
             }, 1000);
         }
@@ -772,34 +772,91 @@
         function handleSort(e) {
             const sortBy = e.target.value;
             
-            // Sort the leaderboard data based on selection but ALWAYS show score-based rankings
-            let sortedData;
+            // Sort the leaderboard data based on selection but ALWAYS show original rankings
+            let displayData;
             switch(sortBy) {
                 case 'words':
-                    sortedData = [...leaderboardData].sort((a, b) => b.words - a.words);
+                    displayData = [...leaderboardData].sort((a, b) => b.words - a.words);
                     break;
                 case 'sentences':
-                    sortedData = [...leaderboardData].sort((a, b) => b.sentences - a.sentences);
+                    displayData = [...leaderboardData].sort((a, b) => b.sentences - a.sentences);
                     break;
                 case 'streak':
-                    sortedData = [...leaderboardData].sort((a, b) => b.streak - a.streak);
+                    displayData = [...leaderboardData].sort((a, b) => b.streak - a.streak);
                     break;
                 case 'score':
                 default:
-                    sortedData = [...leaderboardData].sort((a, b) => b.score - a.score);
+                    // For score sorting, use the original rankings directly
+                    displayData = [...originalRankings];
                     break;
             }
             
-            // FIX: Update the leaderboard display but ALWAYS use score-based rankings
+            // Update the leaderboard display with ORIGINAL rankings
             leaderboardList.innerHTML = '';
-            sortedData.forEach((user, index) => {
+            displayData.forEach((user) => {
                 // ALWAYS use the original score-based rank for display
                 const originalUserData = originalRankings.find(u => u.id === user.id);
-                const rank = originalUserData ? originalUserData.originalRank : index + 1;
+                const rank = originalUserData ? originalUserData.originalRank : user.originalRank;
                 
                 const leaderboardItem = createLeaderboardItem(user, rank);
                 leaderboardList.appendChild(leaderboardItem);
             });
+        }
+
+        // Update current user rank display - FIXED to always use original rankings
+        function updateCurrentUserRank(displayData) {
+            const currentUser = displayData.find(user => user.isCurrentUser);
+            if (currentUser) {
+                // ALWAYS use the original score-based rank
+                const originalUserData = originalRankings.find(u => u.id === currentUser.id);
+                const rank = originalUserData ? originalUserData.originalRank : currentUser.originalRank;
+                
+                const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+                const isMobile = window.innerWidth < 768;
+                
+                if (isMobile) {
+                    currentUserRank.innerHTML = `
+                        <div class="text-center">
+                            <div class="text-4xl font-bold text-secondary-cyan mb-2">#${rank}</div>
+                            <div class="text-lg font-semibold text-text-light mb-1">${userProfile.username || 'You'}</div>
+                            <div class="text-text-muted text-sm mb-4">${currentUser.level}</div>
+                            
+                            <div class="grid grid-cols-2 gap-3 text-sm">
+                                <div class="text-center bg-card-bg/50 rounded-lg p-3">
+                                    <div class="font-bold text-text-light text-lg">${currentUser.score}</div>
+                                    <div class="text-text-muted text-xs">Score</div>
+                                </div>
+                                <div class="text-center bg-card-bg/50 rounded-lg p-3">
+                                    <div class="font-bold text-text-light text-lg">${currentUser.accuracy}%</div>
+                                    <div class="text-text-muted text-xs">Accuracy</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    currentUserRank.innerHTML = `
+                        <div class="text-center">
+                            <div class="text-5xl font-bold text-secondary-cyan mb-2">#${rank}</div>
+                            <div class="text-lg font-semibold text-text-light mb-1">${userProfile.username || 'You'}</div>
+                            <div class="text-text-muted mb-4">${currentUser.level}</div>
+                            
+                            <div class="grid grid-cols-2 gap-4 text-sm">
+                                <div class="text-center">
+                                    <div class="font-semibold text-text-light">${currentUser.score}</div>
+                                    <div class="text-text-muted">Score</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="font-semibold text-text-light">${currentUser.accuracy}%</div>
+                                    <div class="text-text-muted">Accuracy</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Load achievements
+                loadAchievements();
+            }
         }
 
         // Update current user data with actual profile information
