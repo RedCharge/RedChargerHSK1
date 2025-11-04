@@ -705,5 +705,72 @@ def initialize_sample_users():
         import traceback
         traceback.print_exc()
         db.session.rollback()
+        
+        
+        @leaderboard_bp.route('/api/leaderboard/populate-real-data', methods=['POST'])
+def populate_real_data():
+    """Populate leaderboard with real user data from quiz results"""
+    try:
+        from .models import User, QuizResult, db
+        
+        print("🔄 Populating leaderboard with real user data...")
+        
+        # Get all users who have taken quizzes
+        users_with_quizzes = db.session.query(User).join(QuizResult).distinct().all()
+        print(f"👥 Found {len(users_with_quizzes)} users with quiz results")
+        
+        leaderboard_data = []
+        
+        for user in users_with_quizzes:
+            user_quizzes = QuizResult.query.filter_by(user_id=user.id).all()
+            
+            # Calculate real stats
+            total_correct = sum(quiz.correct_answers for quiz in user_quizzes)
+            total_questions = sum(quiz.total_questions for quiz in user_quizzes)
+            accuracy_rate = round((total_correct / total_questions * 100), 1) if total_questions > 0 else 0
+            
+            # Calculate score
+            score = calculate_user_score({
+                'words_mastered': user.words_mastered or 0,
+                'sentences_mastered': user.sentences_mastered or 0,
+                'current_streak': user.current_streak or 0,
+                'accuracy_rate': accuracy_rate
+            })
+            
+            user_stats = {
+                'user_id': user.id,
+                'username': user.username,
+                'avatar': user.avatar_color,
+                'score': score,
+                'words_mastered': user.words_mastered or 0,
+                'sentences_mastered': user.sentences_mastered or 0,
+                'current_streak': user.current_streak or 0,
+                'accuracy_rate': accuracy_rate,
+                'level': user.level or 'HSK1 Beginner',
+                'is_current_user': user.id == session.get('user_id')
+            }
+            
+            leaderboard_data.append(user_stats)
+            print(f"✅ Added {user.username} to leaderboard - Score: {score}")
+        
+        # Sort by score
+        leaderboard_data.sort(key=lambda x: x['score'], reverse=True)
+        
+        # Add rankings
+        for rank, user in enumerate(leaderboard_data, 1):
+            user['rank'] = rank
+        
+        return jsonify({
+            'success': True,
+            'message': f'Populated leaderboard with {len(leaderboard_data)} real users',
+            'users': leaderboard_data
+        })
+        
+    except Exception as e:
+        print(f"❌ Error populating real data: {str(e)}")
+        return jsonify({
+            'success': False,
+            'error': f'Failed to populate real data: {str(e)}'
+        }), 500
 
 # Don't call initialize_sample_users() here - let __init__.py call it within app context
