@@ -4,10 +4,11 @@ import os
 # Import db from models
 from .models import db
 
-# Import socketio but we'll handle it conditionally
+# Import socketio but we'll handle it conditionally for PythonAnywhere
 try:
-    from .models import socketio
+    from flask_socketio import SocketIO
     SOCKETIO_AVAILABLE = True
+    socketio = SocketIO()
 except ImportError:
     SOCKETIO_AVAILABLE = False
     socketio = None
@@ -34,21 +35,20 @@ def create_app():
     db.init_app(app)
     
     # Conditionally initialize SocketIO for PythonAnywhere compatibility
-    if SOCKETIO_AVAILABLE:
+    if SOCKETIO_AVAILABLE and socketio:
         try:
-            # For PythonAnywhere, use threading and disable WebSockets
+            # For PythonAnywhere compatibility - disable WebSockets
             socketio.init_app(app, 
                              cors_allowed_origins="*",
                              async_mode='threading',
-                             logger=True,
-                             engineio_logger=True)
+                             logger=False,  # Disable logging to reduce errors
+                             engineio_logger=False)
             print("SocketIO initialized successfully")
         except Exception as e:
             print(f"SocketIO initialization failed: {e}")
             print("Continuing without SocketIO...")
             socketio = None
     else:
-        socketio = None
         print("SocketIO not available, running without real-time features")
     
     # Register blueprints - use relative imports
@@ -58,29 +58,29 @@ def create_app():
     from .learn_routes import learn_bp
     from .profile_routes import profile_bp
     
-    # Import leaderboard routes - handle both locations
+    # Import leaderboard routes
     try:
-        # Try absolute import first (if file is in app directory)
         from .leaderboard_routes import leaderboard_bp
-    except ImportError:
-        try:
-            # Try relative import (if file is in same directory)
-            from leaderboard_routes import leaderboard_bp
-        except ImportError as e:
-            print(f"Leaderboard routes not available: {e}")
-            leaderboard_bp = None
+        app.register_blueprint(leaderboard_bp)
+        print("Leaderboard routes registered successfully")
+    except ImportError as e:
+        print(f"Leaderboard routes not available: {e}")
+        # Create a simple leaderboard blueprint as fallback
+        from flask import Blueprint
+        leaderboard_bp = Blueprint('leaderboard', __name__)
+        
+        @leaderboard_bp.route('/leaderboard')
+        def leaderboard_fallback():
+            return "Leaderboard coming soon"
+            
+        app.register_blueprint(leaderboard_bp)
+        print("Using fallback leaderboard routes")
 
     app.register_blueprint(main_bp)
     app.register_blueprint(words_bp, url_prefix='/words')
     app.register_blueprint(sentence_bp, url_prefix='/sentences')
     app.register_blueprint(learn_bp)
     app.register_blueprint(profile_bp)
-    
-    if leaderboard_bp:
-        app.register_blueprint(leaderboard_bp)
-        print("Leaderboard routes registered successfully")
-    else:
-        print("Leaderboard routes not registered")
     
     # Import and register socket events only if SocketIO is available
     if SOCKETIO_AVAILABLE and socketio:
@@ -94,7 +94,15 @@ def create_app():
     
     # Create database tables
     with app.app_context():
-        db.create_all()
-        print("Database tables created")
+        try:
+            db.create_all()
+            print("Database tables created")
+            
+            # Initialize sample data for leaderboard
+            from .leaderboard_routes import initialize_sample_users
+            initialize_sample_users()
+            
+        except Exception as e:
+            print(f"Database setup error: {e}")
     
-    return app, socketio
+    return app, socketio if SOCKETIO_AVAILABLE else None

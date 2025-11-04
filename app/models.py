@@ -2,10 +2,9 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import json
 import uuid
-from flask_socketio import SocketIO
 
 db = SQLAlchemy()
-socketio = SocketIO()
+# REMOVE SocketIO from here - it should be in __init__.py only
 
 class QuizResult(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -19,7 +18,7 @@ class QuizResult(db.Model):
     user_answers = db.Column(db.Text)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # ADD: Link to user
+    # Link to user
     user_id = db.Column(db.String(36), db.ForeignKey('user.id'), nullable=True)
     
     def get_user_answers(self):
@@ -30,8 +29,9 @@ class QuizResult(db.Model):
     def set_user_answers(self, answers_list):
         self.user_answers = json.dumps(answers_list)
 
-# RENAME: ChatUser to User and extend it
 class User(db.Model):
+    __tablename__ = 'user'
+    
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     username = db.Column(db.String(50), unique=True, nullable=False)
     level = db.Column(db.String(20), default='HSK1')
@@ -40,7 +40,7 @@ class User(db.Model):
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # ADD: Leaderboard fields
+    # Leaderboard fields
     total_score = db.Column(db.Integer, default=0)
     words_mastered = db.Column(db.Integer, default=0)
     sentences_mastered = db.Column(db.Integer, default=0)
