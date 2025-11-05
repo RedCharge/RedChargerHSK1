@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard - RedCharger HSK1</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Georgia', 'serif'],
+                    },
+                    colors: {
+                        'primary-blue': '#5c7cfa',
+                        'secondary-cyan': '#33f0e8',
+                        'main-bg': '#1e293b',
+                        'card-bg': '#2a3a50',
+                        'text-light': '#e2e8f0',
+                        'text-muted': '#94a3b8',
+                        'gold': '#ffd700',
+                        'silver': '#c0c0c0',
+                        'bronze': '#cd7f32',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        pulseGlow: {
+                            '0%': { boxShadow: '0 0 5px rgba(255, 215, 0, 0.5)' },
+                            '100%': { boxShadow: '0 0 20px rgba(255, 215, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.6)' },
+                        },
+                        bounceIn: {
+                            '0%': { transform: 'scale(0.3)', opacity: '0' },
+                            '50%': { transform: 'scale(1.05)' },
+                            '70%': { transform: 'scale(0.9)' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        }
+                    },
+                    animation: {
+                        fadeInUp: 'fadeInUp 0.6s ease-out forwards',
+                        pulseGlow: 'pulseGlow 2s ease-in-out infinite alternate',
+                        bounceIn: 'bounceIn 0.6s ease-out',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1e293b;
+            min-height: 100vh;
+            color: #e2e8f0;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .nav-card {
+            background-color: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sophisticated-card {
+            background-color: #2a3a50;
+            border-radius: 0.75rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .sophisticated-card:hover {
+             transform: translateY(-5px);
+             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(92, 124, 250, 0.3);
+        }
+
+        .leaderboard-item {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .leaderboard-item:hover {
+            transform: translateX(5px);
+            background: rgba(51, 240, 232, 0.05);
+        }
+
+        .rank-1 {
+            border-left-color: #ffd700;
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), transparent);
+        }
+
+        .rank-2 {
+            border-left-color: #c0c0c0;
+            background: linear-gradient(135deg, rgba(192, 192, 192, 0.1), transparent);
+        }
+
+        .rank-3 {
+            border-left-color: #cd7f32;
+            background: linear-gradient(135deg, rgba(205, 127, 50, 0.1), transparent);
+        }
+
+        .current-user {
+            background: linear-gradient(135deg, rgba(51, 240, 232, 0.15), transparent) !important;
+            border: 1px solid rgba(51, 240, 232, 0.3);
+        }
+
+        .medal {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .medal-gold {
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            color: #8b6914;
+            animation: pulseGlow 2s ease-in-out infinite alternate;
+        }
+
+        .medal-silver {
+            background: linear-gradient(135deg, #c0c0c0, #e8e8e8);
+            color: #666;
+        }
+
+        .medal-bronze {
+            background: linear-gradient(135deg, #cd7f32, #e89f65);
+            color: #fff;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background-color: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #5c7cfa, #33f0e8);
+            transition: width 0.5s ease;
+        }
+
+        /* Mobile dropdown menu styles */
+        .mobile-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background-color: rgba(42, 58, 80, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 50;
+            opacity: 0;
+            transform: translateY(-10px);
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-dropdown-menu.open {
+            opacity: 1;
+            transform: translateY(0);
+            visibility: visible;
+        }
+
+        .mobile-dropdown-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 45;
+            background-color: transparent;
+            display: none;
+        }
+
+        .trophy-icon {
+            animation: bounceIn 0.6s ease-out;
+        }
+
+        .pulse-animation {
+            animation: pulseGlow 2s ease-in-out infinite alternate;
+        }
+    </style>
+</head>
+<body class="selection:bg-primary-blue selection:text-white">
+
+    <!-- Navigation Bar -->
+    <nav class="fixed top-0 left-0 right-0 z-50 p-4 lg:p-6 nav-card">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-2xl font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-text-light to-secondary-cyan">
+                RedCharger
+            </div>
+            
+            <!-- Desktop Menu -->
+            <div class="space-x-8 hidden md:flex font-medium">
+                <a href="/" class="text-text-muted hover:text-secondary-cyan transition duration-300">Home</a>
+                <a href="/words/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Words Quiz</a>
+                <a href="/sentences/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Sentences Quiz</a>
+                <a href="/learn" class="text-text-muted hover:text-secondary-cyan transition duration-300">Learn</a>
+                <a href="/profile" class="text-text-muted hover:text-secondary-cyan transition duration-300">Profile</a>
+                <a href="/result" class="text-text-muted hover:text-secondary-cyan transition duration-300">Results</a>
+                <a href="/leaderboard" class="text-secondary-cyan transition duration-300">Leaderboard</a>
+                <a href="/chat" class="text-text-muted hover:text-secondary-cyan transition duration-300">Community Chat</a>
+            </div>
+
+            <!-- Desktop Take Quiz Button -->
+            <a href="/words/quiz" class="hidden md:flex py-2 px-5 rounded-full cta-button-secondary font-extrabold text-base shadow-xl hover:shadow-2xl transition duration-300">
+                Take Quiz
+            </a>
+
+            <!-- Mobile Menu Container -->
+            <div class="md:hidden flex items-center space-x-3">
+                <!-- Mobile Take Quiz Button -->
+                <a href="/words/quiz" class="py-1 px-3 rounded-full text-sm cta-button-secondary font-bold shadow-xl transition duration-300">
+                    Quiz
+                </a>
+
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-button" class="text-text-muted hover:text-secondary-cyan transition duration-300 relative z-50">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Dropdown Menu -->
+        <div id="mobile-dropdown-menu" class="mobile-dropdown-menu md:hidden w-full left-0">
+            <div class="p-4 space-y-3">
+                <a href="/" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-home mr-3 w-5 text-center"></i>
+                    <span>Home</span>
+                </a>
+                <a href="/words/quiz" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-book mr-3 w-5 text-center"></i>
+                    <span>Words Quiz</span>
+                </a>
+                <a href="/sentences/quiz" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-comments mr-3 w-5 text-center"></i>
+                    <span>Sentences Quiz</span>
+                </a>
+                <a href="/learn" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-graduation-cap mr-3 w-5 text-center"></i>
+                    <span>Learn</span>
+                </a>
+                <a href="/profile" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-user mr-3 w-5 text-center"></i>
+                    <span>Profile</span>
+                </a>
+                <a href="/result" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-chart-bar mr-3 w-5 text-center"></i>
+                    <span>Results</span>
+                </a>
+                <a href="/leaderboard" class="flex items-center text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-trophy mr-3 w-5 text-center"></i>
+                    <span>Leaderboard</span>
+                </a>
+                <a href="/chat" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-users mr-3 w-5 text-center"></i>
+                    <span>Community Chat</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Dropdown Backdrop -->
+    <div id="mobile-dropdown-backdrop" class="mobile-dropdown-backdrop md:hidden"></div>
+
+    <main class="pt-24 pb-16">
+        <!-- Header Section -->
+        <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-text-light">
+                    <i class="fas fa-trophy text-gold mr-3 trophy-icon"></i>
+                    Learning <span class="text-secondary-cyan">Leaderboard</span>
+                </h1>
+                <p class="text-xl text-text-muted max-w-2xl mx-auto">
+                    Compete with other learners and track your progress in real-time
+                </p>
+            </div>
+        </section>
+
+        <!-- Stats Overview -->
+        <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="sophisticated-card p-4 text-center">
+                    <div class="text-2xl font-bold text-secondary-cyan" id="total-learners">0</div>
+                    <div class="text-text-muted text-sm">Active Learners</div>
+                </div>
+                <div class="sophisticated-card p-4 text-center">
+                    <div class="text-2xl font-bold text-primary-blue" id="total-quizzes">0</div>
+                    <div class="text-text-muted text-sm">Quizzes Completed</div>
+                </div>
+                <div class="sophisticated-card p-4 text-center">
+                    <div class="text-2xl font-bold text-green-400" id="total-words">0</div>
+                    <div class="text-text-muted text-sm">Words Mastered</div>
+                </div>
+                <div class="sophisticated-card p-4 text-center">
+                    <div class="text-2xl font-bold text-yellow-400" id="total-sentences">0</div>
+                    <div class="text-text-muted text-sm">Sentences Learned</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Leaderboard Tabs -->
+        <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+            <div class="sophisticated-card p-2">
+                <div class="flex space-x-1">
+                    <button id="tab-overall" class="flex-1 py-3 px-4 rounded-lg font-medium transition duration-300 bg-secondary-cyan text-main-bg">
+                        <i class="fas fa-crown mr-2"></i>Overall Ranking
+                    </button>
+                    <button id="tab-words" class="flex-1 py-3 px-4 rounded-lg font-medium transition duration-300 text-text-muted hover:text-text-light hover:bg-card-bg/50">
+                        <i class="fas fa-font mr-2"></i>Words Mastery
+                    </button>
+                    <button id="tab-sentences" class="flex-1 py-3 px-4 rounded-lg font-medium transition duration-300 text-text-muted hover:text-text-light hover:bg-card-bg/50">
+                        <i class="fas fa-comment-alt mr-2"></i>Sentences Mastery
+                    </button>
+                    <button id="tab-streak" class="flex-1 py-3 px-4 rounded-lg font-medium transition duration-300 text-text-muted hover:text-text-light hover:bg-card-bg/50">
+                        <i class="fas fa-fire mr-2"></i>Study Streak
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Leaderboard Content -->
+        <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- Leaderboard List -->
+                <div class="lg:col-span-2">
+                    <div class="sophisticated-card p-6">
+                        <h2 class="text-2xl font-bold text-text-light mb-6" id="leaderboard-title">
+                            Overall Leaderboard
+                        </h2>
+                        
+                        <div class="space-y-3" id="leaderboard-list">
+                            <!-- Leaderboard items will be populated here -->
+                        </div>
+
+                        <div id="no-data" class="text-center py-12 text-text-muted">
+                            <i class="fas fa-trophy text-6xl mb-4"></i>
+                            <p class="text-xl mb-4">No learners yet</p>
+                            <p class="text-text-muted mb-6">Complete your first quiz to appear on the leaderboard!</p>
+                            <a href="/words/quiz" class="inline-block py-3 px-6 rounded-lg bg-gradient-to-r from-primary-blue to-secondary-cyan text-white font-medium hover:shadow-lg transition duration-300">
+                                <i class="fas fa-play mr-2"></i> Start Learning
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current User Stats & Recent Activity -->
+                <div class="space-y-6">
+                    <!-- Current User Card -->
+                    <div class="sophisticated-card p-6">
+                        <h2 class="text-xl font-bold text-text-light mb-4 flex items-center">
+                            <i class="fas fa-user-circle mr-2 text-secondary-cyan"></i>
+                            Your Ranking
+                        </h2>
+                        
+                        <div id="current-user-stats" class="text-center py-8">
+                            <!-- Current user stats will be populated here -->
+                        </div>
+
+                        <div id="no-user-data" class="text-center py-4 text-text-muted">
+                            <i class="fas fa-user-slash text-4xl mb-3"></i>
+                            <p>Complete a quiz to see your ranking</p>
+                        </div>
+                    </div>
+
+                    <!-- Recent Achievements -->
+                    <div class="sophisticated-card p-6">
+                        <h2 class="text-xl font-bold text-text-light mb-4 flex items-center">
+                            <i class="fas fa-award mr-2 text-yellow-400"></i>
+                            Recent Achievements
+                        </h2>
+                        
+                        <div id="achievements-list" class="space-y-3">
+                            <!-- Achievements will be populated here -->
+                        </div>
+
+                        <div id="no-achievements" class="text-center py-4 text-text-muted">
+                            <i class="fas fa-star text-4xl mb-3"></i>
+                            <p>Complete quizzes to earn achievements!</p>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="sophisticated-card p-6">
+                        <h2 class="text-xl font-bold text-text-light mb-4 flex items-center">
+                            <i class="fas fa-bolt mr-2 text-secondary-cyan"></i>
+                            Quick Actions
+                        </h2>
+                        
+                        <div class="space-y-3">
+                            <a href="/words/quiz" class="w-full block py-3 px-4 rounded-lg bg-gradient-to-r from-primary-blue to-secondary-cyan text-white font-medium text-center hover:shadow-lg transition duration-300">
+                                <i class="fas fa-play mr-2"></i> Take Words Quiz
+                            </a>
+                            <a href="/sentences/quiz" class="w-full block py-3 px-4 rounded-lg bg-card-bg border border-text-muted/30 text-text-light font-medium text-center hover:bg-text-muted/10 transition duration-300">
+                                <i class="fas fa-comments mr-2"></i> Take Sentences Quiz
+                            </a>
+                            <a href="/profile" class="w-full block py-3 px-4 rounded-lg bg-card-bg border border-text-muted/30 text-text-light font-medium text-center hover:bg-text-muted/10 transition duration-300">
+                                <i class="fas fa-chart-line mr-2"></i> View Your Progress
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-10 border-t border-main-bg/20 text-center text-text-muted bg-card-bg mt-12">
+        <p class="text-sm">&copy; 2025 RedCharger. Learn Chinese, climb the ranks!</p>
+    </footer>
+
+    <!-- Leaderboard Logic -->
+    <script>
+        // DOM Elements
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+        const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+        const leaderboardList = document.getElementById('leaderboard-list');
+        const currentUserStats = document.getElementById('current-user-stats');
+        const achievementsList = document.getElementById('achievements-list');
+        const noData = document.getElementById('no-data');
+        const noUserData = document.getElementById('no-user-data');
+        const noAchievements = document.getElementById('no-achievements');
+        const leaderboardTitle = document.getElementById('leaderboard-title');
+        
+        // Tab elements
+        const tabOverall = document.getElementById('tab-overall');
+        const tabWords = document.getElementById('tab-words');
+        const tabSentences = document.getElementById('tab-sentences');
+        const tabStreak = document.getElementById('tab-streak');
+
+        // Global state
+        let currentTab = 'overall';
+        let isMenuOpen = false;
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMobileMenu();
+            initializeTabs();
+            loadLeaderboard();
+            
+            // Update leaderboard every 10 seconds for real-time updates
+            setInterval(loadLeaderboard, 10000);
+        });
+
+        // Initialize Mobile Menu
+        function initializeMobileMenu() {
+            function toggleMobileMenu() {
+                isMenuOpen = !isMenuOpen;
+                
+                if (isMenuOpen) {
+                    mobileDropdownMenu.classList.add('open');
+                    mobileDropdownBackdrop.style.display = 'block';
+                    document.body.style.overflow = 'hidden';
+                    mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+                    mobileMenuButton.classList.remove('text-text-muted');
+                    mobileMenuButton.classList.add('text-secondary-cyan');
+                } else {
+                    mobileDropdownMenu.classList.remove('open');
+                    mobileDropdownBackdrop.style.display = 'none';
+                    document.body.style.overflow = '';
+                    mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                    mobileMenuButton.classList.remove('text-secondary-cyan');
+                    mobileMenuButton.classList.add('text-text-muted');
+                }
+            }
+
+            function closeMobileMenu() {
+                isMenuOpen = false;
+                mobileDropdownMenu.classList.remove('open');
+                mobileDropdownBackdrop.style.display = 'none';
+                document.body.style.overflow = '';
+                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                mobileMenuButton.classList.remove('text-secondary-cyan');
+                mobileMenuButton.classList.add('text-text-muted');
+            }
+
+            mobileMenuButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleMobileMenu();
+            });
+
+            mobileDropdownBackdrop.addEventListener('click', closeMobileMenu);
+
+            const menuLinks = mobileDropdownMenu.querySelectorAll('a');
+            menuLinks.forEach(link => {
+                link.addEventListener('click', closeMobileMenu);
+            });
+
+            document.addEventListener('click', function(e) {
+                if (isMenuOpen && 
+                    !mobileDropdownMenu.contains(e.target) && 
+                    !mobileMenuButton.contains(e.target)) {
+                    closeMobileMenu();
+                }
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (isMenuOpen && e.key === 'Escape') {
+                    closeMobileMenu();
+                }
+            });
+
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 768 && isMenuOpen) {
+                    closeMobileMenu();
+                }
+            });
+        }
+
+        // Initialize Tabs
+        function initializeTabs() {
+            tabOverall.addEventListener('click', () => switchTab('overall'));
+            tabWords.addEventListener('click', () => switchTab('words'));
+            tabSentences.addEventListener('click', () => switchTab('sentences'));
+            tabStreak.addEventListener('click', () => switchTab('streak'));
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            
+            // Update active tab styling
+            [tabOverall, tabWords, tabSentences, tabStreak].forEach(t => {
+                t.classList.remove('bg-secondary-cyan', 'text-main-bg');
+                t.classList.add('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
+            });
+            
+            switch(tab) {
+                case 'overall':
+                    tabOverall.classList.add('bg-secondary-cyan', 'text-main-bg');
+                    tabOverall.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
+                    leaderboardTitle.textContent = 'Overall Leaderboard';
+                    break;
+                case 'words':
+                    tabWords.classList.add('bg-secondary-cyan', 'text-main-bg');
+                    tabWords.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
+                    leaderboardTitle.textContent = 'Words Mastery Leaderboard';
+                    break;
+                case 'sentences':
+                    tabSentences.classList.add('bg-secondary-cyan', 'text-main-bg');
+                    tabSentences.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
+                    leaderboardTitle.textContent = 'Sentences Mastery Leaderboard';
+                    break;
+                case 'streak':
+                    tabStreak.classList.add('bg-secondary-cyan', 'text-main-bg');
+                    tabStreak.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
+                    leaderboardTitle.textContent = 'Study Streak Leaderboard';
+                    break;
+            }
+            
+            loadLeaderboard();
+        }
+
+        // Main leaderboard loading function
+        function loadLeaderboard() {
+            const users = getAllUsers();
+            const currentUser = getCurrentUser();
+            
+            updateGlobalStats(users);
+            
+            if (users.length === 0) {
+                showNoData();
+                return;
+            }
+            
+            // Sort users based on current tab
+            const sortedUsers = sortUsersByCriteria(users, currentTab);
+            displayLeaderboard(sortedUsers, currentUser);
+            displayCurrentUserStats(sortedUsers, currentUser);
+            displayAchievements(currentUser);
+        }
+
+        // Get all users from localStorage
+        function getAllUsers() {
+            // In a real app, this would be from a backend API
+            // For demo, we'll use localStorage and create some mock users
+            const users = [];
+            
+            // Get current user
+            const currentUserData = localStorage.getItem('userProfile');
+            if (currentUserData) {
+                const user = JSON.parse(currentUserData);
+                const stats = calculateUserStats();
+                users.push({
+                    id: 'current-user',
+                    username: user.username || 'You',
+                    avatar: user.avatar,
+                    stats: stats,
+                    isCurrentUser: true
+                });
+            }
+            
+            // Add mock users for demonstration
+            const mockUsers = generateMockUsers();
+            users.push(...mockUsers);
+            
+            return users;
+        }
+
+        // Calculate user stats (same as profile.html)
+        function calculateUserStats() {
+            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
+            const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{"words":{},"sentences":{}}');
+            
+            let totalWords = 0;
+            let totalSentences = 0;
+            let totalCorrect = 0;
+            let totalQuestions = 0;
+            let streakDays = 0;
+            let wordsMastered = 0;
+            let sentencesMastered = 0;
+            
+            // Calculate from quiz history
+            quizHistory.forEach(quiz => {
+                const correct = quiz.correct_answers || quiz.correct || 0;
+                const total = quiz.total_questions || quiz.total || 0;
+                
+                totalCorrect += correct;
+                totalQuestions += total;
+                
+                if (quiz.quiz_type === 'words') {
+                    totalWords += correct;
+                } else if (quiz.quiz_type === 'sentences') {
+                    totalSentences += correct;
+                }
+            });
+            
+            // Calculate mastered items
+            if (performanceData.words) {
+                Object.values(performanceData.words).forEach(word => {
+                    const totalAttempts = word.correct + (word.incorrect || 0);
+                    const accuracy = totalAttempts > 0 ? (word.correct / totalAttempts) * 100 : 0;
+                    if (accuracy >= 70) wordsMastered++;
+                });
+                totalWords = Math.max(totalWords, Object.keys(performanceData.words).length);
+            }
+            
+            if (performanceData.sentences) {
+                Object.values(performanceData.sentences).forEach(sentence => {
+                    const totalAttempts = sentence.correct + (sentence.incorrect || 0);
+                    const accuracy = totalAttempts > 0 ? (sentence.correct / totalAttempts) * 100 : 0;
+                    if (accuracy >= 70) sentencesMastered++;
+                });
+                totalSentences = Math.max(totalSentences, Object.keys(performanceData.sentences).length);
+            }
+            
+            // Calculate streak
+            streakDays = calculateStudyStreak(quizHistory);
+            
+            const accuracyRate = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
+            
+            return {
+                totalWords,
+                totalSentences,
+                streakDays,
+                accuracyRate,
+                totalQuizzes: quizHistory.length,
+                wordsMastered,
+                sentencesMastered,
+                totalScore: (wordsMastered * 2) + (sentencesMastered * 3) + (streakDays * 5) + accuracyRate
+            };
+        }
+
+        // Calculate study streak
+        function calculateStudyStreak(quizHistory) {
+            if (quizHistory.length === 0) return 0;
+            
+            const sortedQuizzes = [...quizHistory].sort((a, b) => 
+                new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date)
+            );
+            
+            let streak = 0;
+            let currentDate = new Date();
+            
+            const today = new Date().toDateString();
+            const hasQuizToday = sortedQuizzes.some(quiz => {
+                const quizDate = new Date(quiz.timestamp || quiz.date).toDateString();
+                return quizDate === today;
+            });
+            
+            if (hasQuizToday) {
+                streak = 1;
+                currentDate.setDate(currentDate.getDate() - 1);
+            }
+            
+            for (let i = 0; i < sortedQuizzes.length; i++) {
+                const quizDate = new Date(sortedQuizzes[i].timestamp || sortedQuizzes[i].date).toDateString();
+                const expectedDate = currentDate.toDateString();
+                
+                if (quizDate === expectedDate) {
+                    streak++;
+                    currentDate.setDate(currentDate.getDate() - 1);
+                } else if (quizDate < expectedDate) {
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            
+            return streak;
+        }
+
+        // Sort users based on current criteria
+        function sortUsersByCriteria(users, criteria) {
+            return [...users].sort((a, b) => {
+                switch(criteria) {
+                    case 'words':
+                        return b.stats.wordsMastered - a.stats.wordsMastered;
+                    case 'sentences':
+                        return b.stats.sentencesMastered - a.stats.sentencesMastered;
+                    case 'streak':
+                        return b.stats.streakDays - a.stats.streakDays;
+                    default: // overall
+                        return b.stats.totalScore - a.stats.totalScore;
+                }
+            });
+        }
+
+        // Display leaderboard list
+        function displayLeaderboard(users, currentUser) {
+            if (users.length === 0) {
+                showNoData();
+                return;
+            }
+            
+            noData.classList.add('hidden');
+            leaderboardList.innerHTML = '';
+            
+            users.forEach((user, index) => {
+                const rank = index + 1;
+                const isCurrentUser = user.id === 'current-user';
+                
+                const item = document.createElement('div');
+                item.className = `leaderboard-item p-4 rounded-lg flex items-center space-x-4 ${
+                    rank <= 3 ? `rank-${rank}` : ''
+                } ${isCurrentUser ? 'current-user pulse-animation' : ''}`;
+                
+                item.innerHTML = `
+                    <div class="flex-shrink-0">
+                        ${rank <= 3 ? `
+                            <div class="medal medal-${getMedalColor(rank)}">
+                                ${rank}
+                            </div>
+                        ` : `
+                            <div class="w-10 h-10 rounded-full bg-card-bg flex items-center justify-center text-text-muted font-bold">
+                                ${rank}
+                            </div>
+                        `}
+                    </div>
+                    
+                    <div class="flex-shrink-0">
+                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-blue to-secondary-cyan flex items-center justify-center text-white font-bold text-lg overflow-hidden">
+                            ${user.avatar ? `
+                                <img src="${user.avatar}" alt="${user.username}" class="w-full h-full object-cover">
+                            ` : `
+                                <i class="fas fa-user"></i>
+                            `}
+                        </div>
+                    </div>
+                    
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold text-text-light truncate ${isCurrentUser ? 'text-secondary-cyan' : ''}">
+                                ${user.username} ${isCurrentUser ? '<span class="text-sm">(You)</span>' : ''}
+                            </h3>
+                            <span class="text-lg font-bold ${getRankColor(rank)}">
+                                ${getDisplayValue(user.stats, currentTab)}
+                            </span>
+                        </div>
+                        
+                        <div class="mt-2">
+                            <div class="flex justify-between text-sm text-text-muted mb-1">
+                                <span>Progress</span>
+                                <span>${getProgressValue(user.stats, currentTab)}</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${getProgressPercentage(user.stats, currentTab)}%"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                leaderboardList.appendChild(item);
+            });
+        }
+
+        // Display current user stats
+        function displayCurrentUserStats(users, currentUser) {
+            if (!currentUser) {
+                noUserData.classList.remove('hidden');
+                currentUserStats.classList.add('hidden');
+                return;
+            }
+            
+            const currentUserRank = users.findIndex(user => user.id === 'current-user') + 1;
+            const totalUsers = users.length;
+            
+            noUserData.classList.add('hidden');
+            currentUserStats.classList.remove('hidden');
+            
+            currentUserStats.innerHTML = `
+                <div class="mb-4">
+                    <div class="text-4xl font-bold text-secondary-cyan mb-2">#${currentUserRank}</div>
+                    <div class="text-text-muted">out of ${totalUsers} learners</div>
+                </div>
+                
+                <div class="space-y-3 text-left">
+                    <div class="flex justify-between">
+                        <span class="text-text-muted">Words Mastered</span>
+                        <span class="font-semibold text-text-light">${currentUser.stats.wordsMastered}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-text-muted">Sentences Mastered</span>
+                        <span class="font-semibold text-text-light">${currentUser.stats.sentencesMastered}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-text-muted">Study Streak</span>
+                        <span class="font-semibold text-text-light">${currentUser.stats.streakDays} days</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-text-muted">Accuracy</span>
+                        <span class="font-semibold text-text-light">${currentUser.stats.accuracyRate}%</span>
+                    </div>
+                </div>
+                
+                ${currentUserRank <= 3 ? `
+                    <div class="mt-4 p-3 rounded-lg bg-gradient-to-r from-yellow-400 to-orange-400 text-main-bg text-center">
+                        <i class="fas fa-trophy mr-2"></i>
+                        You're in the top ${currentUserRank}!
+                    </div>
+                ` : currentUserRank <= 10 ? `
+                    <div class="mt-4 p-3 rounded-lg bg-gradient-to-r from-primary-blue to-secondary-cyan text-white text-center">
+                        <i class="fas fa-star mr-2"></i>
+                        Top 10 achiever!
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        // Display achievements
+        function displayAchievements(currentUser) {
+            if (!currentUser) {
+                noAchievements.classList.remove('hidden');
+                achievementsList.classList.add('hidden');
+                return;
+            }
+            
+            const achievements = calculateAchievements(currentUser.stats);
+            
+            if (achievements.length === 0) {
+                noAchievements.classList.remove('hidden');
+                achievementsList.classList.add('hidden');
+                return;
+            }
+            
+            noAchievements.classList.add('hidden');
+            achievementsList.classList.remove('hidden');
+            achievementsList.innerHTML = '';
+            
+            achievements.forEach(achievement => {
+                const achievementEl = document.createElement('div');
+                achievementEl.className = 'flex items-center space-x-3 p-3 rounded-lg bg-card-bg/50 border border-text-muted/20';
+                achievementEl.innerHTML = `
+                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 flex items-center justify-center text-main-bg">
+                        <i class="fas ${achievement.icon}"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-semibold text-text-light">${achievement.title}</div>
+                        <div class="text-sm text-text-muted">${achievement.description}</div>
+                    </div>
+                `;
+                achievementsList.appendChild(achievementEl);
+            });
+        }
+
+        // Update global statistics
+        function updateGlobalStats(users) {
+            let totalQuizzes = 0;
+            let totalWords = 0;
+            let totalSentences = 0;
+            
+            users.forEach(user => {
+                totalQuizzes += user.stats.totalQuizzes;
+                totalWords += user.stats.wordsMastered;
+                totalSentences += user.stats.sentencesMastered;
+            });
+            
+            document.getElementById('total-learners').textContent = users.length;
+            document.getElementById('total-quizzes').textContent = totalQuizzes;
+            document.getElementById('total-words').textContent = totalWords;
+            document.getElementById('total-sentences').textContent = totalSentences;
+        }
+
+        // Helper functions
+        function getCurrentUser() {
+            const users = getAllUsers();
+            return users.find(user => user.id === 'current-user');
+        }
+
+        function showNoData() {
+            noData.classList.remove('hidden');
+            leaderboardList.innerHTML = '';
+            noUserData.classList.remove('hidden');
+            currentUserStats.classList.add('hidden');
+            noAchievements.classList.remove('hidden');
+            achievementsList.classList.add('hidden');
+        }
+
+        function getMedalColor(rank) {
+            switch(rank) {
+                case 1: return 'gold';
+                case 2: return 'silver';
+                case 3: return 'bronze';
+                default: return '';
+            }
+        }
+
+        function getRankColor(rank) {
+            switch(rank) {
+                case 1: return 'text-gold';
+                case 2: return 'text-silver';
+                case 3: return 'text-bronze';
+                default: return 'text-text-light';
+            }
+        }
+
+        function getDisplayValue(stats, tab) {
+            switch(tab) {
+                case 'words': return stats.wordsMastered;
+                case 'sentences': return stats.sentencesMastered;
+                case 'streak': return `${stats.streakDays}d`;
+                default: return stats.totalScore;
+            }
+        }
+
+        function getProgressValue(stats, tab) {
+            switch(tab) {
+                case 'words': return `${stats.wordsMastered} words`;
+                case 'sentences': return `${stats.sentencesMastered} sentences`;
+                case 'streak': return `${stats.streakDays} days`;
+                default: return `${stats.totalScore} points`;
+            }
+        }
+
+        function getProgressPercentage(stats, tab) {
+            // Simplified progress calculation
+            switch(tab) {
+                case 'words': return Math.min((stats.wordsMastered / 150) * 100, 100);
+                case 'sentences': return Math.min((stats.sentencesMastered / 150) * 100, 100);
+                case 'streak': return Math.min((stats.streakDays / 30) * 100, 100);
+                default: return Math.min((stats.totalScore / 2000) * 100, 100);
+            }
+        }
+
+        function calculateAchievements(stats) {
+            const achievements = [];
+            
+            if (stats.streakDays >= 7) {
+                achievements.push({
+                    icon: 'fa-fire',
+                    title: 'Weekly Warrior',
+                    description: 'Maintained a 7-day study streak'
+                });
+            }
+            
+            if (stats.wordsMastered >= 50) {
+                achievements.push({
+                    icon: 'fa-font',
+                    title: 'Word Master',
+                    description: 'Mastered 50+ vocabulary words'
+                });
+            }
+            
+            if (stats.sentencesMastered >= 30) {
+                achievements.push({
+                    icon: 'fa-comment-alt',
+                    title: 'Sentence Builder',
+                    description: 'Mastered 30+ sentences'
+                });
+            }
+            
+            if (stats.accuracyRate >= 80) {
+                achievements.push({
+                    icon: 'fa-bullseye',
+                    title: 'Accuracy Expert',
+                    description: 'Maintained 80%+ accuracy rate'
+                });
+            }
+            
+            if (stats.totalQuizzes >= 10) {
+                achievements.push({
+                    icon: 'fa-trophy',
+                    title: 'Quiz Champion',
+                    description: 'Completed 10+ quizzes'
+                });
+            }
+            
+            return achievements;
+        }
+
+        // Generate mock users for demonstration
+        function generateMockUsers() {
+            return [
+                {
+                    id: 'user1',
+                    username: 'LanguageMaster',
+                    avatar: '',
+                    stats: {
+                        totalWords: 142,
+                        totalSentences: 89,
+                        streakDays: 14,
+                        accuracyRate: 92,
+                        totalQuizzes: 28,
+                        wordsMastered: 128,
+                        sentencesMastered: 76,
+                        totalScore: 1845
+                    }
+                },
+                {
+                    id: 'user2',
+                    username: 'HSKPro',
+                    avatar: '',
+                    stats: {
+                        totalWords: 138,
+                        totalSentences: 82,
+                        streakDays: 21,
+                        accuracyRate: 88,
+                        totalQuizzes: 32,
+                        wordsMastered: 121,
+                        sentencesMastered: 69,
+                        totalScore: 1792
+                    }
+                },
+                {
+                    id: 'user3',
+                    username: 'MandarinLearner',
+                    avatar: '',
+                    stats: {
+                        totalWords: 126,
+                        totalSentences: 74,
+                        streakDays: 9,
+                        accuracyRate: 85,
+                        totalQuizzes: 25,
+                        wordsMastered: 112,
+                        sentencesMastered: 61,
+                        totalScore: 1623
+                    }
+                },
+                {
+                    id: 'user4',
+                    username: 'ChineseExplorer',
+                    avatar: '',
+                    stats: {
+                        totalWords: 118,
+                        totalSentences: 67,
+                        streakDays: 5,
+                        accuracyRate: 82,
+                        totalQuizzes: 19,
+                        wordsMastered: 98,
+                        sentencesMastered: 54,
+                        totalScore: 1456
+                    }
+                },
+                {
+                    id: 'user5',
+                    username: 'PinyinMaster',
+                    avatar: '',
+                    stats: {
+                        totalWords: 95,
+                        totalSentences: 52,
+                        streakDays: 3,
+                        accuracyRate: 78,
+                        totalQuizzes: 15,
+                        wordsMastered: 84,
+                        sentencesMastered: 43,
+                        totalScore: 1234
+                    }
+                }
+            ];
+        }
+
+        // Refresh when page becomes visible
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                loadLeaderboard();
+            }
+        });
+
+        window.addEventListener('focus', loadLeaderboard);
+    </script>
+</body>
+</html>
