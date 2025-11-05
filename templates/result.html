@@ -533,7 +533,7 @@
 
     <!-- Results Logic -->
     <script>
-        // DOM elements
+                // DOM elements
         const loadingState = document.getElementById('loading-state');
         const resultsHeader = document.getElementById('results-header');
         const overallStats = document.getElementById('overall-stats');
@@ -629,7 +629,8 @@
                     correct_answers: correct,
                     total_questions: total,
                     percentage: percentage,
-                    timestamp: date.toISOString()
+                    timestamp: date.toISOString(),
+                    id: `quiz-${Date.now()}-${i}` // Add unique ID
                 });
             }
             
@@ -790,10 +791,10 @@
             // Update weaknesses and strengths
             updateWeaknessesAndStrengths(performanceData);
             
-            // Update quiz history
+            // Update quiz history - FIXED: Remove duplicates and handle invalid dates
             updateQuizHistory(quizHistory, currentQuiz);
             
-            // Update difficulty analysis
+            // Update difficulty analysis - FIXED: Add pinyin and fix display
             updateDifficultyAnalysis(performanceData);
         }
 
@@ -1116,24 +1117,51 @@
             }
         }
 
-        // Update quiz history
+        // Update quiz history - FIXED: Handle invalid dates and duplicates properly
         function updateQuizHistory(quizHistory, currentQuiz) {
             const historyContainer = document.getElementById('quiz-history');
             const noHistory = document.getElementById('no-history');
             
-            // Combine current quiz with history
-            const allQuizzes = currentQuiz ? [currentQuiz, ...quizHistory] : [...quizHistory];
+            // FIXED: Create a clean array with normalized quiz data
+            let allQuizzes = [...quizHistory];
             
-            if (allQuizzes.length > 0) {
+            // Add current quiz if it exists and is valid
+            if (currentQuiz && isValidQuiz(currentQuiz)) {
+                // Normalize current quiz data
+                const normalizedCurrentQuiz = normalizeQuizData(currentQuiz);
+                
+                // Check if this quiz already exists in history
+                const isDuplicate = quizHistory.some(quiz => isSameQuiz(quiz, normalizedCurrentQuiz));
+                
+                if (!isDuplicate) {
+                    allQuizzes = [normalizedCurrentQuiz, ...quizHistory];
+                }
+            }
+            
+            // Normalize all quiz data and remove duplicates
+            const normalizedQuizzes = allQuizzes.map(quiz => normalizeQuizData(quiz));
+            const uniqueQuizzes = removeDuplicateQuizzes(normalizedQuizzes);
+            
+            // Sort by date (newest first)
+            uniqueQuizzes.sort((a, b) => {
+                const dateA = getQuizDate(a);
+                const dateB = getQuizDate(b);
+                return dateB - dateA;
+            });
+            
+            if (uniqueQuizzes.length > 0) {
                 noHistory.classList.add('hidden');
                 
                 // Show last 6 quizzes
-                const recentQuizzes = allQuizzes.slice(0, 6);
+                const recentQuizzes = uniqueQuizzes.slice(0, 6);
                 
                 historyContainer.innerHTML = recentQuizzes.map(quiz => {
-                    const quizDate = new Date(quiz.timestamp || quiz.date);
-                    const dateStr = quizDate.toLocaleDateString();
+                    const quizDate = getQuizDate(quiz);
+                    const dateStr = isValidDate(quizDate) ? quizDate.toLocaleDateString() : 'Recent';
                     const type = quiz.quiz_type || 'words';
+                    const correct = quiz.correct_answers || quiz.correct || 0;
+                    const total = quiz.total_questions || quiz.total || 10;
+                    const percentage = quiz.percentage || Math.round((correct / total) * 100);
                     
                     return `
                         <div class="flex justify-between items-center p-4 bg-card-bg/50 rounded-lg border border-text-muted/20 ${type === 'words' ? 'quiz-type-words' : 'quiz-type-sentences'}">
@@ -1141,12 +1169,12 @@
                                 <div class="font-medium">${dateStr}</div>
                                 <div class="text-sm text-text-muted">
                                     ${type === 'words' ? 'Vocabulary Words' : 'Sentence Comprehension'} • 
-                                    ${quiz.correct_answers || quiz.correct}/${quiz.total_questions || quiz.total} correct
+                                    ${correct}/${total} correct
                                 </div>
                             </div>
                             <div class="text-right">
-                                <div class="text-xl font-bold ${quiz.percentage >= 70 ? 'text-green-400' : quiz.percentage >= 50 ? 'text-yellow-400' : 'text-red-400'}">
-                                    ${quiz.percentage}%
+                                <div class="text-xl font-bold ${percentage >= 70 ? 'text-green-400' : percentage >= 50 ? 'text-yellow-400' : 'text-red-400'}">
+                                    ${percentage}%
                                 </div>
                                 <div class="text-sm text-text-muted">Accuracy</div>
                             </div>
@@ -1159,7 +1187,64 @@
             }
         }
 
-        // Update difficulty analysis
+        // Helper function to normalize quiz data
+        function normalizeQuizData(quiz) {
+            return {
+                quiz_type: quiz.quiz_type || 'words',
+                correct_answers: quiz.correct_answers || quiz.correct || 0,
+                total_questions: quiz.total_questions || quiz.total || 10,
+                percentage: quiz.percentage || Math.round(((quiz.correct_answers || quiz.correct || 0) / (quiz.total_questions || quiz.total || 10)) * 100),
+                timestamp: quiz.timestamp || quiz.date || new Date().toISOString(),
+                id: quiz.id || `quiz-${Date.now()}`
+            };
+        }
+
+        // Helper function to check if two quizzes are the same
+        function isSameQuiz(quiz1, quiz2) {
+            const date1 = getQuizDate(quiz1);
+            const date2 = getQuizDate(quiz2);
+            
+            return (
+                quiz1.quiz_type === quiz2.quiz_type &&
+                quiz1.correct_answers === quiz2.correct_answers &&
+                quiz1.total_questions === quiz2.total_questions &&
+                Math.abs(date1 - date2) < 60000 // Within 1 minute
+            );
+        }
+
+        // Helper function to get quiz date
+        function getQuizDate(quiz) {
+            try {
+                return new Date(quiz.timestamp || quiz.date || new Date());
+            } catch (e) {
+                return new Date();
+            }
+        }
+
+        // Helper function to check if date is valid
+        function isValidDate(date) {
+            return date instanceof Date && !isNaN(date);
+        }
+
+        // Helper function to check if quiz is valid
+        function isValidQuiz(quiz) {
+            return quiz && (quiz.quiz_type === 'words' || quiz.quiz_type === 'sentences');
+        }
+
+        // Helper function to remove duplicate quizzes
+        function removeDuplicateQuizzes(quizzes) {
+            const seen = new Set();
+            return quizzes.filter(quiz => {
+                const key = `${quiz.quiz_type}-${quiz.correct_answers}-${quiz.total_questions}-${getQuizDate(quiz).getTime()}`;
+                if (seen.has(key)) {
+                    return false;
+                }
+                seen.add(key);
+                return true;
+            });
+        }
+
+        // Update difficulty analysis - FIXED: Proper pinyin display and structure
         function updateDifficultyAnalysis(performanceData) {
             const wordsMastery = calculateMasteryLevels(performanceData.words || {});
             const sentencesMastery = calculateMasteryLevels(performanceData.sentences || {});
@@ -1175,12 +1260,12 @@
             document.getElementById('sentences-medium-count').textContent = sentencesMastery.medium;
             document.getElementById('sentences-hard-count').textContent = sentencesMastery.hard;
             
-            // Update difficulty lists
+            // Update difficulty lists with proper pinyin display
             updateDifficultyList('words', performanceData.words || {});
             updateDifficultyList('sentences', performanceData.sentences || {});
         }
 
-        // Update difficulty list for words or sentences
+        // Update difficulty list for words or sentences - FIXED: Proper structure
         function updateDifficultyList(type, performance) {
             const difficultyList = document.getElementById(`${type}-difficulty-list`);
             
@@ -1199,50 +1284,33 @@
             const medium = items.filter(item => item.accuracy >= 50 && item.accuracy < 70);
             const hard = items.filter(item => item.accuracy < 50);
             
-            // Create HTML for each difficulty level
+            // Create HTML for each difficulty level with proper structure
             let html = '';
             
-            if (mastered.length > 0) {
-                html += `<div class="mb-4">
-                    <div class="text-sm font-semibold text-purple-400 mb-2">Mastered (${mastered.length})</div>
-                    <div class="grid grid-cols-2 gap-2">`;
-                mastered.slice(0, 4).forEach(item => {
-                    html += `<div class="text-sm truncate" title="${item.item} - ${item.pinyin}">${item.item}</div>`;
-                });
-                html += `</div></div>`;
-            }
+            const createDifficultySection = (items, level, color) => {
+                if (items.length > 0) {
+                    html += `<div class="mb-4">
+                        <div class="text-sm font-semibold ${color} mb-2">${level} (${items.length})</div>
+                        <div class="space-y-1">`;
+                    items.slice(0, 4).forEach(item => {
+                        html += `<div class="flex justify-between items-center text-sm p-1 rounded">
+                            <div>
+                                <div class="font-medium">${item.item}</div>
+                                <div class="text-xs text-text-muted">${item.pinyin}</div>
+                            </div>
+                            <div class="text-xs ${color}">${Math.round(item.accuracy)}%</div>
+                        </div>`;
+                    });
+                    html += `</div></div>`;
+                }
+            };
             
-            if (easy.length > 0) {
-                html += `<div class="mb-4">
-                    <div class="text-sm font-semibold text-green-400 mb-2">Easy (${easy.length})</div>
-                    <div class="grid grid-cols-2 gap-2">`;
-                easy.slice(0, 4).forEach(item => {
-                    html += `<div class="text-sm truncate" title="${item.item} - ${item.pinyin}">${item.item}</div>`;
-                });
-                html += `</div></div>`;
-            }
+            createDifficultySection(mastered, 'Mastered', 'text-purple-400');
+            createDifficultySection(easy, 'Easy', 'text-green-400');
+            createDifficultySection(medium, 'Medium', 'text-yellow-400');
+            createDifficultySection(hard, 'Hard', 'text-red-400');
             
-            if (medium.length > 0) {
-                html += `<div class="mb-4">
-                    <div class="text-sm font-semibold text-yellow-400 mb-2">Medium (${medium.length})</div>
-                    <div class="grid grid-cols-2 gap-2">`;
-                medium.slice(0, 4).forEach(item => {
-                    html += `<div class="text-sm truncate" title="${item.item} - ${item.pinyin}">${item.item}</div>`;
-                });
-                html += `</div></div>`;
-            }
-            
-            if (hard.length > 0) {
-                html += `<div class="mb-4">
-                    <div class="text-sm font-semibold text-red-400 mb-2">Hard (${hard.length})</div>
-                    <div class="grid grid-cols-2 gap-2">`;
-                hard.slice(0, 4).forEach(item => {
-                    html += `<div class="text-sm truncate" title="${item.item} - ${item.pinyin}">${item.item}</div>`;
-                });
-                html += `</div></div>`;
-            }
-            
-            difficultyList.innerHTML = html;
+            difficultyList.innerHTML = html || `<div class="text-text-muted text-center py-4">No ${type} data available</div>`;
         }
 
         // Export user data
