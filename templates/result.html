@@ -615,9 +615,9 @@
             const quizHistory = [];
             const today = new Date();
             
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < 20; i++) { // Increased to 20 for more data points
                 const date = new Date();
-                date.setDate(today.getDate() - i * 2);
+                date.setDate(today.getDate() - i);
                 
                 const quizType = Math.random() > 0.5 ? 'words' : 'sentences';
                 const correct = Math.floor(Math.random() * 8) + 3; // 3-10 correct
@@ -630,7 +630,7 @@
                     total_questions: total,
                     percentage: percentage,
                     timestamp: date.toISOString(),
-                    id: `quiz-${Date.now()}-${i}` // Add unique ID
+                    id: `quiz-${Date.now()}-${i}`
                 });
             }
             
@@ -678,21 +678,20 @@
             
             // Generate performance data for words with intentional weaknesses and strengths
             hsk1Words.forEach((word, index) => {
-                // Create intentional patterns for weaknesses and strengths
                 let correct, incorrect;
                 
                 if (index < 3) {
                     // Create weaknesses (low accuracy)
-                    correct = Math.floor(Math.random() * 2) + 1; // 1-2 correct
-                    incorrect = Math.floor(Math.random() * 4) + 3; // 3-6 incorrect
+                    correct = Math.floor(Math.random() * 2) + 1;
+                    incorrect = Math.floor(Math.random() * 4) + 3;
                 } else if (index < 8) {
                     // Create strengths (high accuracy)
-                    correct = Math.floor(Math.random() * 4) + 4; // 4-7 correct
-                    incorrect = Math.floor(Math.random() * 2); // 0-1 incorrect
+                    correct = Math.floor(Math.random() * 4) + 4;
+                    incorrect = Math.floor(Math.random() * 2);
                 } else {
                     // Mixed performance
-                    correct = Math.floor(Math.random() * 4) + 2; // 2-5 correct
-                    incorrect = Math.floor(Math.random() * 3) + 1; // 1-3 incorrect
+                    correct = Math.floor(Math.random() * 4) + 2;
+                    incorrect = Math.floor(Math.random() * 3) + 1;
                 }
                 
                 performanceData.words[word.word] = {
@@ -705,21 +704,20 @@
             
             // Generate performance data for sentences with intentional weaknesses and strengths
             hsk1Sentences.forEach((sentence, index) => {
-                // Create intentional patterns for weaknesses and strengths
                 let correct, incorrect;
                 
                 if (index < 3) {
                     // Create weaknesses (low accuracy)
-                    correct = Math.floor(Math.random() * 2) + 1; // 1-2 correct
-                    incorrect = Math.floor(Math.random() * 3) + 2; // 2-4 incorrect
+                    correct = Math.floor(Math.random() * 2) + 1;
+                    incorrect = Math.floor(Math.random() * 3) + 2;
                 } else if (index < 8) {
                     // Create strengths (high accuracy)
-                    correct = Math.floor(Math.random() * 3) + 3; // 3-5 correct
-                    incorrect = Math.floor(Math.random() * 2); // 0-1 incorrect
+                    correct = Math.floor(Math.random() * 3) + 3;
+                    incorrect = Math.floor(Math.random() * 2);
                 } else {
                     // Mixed performance
-                    correct = Math.floor(Math.random() * 3) + 2; // 2-4 correct
-                    incorrect = Math.floor(Math.random() * 2) + 1; // 1-2 incorrect
+                    correct = Math.floor(Math.random() * 3) + 2;
+                    incorrect = Math.floor(Math.random() * 2) + 1;
                 }
                 
                 performanceData.sentences[sentence.sentence] = {
@@ -738,27 +736,19 @@
 
         // Load and process results data
         function loadResultsData() {
-            // Get quiz results from sessionStorage (current quiz)
             const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
-            
-            // Get quiz history from localStorage (all previous quizzes)
             let quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
-            
-            // Get performance data
             let performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
             
-            // If no data exists, generate mock data for demonstration
             if (quizHistory.length === 0 && Object.keys(performanceData).length === 0) {
                 const mockData = generateMockData();
                 quizHistory = mockData.quizHistory;
                 performanceData = mockData.performanceData;
                 
-                // Store the mock data for future use
                 localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
                 localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
             }
             
-            // Check if we have any data to display
             const hasData = currentQuiz || quizHistory.length > 0 || Object.keys(performanceData).length > 0;
             
             if (hasData) {
@@ -770,10 +760,7 @@
 
         // Display results
         function displayResults(currentQuiz, quizHistory, performanceData) {
-            // Hide loading state
             loadingState.classList.add('hidden');
-            
-            // Show all sections
             resultsHeader.classList.remove('hidden');
             overallStats.classList.remove('hidden');
             progressCharts.classList.remove('hidden');
@@ -782,20 +769,12 @@
             quizHistorySection.classList.remove('hidden');
             difficultySection.classList.remove('hidden');
             
-            // Update overall stats
             updateOverallStats(quizHistory, performanceData);
-            
-            // Update charts
             updateCharts(quizHistory, performanceData);
-            
-            // Update weaknesses and strengths with actionable information
             updateWeaknessesAndStrengths(performanceData);
-            
-            // Update quiz history - FIXED: Remove duplicates and handle invalid dates
             updateQuizHistory(quizHistory, currentQuiz);
-            
-            // Update difficulty analysis - FIXED: Add pinyin and fix display
             updateDifficultyAnalysis(performanceData);
+            updateLearningRecommendations(performanceData, quizHistory);
         }
 
         // Show no data state
@@ -809,21 +788,18 @@
             const totalQuizzes = quizHistory.length;
             document.getElementById('total-quizzes').textContent = totalQuizzes;
             
-            // Calculate words vs sentences quizzes
             const wordsQuizzes = quizHistory.filter(q => q.quiz_type === 'words').length;
             const sentencesQuizzes = quizHistory.filter(q => q.quiz_type === 'sentences').length;
             
             document.getElementById('words-quizzes').textContent = `${wordsQuizzes} words`;
             document.getElementById('sentences-quizzes').textContent = `${sentencesQuizzes} sentences`;
             
-            // Calculate average scores
             let totalScore = 0;
             quizHistory.forEach(quiz => {
                 totalScore += quiz.percentage;
             });
             const avgScore = totalQuizzes > 0 ? Math.round(totalScore / totalQuizzes) : 0;
             
-            // Calculate words vs sentences scores
             let wordsTotalScore = 0;
             let sentencesTotalScore = 0;
             
@@ -842,7 +818,6 @@
             document.getElementById('words-score').textContent = `${wordsAvgScore}% words`;
             document.getElementById('sentences-score').textContent = `${sentencesAvgScore}% sentences`;
             
-            // Calculate items learned (items with at least 1 correct answer)
             const wordsLearned = Object.values(performanceData.words || {}).filter(item => item.correct > 0).length;
             const sentencesLearned = Object.values(performanceData.sentences || {}).filter(item => item.correct > 0).length;
             
@@ -850,7 +825,6 @@
             document.getElementById('words-learned').textContent = `${wordsLearned} words`;
             document.getElementById('sentences-learned').textContent = `${sentencesLearned} sentences`;
             
-            // Calculate study streak
             const streak = calculateStudyStreak(quizHistory);
             document.getElementById('study-streak').textContent = streak;
         }
@@ -859,7 +833,6 @@
         function calculateStudyStreak(quizHistory) {
             if (quizHistory.length === 0) return 0;
             
-            // Sort quizzes by date (newest first)
             const sortedQuizzes = [...quizHistory].sort((a, b) => 
                 new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date)
             );
@@ -867,7 +840,6 @@
             let streak = 0;
             let currentDate = new Date();
             
-            // Check if there was a quiz today
             const today = new Date().toDateString();
             const hasQuizToday = sortedQuizzes.some(quiz => {
                 const quizDate = new Date(quiz.timestamp || quiz.date).toDateString();
@@ -879,7 +851,6 @@
                 currentDate.setDate(currentDate.getDate() - 1);
             }
             
-            // Check consecutive days
             for (let i = 0; i < sortedQuizzes.length; i++) {
                 const quizDate = new Date(sortedQuizzes[i].timestamp || sortedQuizzes[i].date).toDateString();
                 const expectedDate = currentDate.toDateString();
@@ -888,7 +859,6 @@
                     streak++;
                     currentDate.setDate(currentDate.getDate() - 1);
                 } else if (quizDate < expectedDate) {
-                    // Skip to the next relevant date
                     continue;
                 } else {
                     break;
@@ -898,23 +868,35 @@
             return streak;
         }
 
-        // Update progress charts
+        // Update progress charts with horizontal scroll
         function updateCharts(quizHistory, performanceData) {
-            // Score Progress Chart
+            // Score Progress Chart with horizontal scroll container
             const scoreCtx = document.getElementById('scoreChart').getContext('2d');
             
-            // Sort quizzes by date
             const sortedQuizzes = [...quizHistory].sort((a, b) => 
                 new Date(a.timestamp || a.date) - new Date(b.timestamp || b.date)
             );
             
-            const labels = sortedQuizzes.map((quiz, index) => 
-                quiz.quiz_type === 'words' ? `W${index + 1}` : `S${index + 1}`
-            );
+            // Create more detailed labels for better horizontal scrolling
+            const labels = sortedQuizzes.map((quiz, index) => {
+                const date = new Date(quiz.timestamp || quiz.date);
+                return `${date.getMonth()+1}/${date.getDate()} ${quiz.quiz_type === 'words' ? 'W' : 'S'}`;
+            });
+            
             const scores = sortedQuizzes.map(quiz => quiz.percentage);
             const backgroundColors = sortedQuizzes.map(quiz => 
                 quiz.quiz_type === 'words' ? 'rgba(92, 124, 250, 0.8)' : 'rgba(51, 240, 232, 0.8)'
             );
+            
+            // Calculate chart width based on number of data points
+            const minWidth = 600; // Minimum width
+            const pointWidth = 50; // Width per data point
+            const chartWidth = Math.max(minWidth, labels.length * pointWidth);
+            
+            // Set canvas width for horizontal scrolling
+            document.getElementById('scoreChart').parentElement.style.overflowX = 'auto';
+            document.getElementById('scoreChart').parentElement.style.position = 'relative';
+            document.getElementById('scoreChart').width = chartWidth;
             
             new Chart(scoreCtx, {
                 type: 'line',
@@ -925,13 +907,18 @@
                         data: scores,
                         backgroundColor: backgroundColors,
                         borderColor: '#5c7cfa',
-                        borderWidth: 2,
+                        borderWidth: 3,
                         fill: false,
-                        tension: 0.4
+                        tension: 0.4,
+                        pointBackgroundColor: backgroundColors,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
                     }]
                 },
                 options: {
-                    responsive: true,
+                    responsive: false,
                     maintainAspectRatio: false,
                     scales: {
                         y: {
@@ -941,7 +928,10 @@
                                 color: 'rgba(255, 255, 255, 0.1)'
                             },
                             ticks: {
-                                color: '#94a3b8'
+                                color: '#94a3b8',
+                                callback: function(value) {
+                                    return value + '%';
+                                }
                             }
                         },
                         x: {
@@ -949,19 +939,34 @@
                                 color: 'rgba(255, 255, 255, 0.1)'
                             },
                             ticks: {
-                                color: '#94a3b8'
+                                color: '#94a3b8',
+                                maxRotation: 45,
+                                minRotation: 45
                             }
                         }
                     },
                     plugins: {
                         legend: {
                             display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(42, 58, 80, 0.9)',
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#e2e8f0',
+                            borderColor: '#5c7cfa',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    const quiz = sortedQuizzes[context.dataIndex];
+                                    return `Score: ${context.parsed.y}% (${quiz.correct_answers}/${quiz.total_questions})`;
+                                }
+                            }
                         }
                     }
                 }
             });
             
-            // Comparison Chart (Words vs Sentences Mastery)
+            // Comparison Chart
             const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
             
             const wordsMastery = calculateMasteryLevels(performanceData.words || {});
@@ -1048,20 +1053,19 @@
             return levels;
         }
 
-        // Update weaknesses and strengths with actionable information
+        // Update weaknesses and strengths with new actionable information
         function updateWeaknessesAndStrengths(performanceData) {
             updatePerformanceSection('words', performanceData.words || {});
             updatePerformanceSection('sentences', performanceData.sentences || {});
         }
 
-        // Helper function to update performance sections with actionable information
+        // Helper function to update performance sections
         function updatePerformanceSection(type, performance) {
             const weaknessList = document.getElementById(`${type}-weakness-list`);
             const strengthList = document.getElementById(`${type}-strength-list`);
             const noWeaknesses = document.getElementById(`no-${type}-weaknesses`);
             const noStrengths = document.getElementById(`no-${type}-strengths`);
             
-            // Convert to array and calculate accuracy
             const items = Object.entries(performance).map(([item, stats]) => ({
                 item,
                 pinyin: stats.pinyin || '',
@@ -1083,42 +1087,21 @@
                 .sort((a, b) => b.accuracy - a.accuracy)
                 .slice(0, 5);
             
-            // Display weaknesses with actionable information
+            // Display weaknesses with actionable steps
             if (weaknesses.length > 0) {
                 weaknessList.innerHTML = weaknesses.map(item => `
-                    <div class="flex flex-col p-3 bg-red-900/20 border border-red-500/30 rounded-lg mb-3">
-                        <div class="flex justify-between items-center mb-2">
-                            <div>
-                                <div class="font-medium text-lg">${item.item}</div>
-                                <div class="text-sm text-text-muted">${item.pinyin}</div>
-                                <div class="text-sm text-text-muted">${item.meaning}</div>
+                    <div class="flex justify-between items-center p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
+                        <div class="flex-1">
+                            <div class="font-medium">${item.item}</div>
+                            <div class="text-sm text-text-muted">${item.pinyin}</div>
+                            <div class="text-xs text-text-muted mt-1">
+                                <i class="fas fa-bullseye mr-1"></i>
+                                Target: Practice 3x daily • Write + Speak
                             </div>
-                            <span class="text-red-400 font-bold text-lg">${Math.round(item.accuracy)}%</span>
                         </div>
-                        <div class="mt-2">
-                            <div class="text-sm text-text-muted mb-1">What to do:</div>
-                            <ul class="text-sm space-y-1">
-                                <li class="flex items-start">
-                                    <i class="fas fa-repeat text-primary-blue mr-2 mt-1"></i>
-                                    <span>Review this ${type === 'words' ? 'word' : 'sentence'} 3 times today</span>
-                                </li>
-                                <li class="flex items-start">
-                                    <i class="fas fa-microphone text-secondary-cyan mr-2 mt-1"></i>
-                                    <span>Practice pronunciation 5 times</span>
-                                </li>
-                                <li class="flex items-start">
-                                    <i class="fas fa-pen text-yellow-400 mr-2 mt-1"></i>
-                                    <span>Write it 3 times while saying it aloud</span>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="mt-3 flex space-x-2">
-                            <button class="flex-1 py-1 px-3 bg-primary-blue/20 text-primary-blue rounded text-sm font-medium hover:bg-primary-blue/30 transition">
-                                <i class="fas fa-play mr-1"></i> Practice Now
-                            </button>
-                            <button class="flex-1 py-1 px-3 bg-secondary-cyan/20 text-secondary-cyan rounded text-sm font-medium hover:bg-secondary-cyan/30 transition">
-                                <i class="fas fa-bookmark mr-1"></i> Save for Later
-                            </button>
+                        <div class="text-right">
+                            <span class="text-red-400 font-bold">${Math.round(item.accuracy)}%</span>
+                            <div class="text-xs text-text-muted">${item.attempts} attempts</div>
                         </div>
                     </div>
                 `).join('');
@@ -1126,56 +1109,23 @@
             } else {
                 weaknessList.innerHTML = '';
                 noWeaknesses.classList.remove('hidden');
-                
-                // Update the no weaknesses message with encouragement
-                noWeaknesses.innerHTML = `
-                    <i class="fas fa-check-circle text-green-400 text-4xl mb-3"></i>
-                    <p class="text-lg mb-2">Great job! You're doing well with ${type === 'words' ? 'vocabulary words' : 'sentence comprehension'}.</p>
-                    <p class="text-text-muted mb-4">Keep up the good work by continuing to practice regularly.</p>
-                    <div class="space-x-2">
-                        <a href="/${type}/quiz" class="inline-block py-2 px-4 rounded-lg cta-button-primary font-medium">
-                            <i class="fas fa-play mr-2"></i> Take Another Quiz
-                        </a>
-                        <a href="/learn" class="inline-block py-2 px-4 rounded-lg cta-button-secondary font-medium">
-                            <i class="fas fa-graduation-cap mr-2"></i> Learn More
-                        </a>
-                    </div>
-                `;
             }
             
-            // Display strengths with actionable information
+            // Display strengths with maintenance tips
             if (strengths.length > 0) {
                 strengthList.innerHTML = strengths.map(item => `
-                    <div class="flex flex-col p-3 bg-green-900/20 border border-green-500/30 rounded-lg mb-3">
-                        <div class="flex justify-between items-center mb-2">
-                            <div>
-                                <div class="font-medium text-lg">${item.item}</div>
-                                <div class="text-sm text-text-muted">${item.pinyin}</div>
-                                <div class="text-sm text-text-muted">${item.meaning}</div>
+                    <div class="flex justify-between items-center p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
+                        <div class="flex-1">
+                            <div class="font-medium">${item.item}</div>
+                            <div class="text-sm text-text-muted">${item.pinyin}</div>
+                            <div class="text-xs text-green-400 mt-1">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Mastered! Review weekly to maintain
                             </div>
-                            <span class="text-green-400 font-bold text-lg">${Math.round(item.accuracy)}%</span>
                         </div>
-                        <div class="mt-2">
-                            <div class="text-sm text-text-muted mb-1">Keep up the good work:</div>
-                            <ul class="text-sm space-y-1">
-                                <li class="flex items-start">
-                                    <i class="fas fa-check text-green-400 mr-2 mt-1"></i>
-                                    <span>You've mastered this ${type === 'words' ? 'word' : 'sentence'}!</span>
-                                </li>
-                                <li class="flex items-start">
-                                    <i class="fas fa-lightbulb text-yellow-400 mr-2 mt-1"></i>
-                                    <span>Try using it in new ${type === 'words' ? 'sentences' : 'contexts'}</span>
-                                </li>
-                                <li class="flex items-start">
-                                    <i class="fas fa-sync text-blue-400 mr-2 mt-1"></i>
-                                    <span>Review once a week to maintain mastery</span>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="mt-3">
-                            <button class="w-full py-1 px-3 bg-green-500/20 text-green-400 rounded text-sm font-medium hover:bg-green-500/30 transition">
-                                <i class="fas fa-star mr-1"></i> Mark as Mastered
-                            </button>
+                        <div class="text-right">
+                            <span class="text-green-400 font-bold">${Math.round(item.accuracy)}%</span>
+                            <div class="text-xs text-text-muted">${item.attempts} attempts</div>
                         </div>
                     </div>
                 `).join('');
@@ -1183,38 +1133,18 @@
             } else {
                 strengthList.innerHTML = '';
                 noStrengths.classList.remove('hidden');
-                
-                // Update the no strengths message with encouragement
-                noStrengths.innerHTML = `
-                    <i class="fas fa-book-open text-blue-400 text-4xl mb-3"></i>
-                    <p class="text-lg mb-2">Keep practicing to build your ${type === 'words' ? 'vocabulary' : 'sentence comprehension'} strengths!</p>
-                    <p class="text-text-muted mb-4">Focus on consistent practice to improve your accuracy.</p>
-                    <div class="space-x-2">
-                        <a href="/${type}/quiz" class="inline-block py-2 px-4 rounded-lg cta-button-primary font-medium">
-                            <i class="fas fa-play mr-2"></i> Practice ${type === 'words' ? 'Words' : 'Sentences'}
-                        </a>
-                        <a href="/learn" class="inline-block py-2 px-4 rounded-lg cta-button-secondary font-medium">
-                            <i class="fas fa-graduation-cap mr-2"></i> Learn More
-                        </a>
-                    </div>
-                `;
             }
         }
 
-        // Update quiz history - FIXED: Handle invalid dates and duplicates properly
+        // Update quiz history
         function updateQuizHistory(quizHistory, currentQuiz) {
             const historyContainer = document.getElementById('quiz-history');
             const noHistory = document.getElementById('no-history');
             
-            // FIXED: Create a clean array with normalized quiz data
             let allQuizzes = [...quizHistory];
             
-            // Add current quiz if it exists and is valid
             if (currentQuiz && isValidQuiz(currentQuiz)) {
-                // Normalize current quiz data
                 const normalizedCurrentQuiz = normalizeQuizData(currentQuiz);
-                
-                // Check if this quiz already exists in history
                 const isDuplicate = quizHistory.some(quiz => isSameQuiz(quiz, normalizedCurrentQuiz));
                 
                 if (!isDuplicate) {
@@ -1222,11 +1152,9 @@
                 }
             }
             
-            // Normalize all quiz data and remove duplicates
             const normalizedQuizzes = allQuizzes.map(quiz => normalizeQuizData(quiz));
             const uniqueQuizzes = removeDuplicateQuizzes(normalizedQuizzes);
             
-            // Sort by date (newest first)
             uniqueQuizzes.sort((a, b) => {
                 const dateA = getQuizDate(a);
                 const dateB = getQuizDate(b);
@@ -1236,7 +1164,6 @@
             if (uniqueQuizzes.length > 0) {
                 noHistory.classList.add('hidden');
                 
-                // Show last 6 quizzes
                 const recentQuizzes = uniqueQuizzes.slice(0, 6);
                 
                 historyContainer.innerHTML = recentQuizzes.map(quiz => {
@@ -1292,7 +1219,7 @@
                 quiz1.quiz_type === quiz2.quiz_type &&
                 quiz1.correct_answers === quiz2.correct_answers &&
                 quiz1.total_questions === quiz2.total_questions &&
-                Math.abs(date1 - date2) < 60000 // Within 1 minute
+                Math.abs(date1 - date2) < 60000
             );
         }
 
@@ -1328,12 +1255,11 @@
             });
         }
 
-        // Update difficulty analysis with actionable information
+        // Update difficulty analysis with new features
         function updateDifficultyAnalysis(performanceData) {
             const wordsMastery = calculateMasteryLevels(performanceData.words || {});
             const sentencesMastery = calculateMasteryLevels(performanceData.sentences || {});
             
-            // Update counts
             document.getElementById('words-mastered-count').textContent = wordsMastery.mastered;
             document.getElementById('words-easy-count').textContent = wordsMastery.easy;
             document.getElementById('words-medium-count').textContent = wordsMastery.medium;
@@ -1344,105 +1270,169 @@
             document.getElementById('sentences-medium-count').textContent = sentencesMastery.medium;
             document.getElementById('sentences-hard-count').textContent = sentencesMastery.hard;
             
-            // Update difficulty lists with actionable information
             updateMasteryList('words', performanceData.words || {});
             updateMasteryList('sentences', performanceData.sentences || {});
         }
 
-        // Update mastery list with actionable information
+        // Update mastery list with new features
         function updateMasteryList(type, performance) {
             const difficultyList = document.getElementById(`${type}-difficulty-list`);
             
-            // Convert to array and calculate accuracy
             const items = Object.entries(performance).map(([item, stats]) => ({
                 item,
                 pinyin: stats.pinyin || '',
-                meaning: stats.meaning || '',
                 accuracy: stats.correct + (stats.incorrect || 0) > 0 ? 
                     (stats.correct / (stats.correct + (stats.incorrect || 0))) * 100 : 0,
                 attempts: stats.correct + (stats.incorrect || 0)
             }));
             
-            // Group by difficulty
             const mastered = items.filter(item => item.accuracy >= 90);
             const easy = items.filter(item => item.accuracy >= 70 && item.accuracy < 90);
             const medium = items.filter(item => item.accuracy >= 50 && item.accuracy < 70);
             const hard = items.filter(item => item.accuracy < 50 && item.accuracy > 0);
             
-            // Create HTML for each difficulty level with actionable information
             let html = '';
             
-            const createMasterySection = (items, level, color, icon, advice) => {
+            const createMasterySection = (items, level, color) => {
                 if (items.length > 0) {
-                    html += `<div class="mb-6">
-                        <div class="flex items-center text-sm font-semibold ${color} mb-3">
-                            <i class="${icon} mr-2"></i>
-                            <span>${level} (${items.length})</span>
-                        </div>
-                        <div class="text-xs text-text-muted mb-2">${advice}</div>
-                        <div class="space-y-2">`;
-                    
-                    items.slice(0, 3).forEach(item => {
-                        html += `<div class="flex justify-between items-center text-sm p-2 rounded bg-${color.split('-')[0]}-900/20">
-                            <div class="flex-1">
+                    html += `<div class="mb-4">
+                        <div class="text-sm font-semibold ${color} mb-2">${level} (${items.length})</div>
+                        <div class="space-y-1">`;
+                    items.slice(0, 4).forEach(item => {
+                        html += `<div class="flex justify-between items-center text-sm p-1 rounded">
+                            <div>
                                 <div class="font-medium">${item.item}</div>
                                 <div class="text-xs text-text-muted">${item.pinyin}</div>
                             </div>
-                            <div class="text-xs ${color} font-bold">${Math.round(item.accuracy)}%</div>
+                            <div class="text-xs ${color}">${Math.round(item.accuracy)}%</div>
                         </div>`;
                     });
-                    
-                    if (items.length > 3) {
-                        html += `<div class="text-center text-xs text-text-muted mt-1">
-                            +${items.length - 3} more ${type === 'words' ? 'words' : 'sentences'}
-                        </div>`;
-                    }
-                    
                     html += `</div></div>`;
                 }
             };
             
-            createMasterySection(
-                mastered, 
-                'Mastered', 
-                'text-purple-400', 
-                'fas fa-crown',
-                'Great job! These are well mastered. Focus on maintaining through occasional review.'
-            );
+            createMasterySection(mastered, 'Mastered', 'text-purple-400');
+            createMasterySection(easy, 'Easy', 'text-green-400');
+            createMasterySection(medium, 'Medium', 'text-yellow-400');
+            createMasterySection(hard, 'Hard', 'text-red-400');
             
-            createMasterySection(
-                easy, 
-                'Easy', 
-                'text-green-400', 
-                'fas fa-thumbs-up',
-                'You\'re doing well with these. A little more practice will make them mastered.'
-            );
+            difficultyList.innerHTML = html || `<div class="text-text-muted text-center py-4">No ${type} data available</div>`;
+        }
+
+        // NEW FEATURE: Learning Recommendations
+        function updateLearningRecommendations(performanceData, quizHistory) {
+            // Create recommendations section if it doesn't exist
+            if (!document.getElementById('learning-recommendations')) {
+                const recommendationsHTML = `
+                    <section id="learning-recommendations" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
+                        <div class="sophisticated-card p-6">
+                            <h3 class="text-xl font-bold mb-4 text-text-light flex items-center">
+                                <i class="fas fa-lightbulb text-yellow-400 mr-2"></i>
+                                Personalized Learning Recommendations
+                            </h3>
+                            <div id="recommendations-content" class="space-y-4">
+                                <!-- Recommendations will be populated here -->
+                            </div>
+                        </div>
+                    </section>
+                `;
+                difficultySection.insertAdjacentHTML('afterend', recommendationsHTML);
+            }
+
+            const recommendationsContent = document.getElementById('recommendations-content');
+            const recommendations = generateLearningRecommendations(performanceData, quizHistory);
             
-            createMasterySection(
-                medium, 
-                'Medium', 
-                'text-yellow-400', 
-                'fas fa-exclamation-circle',
-                'These need focused practice. Spend 5-10 minutes daily on these.'
-            );
-            
-            createMasterySection(
-                hard, 
-                'Hard', 
-                'text-red-400', 
-                'fas fa-exclamation-triangle',
-                'These need significant attention. Practice these multiple times daily.'
-            );
-            
-            difficultyList.innerHTML = html || `
-                <div class="text-text-muted text-center py-4">
-                    <i class="fas fa-chart-bar text-2xl mb-2"></i>
-                    <p>No ${type} data available yet.</p>
-                    <a href="/${type}/quiz" class="inline-block mt-2 py-1 px-3 rounded text-sm cta-button-primary">
-                        Start Practicing
-                    </a>
+            recommendationsContent.innerHTML = recommendations.map(rec => `
+                <div class="flex items-start p-3 bg-${rec.color}-900/20 border border-${rec.color}-500/30 rounded-lg">
+                    <i class="${rec.icon} text-${rec.color}-400 mr-3 mt-1"></i>
+                    <div class="flex-1">
+                        <div class="font-medium">${rec.title}</div>
+                        <div class="text-sm text-text-muted">${rec.description}</div>
+                        <div class="text-xs text-${rec.color}-400 mt-1">${rec.action}</div>
+                    </div>
                 </div>
-            `;
+            `).join('');
+        }
+
+        // Generate learning recommendations based on performance
+        function generateLearningRecommendations(performanceData, quizHistory) {
+            const recommendations = [];
+            const wordsPerformance = performanceData.words || {};
+            const sentencesPerformance = performanceData.sentences || {};
+            
+            // Calculate overall performance
+            const wordsMastery = calculateMasteryLevels(wordsPerformance);
+            const sentencesMastery = calculateMasteryLevels(sentencesPerformance);
+            
+            const totalWords = Object.keys(wordsPerformance).length;
+            const totalSentences = Object.keys(sentencesPerformance).length;
+            
+            // Recommendation 1: Based on weak areas
+            if (wordsMastery.hard > sentencesMastery.hard) {
+                recommendations.push({
+                    title: "Focus on Vocabulary Building",
+                    description: "Your word accuracy needs more attention than sentence comprehension.",
+                    action: "Spend 15 minutes daily on vocabulary drills",
+                    icon: "fas fa-font",
+                    color: "blue"
+                });
+            } else if (sentencesMastery.hard > wordsMastery.hard) {
+                recommendations.push({
+                    title: "Improve Sentence Understanding",
+                    description: "Sentence comprehension is your primary area for improvement.",
+                    action: "Practice sentence construction and reading",
+                    icon: "fas fa-comments",
+                    color: "cyan"
+                });
+            }
+            
+            // Recommendation 2: Based on study consistency
+            const recentQuizzes = quizHistory.slice(0, 7).length;
+            if (recentQuizzes < 3) {
+                recommendations.push({
+                    title: "Increase Practice Frequency",
+                    description: "Regular practice is key to language retention.",
+                    action: "Aim for at least 3 quizzes per week",
+                    icon: "fas fa-calendar-check",
+                    color: "green"
+                });
+            }
+            
+            // Recommendation 3: Based on mastery progress
+            const totalMastered = wordsMastery.mastered + sentencesMastery.mastered;
+            const totalItems = totalWords + totalSentences;
+            const masteryPercentage = totalItems > 0 ? (totalMastered / totalItems) * 100 : 0;
+            
+            if (masteryPercentage < 30) {
+                recommendations.push({
+                    title: "Build Foundation First",
+                    description: "Focus on mastering basic words and sentences before advancing.",
+                    action: "Review HSK1 fundamentals daily",
+                    icon: "fas fa-layer-group",
+                    color: "purple"
+                });
+            } else if (masteryPercentage > 70) {
+                recommendations.push({
+                    title: "Ready for Advancement",
+                    description: "You're mastering HSK1 content efficiently.",
+                    action: "Consider starting HSK2 preparation",
+                    icon: "fas fa-rocket",
+                    color: "yellow"
+                });
+            }
+            
+            // Default recommendation
+            if (recommendations.length === 0) {
+                recommendations.push({
+                    title: "Maintain Consistent Practice",
+                    description: "Your current learning pace is effective. Keep it up!",
+                    action: "Continue with your current study routine",
+                    icon: "fas fa-chart-line",
+                    color: "green"
+                });
+            }
+            
+            return recommendations.slice(0, 3); // Return top 3 recommendations
         }
 
         // Export user data
@@ -1471,7 +1461,6 @@
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
             
-            // Show success message
             alert('Your learning data has been exported successfully!');
         }
     </script>
