@@ -36,7 +36,7 @@ cleanup_thread = threading.Thread(target=cleanup_inactive_users, daemon=True)
 cleanup_thread.start()
 
 # Chat page route
-@chat_bp.route('/page')
+@chat_bp.route('/chat')
 def chat_page():
     """Serve the chat.html page"""
     return render_template('chat.html')
