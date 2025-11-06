@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify, session, render_template
-import json
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import uuid
 from typing import Dict, List, Set
 import threading
@@ -14,13 +13,6 @@ chat_bp = Blueprint('chat', __name__, url_prefix='/api/chat')
 chat_messages: List[Dict] = []
 online_users: Dict[str, Dict] = {}  # {user_id: {username, avatar, last_seen}}
 typing_users: Set[str] = set()
-message_listeners: List[Dict] = []  # For long polling
-
-# CHAT PAGE ROUTE - Add this route to serve the chat.html page
-@chat_bp.route('/chat')
-def chat_page():
-    """Serve the chat.html page"""
-    return render_template('chat.html')
 
 # Cleanup thread for removing inactive users
 def cleanup_inactive_users():
@@ -43,12 +35,18 @@ def cleanup_inactive_users():
 cleanup_thread = threading.Thread(target=cleanup_inactive_users, daemon=True)
 cleanup_thread.start()
 
+# Chat page route
+@chat_bp.route('/page')
+def chat_page():
+    """Serve the chat.html page"""
+    return render_template('chat.html')
+
 @chat_bp.before_request
 def check_user_profile():
     """Check if user has completed their profile before accessing chat"""
     if request.endpoint and 'chat.' in request.endpoint:
         # Skip for specific endpoints that don't require profile
-        if request.endpoint in ['chat.health', 'chat.get_messages']:
+        if request.endpoint in ['chat.health', 'chat.get_messages', 'chat.chat_page']:
             return
             
         # Check if user has profile data in session or request
@@ -151,9 +149,6 @@ def send_message():
         if user_profile['username'] in typing_users:
             typing_users.remove(user_profile['username'])
         
-        # Notify all listeners
-        notify_listeners(new_message)
-        
         return jsonify({
             'success': True,
             'message': new_message
@@ -187,12 +182,6 @@ def delete_message(message_id):
         chat_messages[message_index]['is_deleted'] = True
         chat_messages[message_index]['deleted_at'] = datetime.utcnow().isoformat()
         
-        # Notify listeners about deletion
-        notify_listeners({
-            'type': 'message_deleted',
-            'message_id': message_id
-        })
-        
         return jsonify({'success': True})
         
     except Exception as e:
@@ -215,12 +204,6 @@ def update_typing_status():
             typing_users.add(username)
         else:
             typing_users.discard(username)
-        
-        # Notify listeners about typing status change
-        notify_listeners({
-            'type': 'typing_update',
-            'typing_users': list(typing_users)
-        })
         
         return jsonify({'success': True})
         
@@ -249,12 +232,6 @@ def update_online_status():
         else:
             online_users.pop(username, None)
             typing_users.discard(username)
-        
-        # Notify listeners about online status change
-        notify_listeners({
-            'type': 'online_update',
-            'online_users': list(online_users.keys())
-        })
         
         return jsonify({
             'success': True,
@@ -289,15 +266,6 @@ def poll_messages():
                     'online_users': list(online_users.keys())
                 })
             
-            # Check for typing updates
-            current_typing = list(typing_users)
-            if hasattr(request, 'last_typing') and request.last_typing != current_typing:
-                return jsonify({
-                    'typing_update': True,
-                    'typing_users': current_typing
-                })
-            
-            request.last_typing = current_typing
             time.sleep(0.5)  # Sleep to prevent busy waiting
         
         # Timeout - return empty response
@@ -356,12 +324,6 @@ def get_online_users():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-def notify_listeners(data):
-    """Notify all waiting long-polling clients"""
-    # This would be implemented with a proper message queue in production
-    # For now, we'll rely on the polling mechanism
-    pass
 
 # Error handlers
 @chat_bp.errorhandler(404)
