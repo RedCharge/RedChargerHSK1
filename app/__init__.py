@@ -31,7 +31,7 @@ def create_app():
     from .sentence_routes import sentence_bp
     from .learn_routes import learn_bp
     from .profile_routes import profile_bp
-    from chat_routes import chat_bp
+    from .chat_routes import chat_bp
     
     # Import leaderboard routes
     try:
