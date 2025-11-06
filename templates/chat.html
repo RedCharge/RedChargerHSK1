@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Community Chat - RedCharger</title>
+    <title>Community Chat - RedCharger HSK1</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Socket.IO -->
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     
     <script>
         tailwind.config = {
@@ -36,15 +34,15 @@
                             '0%': { backgroundPosition: '0% 50%' },
                             '100%': { backgroundPosition: '100% 50%' },
                         },
-                        fadeInDown: {
-                            '0%': { transform: 'translateY(-10px)', opacity: '0' },
-                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        pulseGlow: {
+                            '0%': { boxShadow: '0 0 5px rgba(51, 240, 232, 0.5)' },
+                            '100%': { boxShadow: '0 0 20px rgba(51, 240, 232, 0.8), 0 0 30px rgba(51, 240, 232, 0.6)' },
                         }
                     },
                     animation: {
                         fadeInUp: 'fadeInUp 0.6s ease-out forwards',
                         gradientShift: 'gradientShift 3s ease infinite alternate',
-                        fadeInDown: 'fadeInDown 0.3s ease-out forwards',
+                        pulseGlow: 'pulseGlow 2s ease-in-out infinite alternate',
                     }
                 }
             }
@@ -73,7 +71,13 @@
             background-color: #2a3a50;
             border-radius: 0.75rem;
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
             border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .sophisticated-card:hover {
+             transform: translateY(-5px) scale(1.01);
+             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(92, 124, 250, 0.3);
         }
 
         .cta-button-primary, .cta-button-secondary {
@@ -90,6 +94,7 @@
             color: white;
             box-shadow: 0 5px 20px rgba(92, 124, 250, 0.5);
             background-size: 200% auto;
+            animation: gradientShift 3s ease infinite alternate;
         }
         
         .cta-button-primary:hover {
@@ -108,42 +113,53 @@
             box-shadow: 0 8px 25px rgba(51, 240, 232, 0.6);
         }
 
-        /* Chat specific styles */
-        .message-self {
-            background: linear-gradient(135deg, #5c7cfa, #3d5ad8);
-            color: white;
-            border-radius: 1rem 1rem 0.25rem 1rem;
+        .profile-card {
+            background: linear-gradient(135deg, #2a3a50, #1e293b);
+            border-radius: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
 
-        .message-other {
-            background-color: #334155;
+        .profile-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(51, 240, 232, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .profile-card:hover::before {
+            left: 100%;
+        }
+
+        .profile-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(51, 240, 232, 0.3);
+        }
+
+        .form-input {
+            background: rgba(42, 58, 80, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
             color: #e2e8f0;
-            border-radius: 1rem 1rem 1rem 0.25rem;
         }
 
-        .typing-indicator {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            padding: 8px 12px;
+        .form-input:focus {
+            border-color: #33f0e8;
+            box-shadow: 0 0 0 3px rgba(51, 240, 232, 0.1);
+            outline: none;
+        }
+
+        .form-label {
             color: #94a3b8;
-            font-style: italic;
-        }
-
-        .typing-dot {
-            width: 6px;
-            height: 6px;
-            background-color: #33f0e8;
-            border-radius: 50%;
-            animation: typingAnimation 1.4s infinite ease-in-out;
-        }
-
-        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
-        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
-
-        @keyframes typingAnimation {
-            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
-            40% { transform: scale(1); opacity: 1; }
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: block;
         }
 
         /* Mobile dropdown menu styles */
@@ -181,107 +197,298 @@
             display: none;
         }
 
-        /* Chat responsive adjustments */
+        /* Chat specific styles */
         .chat-container {
-            height: calc(100vh - 140px);
+            height: calc(100vh - 180px);
+            display: flex;
+            flex-direction: column;
         }
 
-        @media (max-width: 768px) {
-            .chat-container {
-                height: calc(100vh - 120px);
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            max-width: 80%;
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 1rem;
+            position: relative;
+            animation: fadeInUp 0.3s ease-out;
+        }
+
+        .message-sent {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #5c7cfa, #3d5ad8);
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        .message-received {
+            align-self: flex-start;
+            background: #2a3a50;
+            border-bottom-left-radius: 0.25rem;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.25rem;
+        }
+
+        .message-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .message-username {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #94a3b8;
+        }
+
+        .message-time {
+            font-size: 0.7rem;
+            color: #64748b;
+            margin-top: 0.25rem;
+            text-align: right;
+        }
+
+        .message-actions {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            display: none;
+            gap: 0.25rem;
+        }
+
+        .message:hover .message-actions {
+            display: flex;
+        }
+
+        .message-action {
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+
+        .message-action:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+
+        .reply-indicator {
+            background: rgba(42, 58, 80, 0.8);
+            border-left: 3px solid #33f0e8;
+            padding: 0.5rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+
+        .reply-username {
+            font-weight: 600;
+            color: #33f0e8;
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            color: #94a3b8;
+            font-style: italic;
+            font-size: 0.85rem;
+        }
+
+        .typing-dots {
+            display: flex;
+            margin-left: 0.5rem;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #33f0e8;
+            margin: 0 1px;
+            animation: typingAnimation 1.4s infinite ease-in-out;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes typingAnimation {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
             }
         }
 
-        /* Smooth scrolling for messages */
-        .messages-container {
-            scroll-behavior: smooth;
+        .chat-input-container {
+            padding: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: #2a3a50;
         }
 
-        /* Online status indicator */
+        .chat-input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.5rem;
+        }
+
+        .chat-input {
+            flex: 1;
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+            padding: 0.75rem 1rem;
+            color: #e2e8f0;
+            resize: none;
+            max-height: 120px;
+            min-height: 44px;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: #33f0e8;
+            box-shadow: 0 0 0 2px rgba(51, 240, 232, 0.1);
+        }
+
+        .send-button {
+            background: linear-gradient(135deg, #33f0e8, #25c0b8);
+            border: none;
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1e293b;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .send-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(51, 240, 232, 0.4);
+        }
+
+        .send-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .reply-preview {
+            background: rgba(42, 58, 80, 0.9);
+            border-left: 3px solid #33f0e8;
+            padding: 0.5rem 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .reply-preview-text {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            max-width: 80%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .cancel-reply {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
         .online-indicator {
             width: 8px;
             height: 8px;
-            background-color: #10b981;
             border-radius: 50%;
-            animation: pulse 2s infinite;
+            background-color: #10b981;
+            margin-left: 0.5rem;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+        .chat-header {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: #2a3a50;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
-        /* Message actions */
-        .message-actions {
-            position: absolute;
-            top: -10px;
-            right: 10px;
-            opacity: 0;
-            transition: opacity 0.2s ease;
+        .chat-title {
+            font-size: 1.25rem;
+            font-weight: 600;
         }
 
-        .message-container:hover .message-actions {
-            opacity: 1;
+        .chat-info {
+            font-size: 0.85rem;
+            color: #94a3b8;
         }
 
-        /* Online users sidebar */
-        .online-users-sidebar {
-            transition: all 0.3s ease;
+        .empty-chat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #94a3b8;
+            text-align: center;
+            padding: 2rem;
         }
 
-        @media (max-width: 1024px) {
-            .online-users-sidebar {
-                position: fixed;
-                top: 0;
-                right: -100%;
-                width: 280px;
-                height: 100vh;
-                z-index: 40;
-                transition: right 0.3s ease;
-            }
-            
-            .online-users-sidebar.open {
-                right: 0;
-            }
-            
-            .sidebar-backdrop {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background-color: rgba(0, 0, 0, 0.5);
-                z-index: 35;
-                display: none;
-            }
+        .empty-chat-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #5c7cfa;
         }
 
-        /* Connection status */
-        .connection-status {
-            transition: all 0.3s ease;
-        }
-
-        /* Message animations */
-        @keyframes messageSlideIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .message-slide-in {
-            animation: messageSlideIn 0.3s ease-out;
+        .deleted-message {
+            font-style: italic;
+            color: #94a3b8;
+            opacity: 0.7;
         }
     </style>
 </head>
 <body class="selection:bg-primary-blue selection:text-white">
 
-    <!-- Navigation Bar with Full-Width Dropdown Menu -->
+    <!-- Navigation Bar -->
     <nav class="fixed top-0 left-0 right-0 z-50 p-4 lg:p-6 nav-card">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <div class="text-2xl font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-text-light to-secondary-cyan">
@@ -293,36 +500,23 @@
                 <a href="/" class="text-text-muted hover:text-secondary-cyan transition duration-300">Home</a>
                 <a href="/words/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Words Quiz</a>
                 <a href="/sentences/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Sentences Quiz</a>
-                <a href="/chat" class="text-secondary-cyan transition duration-300">Community Chat</a>
+                <a href="/learn" class="text-text-muted hover:text-secondary-cyan transition duration-300">Learn</a>
+                <a href="/profile" class="text-text-muted hover:text-secondary-cyan transition duration-300">Profile</a>
                 <a href="/result" class="text-text-muted hover:text-secondary-cyan transition duration-300">Results</a>
+                <a href="/chat" class="text-secondary-cyan transition duration-300">Community Chat</a>
             </div>
 
-            <!-- Desktop User Info -->
-            <div class="hidden md:flex items-center space-x-4">
-                <div class="flex items-center space-x-2">
-                    <div class="online-indicator"></div>
-                    <span class="text-text-muted text-sm" id="online-count">0 online</span>
-                </div>
-                <button id="online-users-toggle" class="py-2 px-4 rounded-lg bg-card-bg text-text-light border border-text-muted/30 font-medium hover:bg-text-muted/10 transition duration-300">
-                    <i class="fas fa-users mr-2"></i>Online Users
-                </button>
-                <a href="/" class="py-2 px-5 rounded-full cta-button-secondary font-extrabold text-base shadow-xl hover:shadow-2xl transition duration-300">
-                    Back to Home
-                </a>
-            </div>
+            <!-- Desktop View Results Button -->
+            <a href="/result" class="hidden md:flex py-2 px-5 rounded-full cta-button-secondary font-extrabold text-base shadow-xl hover:shadow-2xl transition duration-300">
+                View Results
+            </a>
 
             <!-- Mobile Menu Container -->
             <div class="md:hidden flex items-center space-x-3">
-                <!-- Mobile Online Count -->
-                <div class="flex items-center space-x-2">
-                    <div class="online-indicator"></div>
-                    <span class="text-text-muted text-sm" id="mobile-online-count">0</span>
-                </div>
-
-                <!-- Online Users Toggle for Mobile -->
-                <button id="mobile-online-users-toggle" class="text-text-muted hover:text-secondary-cyan transition duration-300">
-                    <i class="fas fa-users text-xl"></i>
-                </button>
+                <!-- Mobile View Results Button -->
+                <a href="/result" class="py-1 px-3 rounded-full text-sm cta-button-secondary font-bold shadow-xl transition duration-300">
+                    Results
+                </a>
 
                 <!-- Mobile Menu Button -->
                 <button id="mobile-menu-button" class="text-text-muted hover:text-secondary-cyan transition duration-300 relative z-50">
@@ -331,7 +525,7 @@
             </div>
         </div>
 
-        <!-- Mobile Dropdown Menu - Full Width -->
+        <!-- Mobile Dropdown Menu -->
         <div id="mobile-dropdown-menu" class="mobile-dropdown-menu md:hidden w-full left-0">
             <div class="p-4 space-y-3">
                 <a href="/" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
@@ -346,13 +540,21 @@
                     <i class="fas fa-comments mr-3 w-5 text-center"></i>
                     <span>Sentences Quiz</span>
                 </a>
-                <a href="/chat" class="flex items-center text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50 font-semibold">
-                    <i class="fas fa-users mr-3 w-5 text-center"></i>
-                    <span>Community Chat</span>
+                <a href="/learn" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-graduation-cap mr-3 w-5 text-center"></i>
+                    <span>Learn</span>
+                </a>
+                <a href="/profile" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-user mr-3 w-5 text-center"></i>
+                    <span>Profile</span>
                 </a>
                 <a href="/result" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
                     <i class="fas fa-chart-bar mr-3 w-5 text-center"></i>
                     <span>Results</span>
+                </a>
+                <a href="/chat" class="flex items-center text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-users mr-3 w-5 text-center"></i>
+                    <span>Community Chat</span>
                 </a>
             </div>
         </div>
@@ -361,542 +563,659 @@
     <!-- Mobile Dropdown Backdrop -->
     <div id="mobile-dropdown-backdrop" class="mobile-dropdown-backdrop md:hidden"></div>
 
-    <!-- Sidebar Backdrop -->
-    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
-
-    <main class="pt-24 pb-4">
-        <!-- Chat Header -->
-        <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-            <div class="flex flex-col md:flex-row md:items-center md:justify-between">
-                <div class="text-center md:text-left mb-4 md:mb-0">
-                    <h1 class="text-3xl md:text-4xl font-extrabold mb-2 text-text-light">
-                        Community <span class="text-secondary-cyan">Chat</span>
-                    </h1>
-                    <p class="text-lg text-text-muted">
-                        Connect with other Mandarin learners. Practice together and share tips!
-                    </p>
-                </div>
-                <div class="flex items-center justify-center space-x-4 text-sm text-text-muted">
-                    <div class="flex items-center space-x-2">
-                        <div id="connection-indicator" class="w-3 h-3 rounded-full bg-red-500"></div>
-                        <span id="connection-status">Connecting...</span>
-                    </div>
-                    <span>•</span>
-                    <span id="user-count">0 users online</span>
-                </div>
+    <main class="pt-24 pb-16">
+        <!-- Header Section -->
+        <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-text-light">
+                    Community <span class="text-secondary-cyan">Chat</span>
+                </h1>
+                <p class="text-xl text-text-muted max-w-2xl mx-auto">
+                    Connect with fellow learners, share tips, and practice together
+                </p>
             </div>
         </section>
 
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-6">
-            <!-- Chat Container -->
-            <section class="flex-1">
-                <div class="sophisticated-card chat-container flex flex-col">
-                    <!-- Messages Container -->
-                    <div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-3 messages-container">
-                        <!-- Welcome Message -->
-                        <div class="text-center text-text-muted py-8">
-                            <i class="fas fa-comments text-4xl mb-4 text-secondary-cyan"></i>
-                            <h3 class="text-xl font-bold mb-2">Welcome to the Community Chat!</h3>
-                            <p>Start a conversation with fellow Mandarin learners.</p>
+        <!-- Chat Container -->
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="profile-card chat-container">
+                <!-- Chat Header -->
+                <div class="chat-header">
+                    <div>
+                        <div class="chat-title">RedCharger Community</div>
+                        <div class="chat-info">
+                            <span id="online-count">0</span> learners online
                         </div>
                     </div>
-
-                    <!-- Typing Indicator -->
-                    <div id="typing-indicator" class="typing-indicator hidden px-4">
-                        <span id="typing-users"></span>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-
-                    <!-- Message Input -->
-                    <div class="p-4 border-t border-text-muted/20">
-                        <div class="flex space-x-3">
-                            <input 
-                                type="text" 
-                                id="message-input" 
-                                placeholder="Type your message..." 
-                                maxlength="500"
-                                class="flex-1 py-3 px-4 rounded-lg bg-card-bg border border-text-muted/30 text-text-light placeholder-text-muted focus:outline-none focus:border-secondary-cyan transition duration-300"
-                                disabled
-                            >
-                            <button 
-                                id="send-button" 
-                                class="py-3 px-6 rounded-lg cta-button-primary font-medium disabled:opacity-50 disabled:cursor-not-allowed transition duration-300"
-                                disabled
-                            >
-                                <i class="fas fa-paper-plane"></i>
-                            </button>
-                        </div>
-                        <div class="flex justify-between items-center mt-2">
-                            <span class="text-xs text-text-muted" id="char-count">0/500</span>
-                            <span class="text-xs text-text-muted">Press Enter to send</span>
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-primary-blue to-secondary-cyan flex items-center justify-center text-white font-bold">
+                            <i class="fas fa-users"></i>
                         </div>
                     </div>
                 </div>
-            </section>
 
-            <!-- Online Users Sidebar -->
-            <section class="lg:w-80 sophisticated-card online-users-sidebar h-fit lg:sticky lg:top-24">
-                <div class="p-4 border-b border-text-muted/20">
-                    <div class="flex justify-between items-center">
-                        <h3 class="font-bold text-lg text-text-light">Online Users</h3>
-                        <button id="close-sidebar" class="lg:hidden text-text-muted hover:text-secondary-cyan">
-                            <i class="fas fa-times"></i>
+                <!-- Messages Container -->
+                <div class="messages-container" id="messages-container">
+                    <!-- Messages will be loaded here -->
+                    <div class="empty-chat" id="empty-chat">
+                        <i class="fas fa-comments empty-chat-icon"></i>
+                        <h3 class="text-xl font-semibold mb-2">Welcome to the Community Chat!</h3>
+                        <p class="text-text-muted">Start a conversation with fellow Mandarin learners. Share tips, ask questions, and practice together.</p>
+                    </div>
+                </div>
+
+                <!-- Reply Preview -->
+                <div class="reply-preview hidden" id="reply-preview">
+                    <div class="reply-preview-text">
+                        Replying to: <span id="reply-username"></span> - <span id="reply-text"></span>
+                    </div>
+                    <button class="cancel-reply" id="cancel-reply">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Typing Indicator -->
+                <div class="typing-indicator hidden" id="typing-indicator">
+                    <span id="typing-users"></span> is typing
+                    <div class="typing-dots">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                    </div>
+                </div>
+
+                <!-- Chat Input -->
+                <div class="chat-input-container">
+                    <div class="chat-input-wrapper">
+                        <textarea 
+                            class="chat-input" 
+                            id="message-input" 
+                            placeholder="Type your message here..." 
+                            rows="1"
+                        ></textarea>
+                        <button class="send-button" id="send-button">
+                            <i class="fas fa-paper-plane"></i>
                         </button>
                     </div>
-                    <div class="flex items-center space-x-2 mt-2">
-                        <div class="online-indicator"></div>
-                        <span class="text-sm text-text-muted" id="sidebar-user-count">0 users</span>
-                    </div>
-                </div>
-                <div id="online-users-list" class="p-4 space-y-3 max-h-96 overflow-y-auto">
-                    <div class="text-center text-text-muted py-4">
-                        <i class="fas fa-users text-2xl mb-2"></i>
-                        <p>No users online</p>
-                    </div>
-                </div>
-            </section>
-        </div>
-    </main>
-
-    <!-- Connection Modal -->
-    <div id="joinSection" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="sophisticated-card p-6 max-w-md w-full">
-            <div class="text-center">
-                <i class="fas fa-user-circle text-5xl text-secondary-cyan mb-4"></i>
-                <h3 class="text-xl font-bold mb-4 text-text-light">Join the Chat</h3>
-                <p class="text-text-muted mb-6">Enter your name to start chatting with the community</p>
-                
-                <input 
-                    type="text" 
-                    id="username" 
-                    placeholder="Your name..." 
-                    maxlength="20"
-                    class="w-full py-3 px-4 rounded-lg bg-card-bg border border-text-muted/30 text-text-light placeholder-text-muted focus:outline-none focus:border-secondary-cyan transition duration-300 mb-4"
-                    autofocus
-                >
-                
-                <div class="flex space-x-3">
-                    <button 
-                        id="joinChat" 
-                        class="flex-1 py-3 px-6 rounded-lg cta-button-primary font-medium"
-                    >
-                        Join Chat
-                    </button>
-                    <button 
-                        id="cancel-join-btn" 
-                        class="flex-1 py-3 px-6 rounded-lg bg-card-bg text-text-light border border-text-muted/30 font-medium hover:bg-text-muted/10 transition duration-300"
-                    >
-                        Cancel
-                    </button>
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <!-- Footer -->
-    <footer class="py-6 border-t border-main-bg/20 text-center text-text-muted bg-card-bg mt-8">
-        <p class="text-sm">&copy; 2025 RedCharger. Connect and learn Mandarin together.</p>
+    <footer class="py-10 border-t border-main-bg/20 text-center text-text-muted bg-card-bg mt-8">
+        <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
     </footer>
 
     <!-- Chat Logic -->
-   <!-- Replace the entire script section in your chat.html with this: -->
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        // Debug logging
-        console.log("Initializing chat...");
-        
-        const socket = io({
-            transports: ['websocket', 'polling'],
-            upgrade: true,
-            timeout: 10000
-        });
+    <script>
+        // DOM Elements
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+        const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+        const messagesContainer = document.getElementById('messages-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const emptyChat = document.getElementById('empty-chat');
+        const replyPreview = document.getElementById('reply-preview');
+        const replyUsername = document.getElementById('reply-username');
+        const replyText = document.getElementById('reply-text');
+        const cancelReply = document.getElementById('cancel-reply');
+        const typingIndicator = document.getElementById('typing-indicator');
+        const typingUsers = document.getElementById('typing-users');
+        const onlineCount = document.getElementById('online-count');
 
-        // Elements
-        const joinSection = document.getElementById("joinSection");
-        const usernameInput = document.getElementById("username");
-        const joinBtn = document.getElementById("joinChat");
-        const cancelBtn = document.getElementById("cancel-join-btn");
-        const messageInput = document.getElementById("message-input");
-        const sendBtn = document.getElementById("send-button");
-        const messageList = document.getElementById("messages-container");
-        const typingIndicator = document.getElementById("typing-indicator");
-        const typingUsersText = document.getElementById("typing-users");
-        const connectionStatus = document.getElementById("connection-status");
-        const connectionIndicator = document.getElementById("connection-indicator");
-        const userCount = document.getElementById("user-count");
-        const onlineCount = document.getElementById("online-count");
-        const mobileOnlineCount = document.getElementById("mobile-online-count");
-        const sidebarUserCount = document.getElementById("sidebar-user-count");
-        const charCount = document.getElementById("char-count");
-        const onlineUsersList = document.getElementById("online-users-list");
-
-        // State
+        // Chat state
         let currentUser = null;
+        let replyingTo = null;
         let typingTimeout = null;
-        let typingUsers = new Set();
-        let onlineUsers = [];
+        let lastMessageId = 0;
+        let isTyping = false;
+        let onlineUsers = new Set();
+        let typingUsersSet = new Set();
 
-        // Debug connection
-        console.log("Socket instance created:", socket);
-
-        // ----------------------
-        // 1️⃣ Socket connection with enhanced debugging
-        // ----------------------
-        socket.on("connect", () => {
-            console.log("✅ Connected to server with ID:", socket.id);
-            connectionStatus.textContent = "Connected";
-            connectionIndicator.className = "w-3 h-3 rounded-full bg-green-500 animate-pulse";
-            showAlert("Connected to chat server!", "success");
-            
-            // Rejoin if user was already connected
-            if (currentUser) {
-                console.log("Rejoining with user:", currentUser.username);
-                socket.emit("user_joined", currentUser);
-                socket.emit("join_channel", { channel: "general", user: currentUser });
-            }
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeMobileMenu();
+            checkUserProfile();
+            initializeChat();
+            startPolling();
         });
 
-        socket.on("disconnect", (reason) => {
-            console.log("❌ Disconnected:", reason);
-            connectionStatus.textContent = "Disconnected";
-            connectionIndicator.className = "w-3 h-3 rounded-full bg-red-500";
-            showAlert("Disconnected from chat server", "error");
-        });
+        // Initialize Mobile Menu
+        function initializeMobileMenu() {
+            let isMenuOpen = false;
 
-        socket.on("connect_error", (error) => {
-            console.error("💥 Connection error:", error);
-            connectionStatus.textContent = "Connection failed";
-            connectionIndicator.className = "w-3 h-3 rounded-full bg-red-500";
-            showAlert("Failed to connect to chat server. Please refresh the page.", "error");
-        });
-
-        socket.on("connected", (data) => {
-            console.log("Server connection confirmed:", data);
-        });
-
-        // ----------------------
-        // 2️⃣ User joins chat
-        // ----------------------
-        joinBtn.addEventListener("click", joinChat);
-        usernameInput.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") joinChat();
-        });
-
-        async function joinChat() {
-            const username = usernameInput.value.trim();
-            if (!username) {
-                showAlert("Please enter a name.", "error");
-                return;
-            }
-
-            if (username.length < 2 || username.length > 20) {
-                showAlert("Username must be between 2 and 20 characters", "error");
-                return;
-            }
-
-            try {
-                console.log("Attempting to register user:", username);
-                const res = await fetch("/api/chat/register", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ username, level: "HSK1" })
-                });
+            function toggleMobileMenu() {
+                isMenuOpen = !isMenuOpen;
                 
-                const data = await res.json();
-                console.log("Registration response:", data);
-                
-                if (!data.success) {
-                    showAlert(data.message, "error");
-                    return;
+                if (isMenuOpen) {
+                    mobileDropdownMenu.classList.add('open');
+                    mobileDropdownBackdrop.style.display = 'block';
+                    document.body.style.overflow = 'hidden';
+                    mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+                    mobileMenuButton.classList.remove('text-text-muted');
+                    mobileMenuButton.classList.add('text-secondary-cyan');
+                } else {
+                    mobileDropdownMenu.classList.remove('open');
+                    mobileDropdownBackdrop.style.display = 'none';
+                    document.body.style.overflow = '';
+                    mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                    mobileMenuButton.classList.remove('text-secondary-cyan');
+                    mobileMenuButton.classList.add('text-text-muted');
                 }
-
-                currentUser = data.user;
-                joinSection.style.display = "none";
-                messageInput.disabled = false;
-                sendBtn.disabled = false;
-                messageInput.focus();
-
-                console.log("User registered, emitting join events...");
-                
-                // Wait a bit for socket to be ready
-                setTimeout(() => {
-                    socket.emit("user_joined", currentUser);
-                    socket.emit("join_channel", { channel: "general", user: currentUser });
-                }, 100);
-
-                showAlert(`Welcome to the chat, ${username}!`, "success");
-                
-            } catch (err) {
-                console.error("Join error:", err);
-                showAlert("Failed to join chat. Please try again.", "error");
             }
-        }
 
-        cancelBtn.addEventListener("click", () => {
-            joinSection.style.display = "none";
-            window.location.href = "/";
-        });
-
-        // ----------------------
-        // 3️⃣ Receiving updates - DEBUGGED
-        // ----------------------
-        socket.on("online_users", (users) => {
-            console.log("Online users received:", users);
-            onlineUsers = users;
-            updateOnlineUsersDisplay();
-        });
-
-        socket.on("user_joined", (data) => {
-            console.log("User joined:", data.username);
-            addSystemMessage(`${data.username} joined the chat`);
-        });
-
-        socket.on("user_left", (data) => {
-            console.log("User left:", data.username);
-            addSystemMessage(`${data.username} left the chat`);
-        });
-
-        socket.on("channel_history", (data) => {
-            console.log("Channel history received:", data.messages.length, "messages");
-            messageList.innerHTML = "";
-            if (data.messages.length === 0) {
-                addSystemMessage("No previous messages. Start the conversation!");
-            } else {
-                data.messages.forEach((msg) => addMessage(msg));
+            function closeMobileMenu() {
+                isMenuOpen = false;
+                mobileDropdownMenu.classList.remove('open');
+                mobileDropdownBackdrop.style.display = 'none';
+                document.body.style.overflow = '';
+                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                mobileMenuButton.classList.remove('text-secondary-cyan');
+                mobileMenuButton.classList.add('text-text-muted');
             }
-        });
 
-        socket.on("new_message", (msg) => {
-            console.log("New message received:", msg);
-            addMessage(msg);
-        });
+            mobileMenuButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleMobileMenu();
+            });
 
-        socket.on("message_delivered", (data) => {
-            console.log("Message delivered:", data.messageId);
-        });
+            mobileDropdownBackdrop.addEventListener('click', closeMobileMenu);
 
-        socket.on("user_typing", (data) => {
-            console.log("User typing:", data.user.username);
-            if (!data.user || !data.user.username || data.user.username === currentUser?.username) return;
+            const menuLinks = mobileDropdownMenu.querySelectorAll('a');
+            menuLinks.forEach(link => {
+                link.addEventListener('click', closeMobileMenu);
+            });
 
-            typingUsers.add(data.user.username);
-            showTypingIndicator();
+            document.addEventListener('click', function(e) {
+                if (isMenuOpen && 
+                    !mobileDropdownMenu.contains(e.target) && 
+                    !mobileMenuButton.contains(e.target)) {
+                    closeMobileMenu();
+                }
+            });
 
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => {
-                typingUsers.delete(data.user.username);
-                showTypingIndicator();
-            }, 1500);
-        });
+            document.addEventListener('keydown', function(e) {
+                if (isMenuOpen && e.key === 'Escape') {
+                    closeMobileMenu();
+                }
+            });
 
-        socket.on("user_stop_typing", (data) => {
-            console.log("User stopped typing:", data.user.username);
-            if (data.user && data.user.username) {
-                typingUsers.delete(data.user.username);
-                showTypingIndicator();
-            }
-        });
-
-        // ----------------------
-        // 4️⃣ Sending messages
-        // ----------------------
-        sendBtn.addEventListener("click", sendMessage);
-        messageInput.addEventListener("input", () => {
-            charCount.textContent = `${messageInput.value.length}/500`;
-        });
-        
-        messageInput.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        messageInput.addEventListener("keypress", () => {
-            if (currentUser) {
-                socket.emit("typing_start", { channel: "general", user: currentUser });
-                clearTimeout(typingTimeout);
-                typingTimeout = setTimeout(() => {
-                    socket.emit("typing_stop", { channel: "general", user: currentUser });
-                }, 1000);
-            }
-        });
-
-        function sendMessage() {
-            const text = messageInput.value.trim();
-            if (!text || !currentUser) return;
-
-            console.log("Sending message:", text);
-
-            const messageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            const msg = {
-                id: messageId,
-                sender: currentUser.username,
-                sender_id: currentUser.id,
-                text: text,
-                channel: "general",
-                timestamp: new Date().toISOString(),
-                type: "sent"
-            };
-
-            // Add message immediately for fast UI response
-            addMessage(msg);
-            messageInput.value = "";
-            charCount.textContent = "0/500";
-            
-            // Send to server
-            socket.emit("send_message", msg);
-            
-            // Stop typing indicator
-            socket.emit("typing_stop", { channel: "general", user: currentUser });
-        }
-
-        // ----------------------
-        // 5️⃣ Online users management
-        // ----------------------
-        function updateOnlineUsersDisplay() {
-            const count = onlineUsers.length;
-            console.log("Updating online users display:", count);
-            
-            // Update all counters
-            userCount.textContent = `${count} users online`;
-            onlineCount.textContent = `${count} online`;
-            mobileOnlineCount.textContent = count;
-            sidebarUserCount.textContent = `${count} users`;
-            
-            // Update online users list
-            if (count === 0) {
-                onlineUsersList.innerHTML = `
-                    <div class="text-center text-text-muted py-4">
-                        <i class="fas fa-users text-2xl mb-2"></i>
-                        <p>No users online</p>
-                    </div>
-                `;
-            } else {
-                onlineUsersList.innerHTML = onlineUsers.map(user => `
-                    <div class="flex items-center space-x-3 p-2 rounded-lg hover:bg-card-bg/50 transition duration-200">
-                        <div class="relative">
-                            <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm" 
-                                 style="background-color: ${getUserColor(user.avatar_color || user.username)}">
-                                ${user.username.charAt(0).toUpperCase()}
-                            </div>
-                            <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-card-bg"></div>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="font-medium text-text-light truncate">${user.username}</div>
-                            <div class="text-xs text-text-muted">${user.level || 'HSK1'}</div>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        }
-
-        // ----------------------
-        // 6️⃣ Typing indicator
-        // ----------------------
-        function showTypingIndicator() {
-            if (typingUsers.size === 0) {
-                typingIndicator.classList.add("hidden");
-                typingUsersText.textContent = "";
-            } else {
-                typingIndicator.classList.remove("hidden");
-                const users = Array.from(typingUsers);
-                typingUsersText.textContent = users.length === 1 
-                    ? `${users[0]} is typing...` 
-                    : `${users.slice(0, 2).join(', ')}${users.length > 2 ? ` and ${users.length - 2} more` : ''} are typing...`;
-            }
-        }
-
-        // ----------------------
-        // 7️⃣ UI Helpers
-        // ----------------------
-        function addMessage(msg) {
-            const messageElement = document.createElement("div");
-            messageElement.className = "message-container relative";
-            
-            const isSelf = msg.sender_id === currentUser?.id || msg.type === "sent";
-            messageElement.innerHTML = `
-                <div class="p-3 max-w-[80%] rounded-xl message-slide-in ${
-                    isSelf ? "message-self ml-auto" : "message-other mr-auto"
-                }" data-message-id="${msg.id}">
-                    <div class="font-semibold text-sm mb-1 flex justify-between items-center">
-                        <span>${msg.sender || "Anonymous"}</span>
-                        ${isSelf ? '<span class="text-xs opacity-70">You</span>' : ''}
-                    </div>
-                    <div class="break-words">${escapeHtml(msg.text)}</div>
-                    <div class="text-xs opacity-70 mt-1 text-right">
-                        ${formatTime(msg.timestamp)}
-                    </div>
-                </div>
-            `;
-            
-            messageList.appendChild(messageElement);
-            messageList.scrollTop = messageList.scrollHeight;
-        }
-
-        function addSystemMessage(text) {
-            const div = document.createElement("div");
-            div.className = "text-center text-text-muted text-sm py-2";
-            div.textContent = text;
-            messageList.appendChild(div);
-            messageList.scrollTop = messageList.scrollHeight;
-        }
-
-        function formatTime(timestamp) {
-            return new Date(timestamp).toLocaleTimeString([], { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: true 
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 768 && isMenuOpen) {
+                    closeMobileMenu();
+                }
             });
         }
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function getUserColor(username) {
-            const colors = [
-                '#5c7cfa', '#51cf66', '#ffd43b', '#ff6b6b', '#cc5de8', 
-                '#339af0', '#20c997', '#f783ac', '#e64980', '#845ef7'
-            ];
-            const hash = username.split('').reduce((a, b) => {
-                a = ((a << 5) - a) + b.charCodeAt(0);
-                return a & a;
-            }, 0);
-            return colors[Math.abs(hash) % colors.length];
-        }
-
-        function showAlert(message, type = 'info') {
-            // Create a simple toast notification
-            const toast = document.createElement('div');
-            toast.className = `fixed top-20 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
-                type === 'error' ? 'bg-red-500' : 
-                type === 'success' ? 'bg-green-500' : 'bg-blue-500'
-            } text-white`;
-            toast.textContent = message;
+        // Check if user has completed profile
+        function checkUserProfile() {
+            const profile = getProfile();
             
-            document.body.appendChild(toast);
+            if (!profile.username) {
+                // Redirect to profile page if username is not set
+                window.location.href = '/profile';
+                return;
+            }
+            
+            currentUser = profile;
+        }
+
+        // Get user profile from localStorage
+        function getProfile() {
+            const defaultProfile = {
+                username: '',
+                email: '',
+                firstName: '',
+                lastName: '',
+                bio: '',
+                avatar: '',
+                dailyGoal: '20',
+                learningMode: 'both',
+                enableSpeech: true,
+                showPinyin: true,
+                memberSince: new Date().toISOString(),
+                stats: {
+                    totalWords: 0,
+                    totalSentences: 0,
+                    streakDays: 0,
+                    accuracyRate: 0,
+                    totalQuizzes: 0,
+                    wordsMastered: 0,
+                    sentencesMastered: 0
+                }
+            };
+            
+            const saved = localStorage.getItem('userProfile');
+            return saved ? { ...defaultProfile, ...JSON.parse(saved) } : defaultProfile;
+        }
+
+        // Initialize chat functionality
+        function initializeChat() {
+            // Load existing messages
+            loadMessages();
+            
+            // Set up event listeners
+            messageInput.addEventListener('input', handleInput);
+            messageInput.addEventListener('keydown', handleKeyDown);
+            sendButton.addEventListener('click', sendMessage);
+            cancelReply.addEventListener('click', cancelReplyTo);
+            
+            // Auto-resize textarea
+            messageInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = (this.scrollHeight) + 'px';
+            });
+            
+            // Update send button state
+            messageInput.addEventListener('input', function() {
+                sendButton.disabled = this.value.trim() === '';
+            });
+            
+            // Initialize with disabled send button
+            sendButton.disabled = true;
+        }
+
+        // Handle input for typing indicators
+        function handleInput() {
+            if (!isTyping) {
+                isTyping = true;
+                updateTypingStatus(true);
+            }
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                isTyping = false;
+                updateTypingStatus(false);
+            }, 1000);
+        }
+
+        // Handle keydown events (Enter to send, Escape to cancel reply)
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            } else if (e.key === 'Escape' && replyingTo) {
+                cancelReplyTo();
+            }
+        }
+
+        // Send a new message
+        function sendMessage() {
+            const messageText = messageInput.value.trim();
+            
+            if (!messageText) return;
+            
+            // Create message object
+            const message = {
+                id: Date.now(),
+                userId: currentUser.username,
+                username: currentUser.username,
+                avatar: currentUser.avatar,
+                text: messageText,
+                timestamp: new Date().toISOString(),
+                replyTo: replyingTo
+            };
+            
+            // Add message to chat
+            addMessageToChat(message);
+            
+            // Save message to storage
+            saveMessage(message);
+            
+            // Clear input and reset state
+            messageInput.value = '';
+            messageInput.style.height = 'auto';
+            sendButton.disabled = true;
+            
+            // Cancel any reply
+            if (replyingTo) {
+                cancelReplyTo();
+            }
+            
+            // Stop typing indicator
+            isTyping = false;
+            updateTypingStatus(false);
+            
+            // Scroll to bottom
+            scrollToBottom();
+        }
+
+        // Add a message to the chat UI
+        function addMessageToChat(message) {
+            // Hide empty chat message if it's the first message
+            if (emptyChat.style.display !== 'none') {
+                emptyChat.style.display = 'none';
+            }
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${message.userId === currentUser.username ? 'message-sent' : 'message-received'}`;
+            messageElement.dataset.messageId = message.id;
+            
+            // Create message header with avatar and username
+            const messageHeader = document.createElement('div');
+            messageHeader.className = 'message-header';
+            
+            const avatarElement = document.createElement('div');
+            avatarElement.className = 'message-avatar';
+            
+            if (message.avatar) {
+                avatarElement.innerHTML = `<img src="${message.avatar}" alt="${message.username}" class="w-full h-full object-cover">`;
+            } else {
+                const initials = message.username.charAt(0).toUpperCase();
+                avatarElement.style.background = 'linear-gradient(135deg, #5c7cfa, #3d5ad8)';
+                avatarElement.style.color = 'white';
+                avatarElement.textContent = initials;
+            }
+            
+            const usernameElement = document.createElement('span');
+            usernameElement.className = 'message-username';
+            usernameElement.textContent = message.username;
+            
+            messageHeader.appendChild(avatarElement);
+            messageHeader.appendChild(usernameElement);
+            
+            // Create reply indicator if this is a reply
+            let replyIndicator = '';
+            if (message.replyTo) {
+                const repliedMessage = getMessageById(message.replyTo.id);
+                if (repliedMessage) {
+                    replyIndicator = `
+                        <div class="reply-indicator">
+                            Replying to <span class="reply-username">${repliedMessage.username}</span>: ${repliedMessage.text}
+                        </div>
+                    `;
+                }
+            }
+            
+            // Create message text
+            const messageText = document.createElement('div');
+            messageText.className = 'message-text';
+            messageText.innerHTML = message.isDeleted ? 
+                '<span class="deleted-message">This message was deleted</span>' : 
+                message.text;
+            
+            // Create message time
+            const messageTime = document.createElement('div');
+            messageTime.className = 'message-time';
+            messageTime.textContent = formatTime(message.timestamp);
+            
+            // Create message actions (only for user's own messages)
+            let messageActions = '';
+            if (message.userId === currentUser.username && !message.isDeleted) {
+                messageActions = `
+                    <div class="message-actions">
+                        <button class="message-action reply-action" title="Reply">
+                            <i class="fas fa-reply"></i>
+                        </button>
+                        <button class="message-action delete-action" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+            }
+            
+            // Build message HTML
+            messageElement.innerHTML = `
+                ${messageHeader.outerHTML}
+                ${replyIndicator}
+                ${messageText.outerHTML}
+                ${messageTime.outerHTML}
+                ${messageActions}
+            `;
+            
+            // Add event listeners for actions
+            if (message.userId === currentUser.username && !message.isDeleted) {
+                const replyBtn = messageElement.querySelector('.reply-action');
+                const deleteBtn = messageElement.querySelector('.delete-action');
+                
+                replyBtn.addEventListener('click', () => replyToMessage(message));
+                deleteBtn.addEventListener('click', () => deleteMessage(message.id));
+            }
+            
+            // Add to messages container
+            messagesContainer.appendChild(messageElement);
+        }
+
+        // Reply to a specific message
+        function replyToMessage(message) {
+            replyingTo = {
+                id: message.id,
+                username: message.username,
+                text: message.text.length > 50 ? message.text.substring(0, 50) + '...' : message.text
+            };
+            
+            // Show reply preview
+            replyUsername.textContent = replyingTo.username;
+            replyText.textContent = replyingTo.text;
+            replyPreview.classList.remove('hidden');
+            
+            // Focus on input
+            messageInput.focus();
+        }
+
+        // Cancel reply
+        function cancelReplyTo() {
+            replyingTo = null;
+            replyPreview.classList.add('hidden');
+        }
+
+        // Delete a message
+        function deleteMessage(messageId) {
+            if (confirm('Are you sure you want to delete this message?')) {
+                // Mark message as deleted in storage
+                const messages = getMessages();
+                const messageIndex = messages.findIndex(m => m.id === messageId);
+                
+                if (messageIndex !== -1) {
+                    messages[messageIndex].isDeleted = true;
+                    localStorage.setItem('chatMessages', JSON.stringify(messages));
+                    
+                    // Update UI
+                    const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+                    if (messageElement) {
+                        const messageText = messageElement.querySelector('.message-text');
+                        messageText.innerHTML = '<span class="deleted-message">This message was deleted</span>';
+                        
+                        // Remove actions
+                        const messageActions = messageElement.querySelector('.message-actions');
+                        if (messageActions) {
+                            messageActions.remove();
+                        }
+                    }
+                }
+            }
+        }
+
+        // Load messages from storage
+        function loadMessages() {
+            const messages = getMessages();
+            
+            if (messages.length > 0) {
+                emptyChat.style.display = 'none';
+                
+                messages.forEach(message => {
+                    addMessageToChat(message);
+                });
+                
+                scrollToBottom();
+            }
+        }
+
+        // Get messages from storage
+        function getMessages() {
+            return JSON.parse(localStorage.getItem('chatMessages') || '[]');
+        }
+
+        // Save a message to storage
+        function saveMessage(message) {
+            const messages = getMessages();
+            messages.push(message);
+            localStorage.setItem('chatMessages', JSON.stringify(messages));
+        }
+
+        // Get a message by ID
+        function getMessageById(id) {
+            const messages = getMessages();
+            return messages.find(m => m.id === id);
+        }
+
+        // Format timestamp for display
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            
+            if (diffMins < 1) {
+                return 'Just now';
+            } else if (diffMins < 60) {
+                return `${diffMins} min ago`;
+            } else if (diffHours < 24) {
+                return `${diffHours} hr ago`;
+            } else {
+                return date.toLocaleDateString();
+            }
+        }
+
+        // Scroll to bottom of messages
+        function scrollToBottom() {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Update typing status
+        function updateTypingStatus(typing) {
+            // In a real app, this would send to server
+            // For demo, we'll just simulate other users typing occasionally
+            if (typing) {
+                // Add current user to typing set
+                typingUsersSet.add(currentUser.username);
+            } else {
+                // Remove current user from typing set
+                typingUsersSet.delete(currentUser.username);
+            }
+            
+            updateTypingIndicator();
+        }
+
+        // Update typing indicator UI
+        function updateTypingIndicator() {
+            if (typingUsersSet.size > 0) {
+                const users = Array.from(typingUsersSet);
+                if (users.length === 1) {
+                    typingUsers.textContent = users[0];
+                } else if (users.length === 2) {
+                    typingUsers.textContent = `${users[0]} and ${users[1]}`;
+                } else {
+                    typingUsers.textContent = `${users[0]} and ${users.length - 1} others`;
+                }
+                
+                typingIndicator.classList.remove('hidden');
+            } else {
+                typingIndicator.classList.add('hidden');
+            }
+        }
+
+        // Simulate real-time updates with polling
+        function startPolling() {
+            // In a real app, this would be API calls to a server
+            // For demo, we'll simulate new messages and online users
+            
+            // Add current user to online users
+            onlineUsers.add(currentUser.username);
+            updateOnlineCount();
+            
+            // Simulate other users joining
+            setTimeout(() => {
+                onlineUsers.add('MandarinMaster');
+                updateOnlineCount();
+            }, 3000);
             
             setTimeout(() => {
-                toast.remove();
-            }, 4000);
+                onlineUsers.add('HSKLearner');
+                updateOnlineCount();
+                
+                // Simulate a welcome message
+                if (getMessages().length === 0) {
+                    const welcomeMessage = {
+                        id: Date.now() - 1000,
+                        userId: 'system',
+                        username: 'RedCharger Bot',
+                        avatar: '',
+                        text: 'Welcome to the RedCharger community chat! Feel free to introduce yourself and ask any questions about learning Mandarin.',
+                        timestamp: new Date(Date.now() - 5000).toISOString()
+                    };
+                    
+                    saveMessage(welcomeMessage);
+                    addMessageToChat(welcomeMessage);
+                    scrollToBottom();
+                }
+            }, 5000);
+            
+            // Periodically check for new messages
+            setInterval(() => {
+                // In a real app, this would fetch new messages from server
+                // For demo, we'll occasionally simulate new messages from other users
+                if (Math.random() < 0.1 && onlineUsers.size > 1) {
+                    const otherUsers = Array.from(onlineUsers).filter(u => u !== currentUser.username);
+                    if (otherUsers.length > 0) {
+                        const randomUser = otherUsers[Math.floor(Math.random() * otherUsers.length)];
+                        
+                        const sampleMessages = [
+                            "Has anyone tried the new HSK 2.0 practice tests?",
+                            "I'm struggling with the pronunciation of 'q' and 'x' sounds. Any tips?",
+                            "What's your favorite resource for learning Chinese characters?",
+                            "Just completed my 10-day streak! 🎉",
+                            "Does anyone want to practice speaking together?",
+                            "I found this great app for practicing tones: TonePerfect",
+                            "How long did it take you to feel comfortable with basic conversations?",
+                            "Anyone here preparing for the HSK 1 exam?"
+                        ];
+                        
+                        const randomMessage = sampleMessages[Math.floor(Math.random() * sampleMessages.length)];
+                        
+                        const newMessage = {
+                            id: Date.now(),
+                            userId: randomUser,
+                            username: randomUser,
+                            avatar: '',
+                            text: randomMessage,
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        // Only add if we haven't already added this message
+                        const messages = getMessages();
+                        if (!messages.some(m => m.text === randomMessage && m.userId === randomUser)) {
+                            saveMessage(newMessage);
+                            addMessageToChat(newMessage);
+                            scrollToBottom();
+                        }
+                    }
+                }
+                
+                // Simulate typing from other users occasionally
+                if (Math.random() < 0.05 && onlineUsers.size > 1) {
+                    const otherUsers = Array.from(onlineUsers).filter(u => u !== currentUser.username);
+                    if (otherUsers.length > 0) {
+                        const randomUser = otherUsers[Math.floor(Math.random() * otherUsers.length)];
+                        typingUsersSet.add(randomUser);
+                        updateTypingIndicator();
+                        
+                        setTimeout(() => {
+                            typingUsersSet.delete(randomUser);
+                            updateTypingIndicator();
+                        }, 2000);
+                    }
+                }
+            }, 5000);
         }
 
-        // Test connection on load
-        console.log("Chat script loaded successfully");
-        
-        // Check if socket is connecting
-        setTimeout(() => {
-            if (!socket.connected) {
-                console.log("Socket not connected after 2 seconds, checking configuration...");
-                showAlert("Trying to establish connection...", "info");
-            }
-        }, 2000);
-    });
-</script>
+        // Update online user count
+        function updateOnlineCount() {
+            onlineCount.textContent = onlineUsers.size;
+        }
+    </script>
 </body>
 </html>
