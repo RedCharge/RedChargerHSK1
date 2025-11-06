@@ -468,7 +468,7 @@
 
     <!-- Quiz Logic -->
     <script>
-            // Quiz state
+                // Quiz state
     let currentQuestion = 0;
     let score = 0;
     let correctAnswers = 0;
@@ -879,49 +879,6 @@
         });
     }
 
-    // SIMPLE FIX: Just ensure correctAnswer is a valid number
-    function validateQuizData(data) {
-        console.log('=== SIMPLE DATA VALIDATION ===');
-        
-        const validatedData = data.map((question, index) => {
-            // Create a clean copy
-            const cleanQuestion = { ...question };
-            
-            // Log original data for debugging
-            console.log(`Question ${index + 1} original:`, {
-                sentence: question.sentence,
-                correctAnswer: question.correctAnswer,
-                type: typeof question.correctAnswer,
-                options: question.options
-            });
-            
-            // Convert correctAnswer to number if it's a string
-            let correctAnswer = question.correctAnswer;
-            if (typeof correctAnswer === 'string') {
-                correctAnswer = parseInt(correctAnswer);
-            }
-            
-            // Ensure it's a valid number within range
-            if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= question.options.length) {
-                console.error(`Question ${index + 1}: Invalid correctAnswer from backend: ${correctAnswer}`);
-                // Fallback to first option if backend data is wrong
-                correctAnswer = 0;
-            }
-            
-            cleanQuestion.correctAnswer = correctAnswer;
-            
-            console.log(`Question ${index + 1} validated:`, {
-                sentence: cleanQuestion.sentence,
-                correctAnswer: cleanQuestion.correctAnswer,
-                correctOption: cleanQuestion.options[cleanQuestion.correctAnswer]
-            });
-            
-            return cleanQuestion;
-        });
-        
-        return validatedData;
-    }
-
     // Load quiz data from Flask backend
     async function loadQuizData() {
         try {
@@ -938,8 +895,18 @@
             console.log('API Response:', data);
             
             if (data.success && data.sentences && Array.isArray(data.sentences)) {
-                // Simple validation - just ensure correctAnswer is a number
-                quizData = validateQuizData(data.sentences);
+                // Use the data directly from backend - no complex validation
+                quizData = data.sentences;
+                
+                // Log each question for debugging
+                quizData.forEach((question, index) => {
+                    console.log(`Question ${index + 1}:`, {
+                        sentence: question.sentence,
+                        correctAnswer: question.correctAnswer,
+                        type: typeof question.correctAnswer,
+                        options: question.options
+                    });
+                });
                 
                 hideLoading();
                 showQuizContent();
@@ -1020,7 +987,8 @@
         console.log(`Showing question ${currentQuestion + 1}:`, {
             sentence: question.sentence,
             correctAnswer: question.correctAnswer,
-            correctOption: question.options[question.correctAnswer]
+            correctAnswerType: typeof question.correctAnswer,
+            options: question.options
         });
         
         questionContainer.innerHTML = `
@@ -1083,24 +1051,40 @@
         }, 500);
     }
 
-    // SIMPLE FIX: Just compare with the backend's correctAnswer
+    // Select an option - SIMPLIFIED VERSION
     function selectOption(selectedIndex) {
         if (userAnswers[currentQuestion] !== null) return; // Already answered
         
         const question = quizData[currentQuestion];
         
-        // Use the backend's correctAnswer directly
-        const correctAnswerIndex = question.correctAnswer;
+        // Get the correct answer directly from backend data
+        // Handle both string and number types for correctAnswer
+        let correctAnswerIndex;
         
-        console.log('=== ANSWER DEBUG ===');
-        console.log('Question:', question.sentence);
-        console.log('Selected:', selectedIndex, '=', question.options[selectedIndex]);
-        console.log('Correct:', correctAnswerIndex, '=', question.options[correctAnswerIndex]);
+        if (typeof question.correctAnswer === 'string') {
+            correctAnswerIndex = parseInt(question.correctAnswer);
+        } else {
+            correctAnswerIndex = question.correctAnswer;
+        }
         
-        // Simple comparison
+        // Validate the correct answer index
+        if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
+            console.error('Invalid correct answer index:', correctAnswerIndex);
+            // Fallback to first option if invalid
+            correctAnswerIndex = 0;
+        }
+        
         const isCorrect = selectedIndex === correctAnswerIndex;
         
-        // Store user's answer
+        // DEBUGGING
+        console.log('=== ANSWER DEBUG INFO ===');
+        console.log('Question sentence:', question.sentence);
+        console.log('Selected index:', selectedIndex);
+        console.log('Selected option:', question.options[selectedIndex]);
+        console.log('Correct index:', correctAnswerIndex);
+        console.log('Correct option:', question.options[correctAnswerIndex]);
+        console.log('Is correct:', isCorrect);
+        
         userAnswers[currentQuestion] = selectedIndex;
         
         // Play sound effect based on answer
@@ -1208,12 +1192,21 @@
             // Track performance for each sentence in this quiz
             quizData.forEach((question, index) => {
                 const sentence = question.sentence;
-                const isCorrect = userAnswers[index] === parseInt(question.correctAnswer);
+                
+                // Get correct answer index properly
+                let correctAnswerIndex;
+                if (typeof question.correctAnswer === 'string') {
+                    correctAnswerIndex = parseInt(question.correctAnswer);
+                } else {
+                    correctAnswerIndex = question.correctAnswer;
+                }
+                
+                const isCorrect = userAnswers[index] === correctAnswerIndex;
                 
                 if (!performanceData.sentences[sentence]) {
                     performanceData.sentences[sentence] = {
                         pinyin: question.pinyin || '',
-                        meaning: question.options[question.correctAnswer] || '',
+                        meaning: question.options[correctAnswerIndex] || '',
                         correct: 0,
                         incorrect: 0
                     };
