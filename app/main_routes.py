@@ -19,11 +19,6 @@ def result():
     """Render the result page"""
     return render_template('result.html')
 
-@main_bp.route('/chat')
-def result():
-    """Render the result page"""
-    return render_template('chat.html')
-
 
 @main_bp.route('/api/quiz-results', methods=['POST'])
 def save_quiz_result():

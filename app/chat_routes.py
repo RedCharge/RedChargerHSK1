@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, render_template
 import json
 import time
 from datetime import datetime, timedelta
@@ -16,7 +16,11 @@ online_users: Dict[str, Dict] = {}  # {user_id: {username, avatar, last_seen}}
 typing_users: Set[str] = set()
 message_listeners: List[Dict] = []  # For long polling
 
-
+# CHAT PAGE ROUTE - Add this route to serve the chat.html page
+@chat_bp.route('/chat')
+def chat_page():
+    """Serve the chat.html page"""
+    return render_template('chat.html')
 
 # Cleanup thread for removing inactive users
 def cleanup_inactive_users():
