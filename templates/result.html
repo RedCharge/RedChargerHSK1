@@ -558,6 +558,9 @@
             exportDataBtn.addEventListener('click', exportUserData);
             mobileExportBtn.addEventListener('click', exportUserData);
             mobileExportDropdownBtn.addEventListener('click', exportUserData);
+            
+            // Auto-refresh weaknesses/strengths every 30 seconds
+            setInterval(refreshPerformanceData, 30000);
         });
 
         // Mobile menu functionality with full-width dropdown
@@ -615,12 +618,12 @@
             const quizHistory = [];
             const today = new Date();
             
-            for (let i = 0; i < 20; i++) { // Increased to 20 for more data points
+            for (let i = 0; i < 25; i++) { // Increased to 25 for more horizontal data
                 const date = new Date();
                 date.setDate(today.getDate() - i);
                 
                 const quizType = Math.random() > 0.5 ? 'words' : 'sentences';
-                const correct = Math.floor(Math.random() * 8) + 3; // 3-10 correct
+                const correct = Math.floor(Math.random() * 8) + 3;
                 const total = 10;
                 const percentage = Math.round((correct / total) * 100);
                 
@@ -676,20 +679,17 @@
                 sentences: {}
             };
             
-            // Generate performance data for words with intentional weaknesses and strengths
+            // Generate performance data for words with dynamic patterns
             hsk1Words.forEach((word, index) => {
                 let correct, incorrect;
                 
                 if (index < 3) {
-                    // Create weaknesses (low accuracy)
                     correct = Math.floor(Math.random() * 2) + 1;
                     incorrect = Math.floor(Math.random() * 4) + 3;
                 } else if (index < 8) {
-                    // Create strengths (high accuracy)
                     correct = Math.floor(Math.random() * 4) + 4;
                     incorrect = Math.floor(Math.random() * 2);
                 } else {
-                    // Mixed performance
                     correct = Math.floor(Math.random() * 4) + 2;
                     incorrect = Math.floor(Math.random() * 3) + 1;
                 }
@@ -698,24 +698,22 @@
                     pinyin: word.pinyin,
                     meaning: word.meaning,
                     correct: correct,
-                    incorrect: incorrect
+                    incorrect: incorrect,
+                    lastUpdated: new Date().toISOString()
                 };
             });
             
-            // Generate performance data for sentences with intentional weaknesses and strengths
+            // Generate performance data for sentences with dynamic patterns
             hsk1Sentences.forEach((sentence, index) => {
                 let correct, incorrect;
                 
                 if (index < 3) {
-                    // Create weaknesses (low accuracy)
                     correct = Math.floor(Math.random() * 2) + 1;
                     incorrect = Math.floor(Math.random() * 3) + 2;
                 } else if (index < 8) {
-                    // Create strengths (high accuracy)
                     correct = Math.floor(Math.random() * 3) + 3;
                     incorrect = Math.floor(Math.random() * 2);
                 } else {
-                    // Mixed performance
                     correct = Math.floor(Math.random() * 3) + 2;
                     incorrect = Math.floor(Math.random() * 2) + 1;
                 }
@@ -724,7 +722,8 @@
                     pinyin: sentence.pinyin,
                     meaning: sentence.meaning,
                     correct: correct,
-                    incorrect: incorrect
+                    incorrect: incorrect,
+                    lastUpdated: new Date().toISOString()
                 };
             });
             
@@ -774,7 +773,6 @@
             updateWeaknessesAndStrengths(performanceData);
             updateQuizHistory(quizHistory, currentQuiz);
             updateDifficultyAnalysis(performanceData);
-            updateLearningRecommendations(performanceData, quizHistory);
         }
 
         // Show no data state
@@ -868,16 +866,16 @@
             return streak;
         }
 
-        // Update progress charts with horizontal scroll
+        // Update progress charts with compact vertical height and horizontal scroll
         function updateCharts(quizHistory, performanceData) {
-            // Score Progress Chart with horizontal scroll container
+            // Score Progress Chart - Compact height, horizontal scroll
             const scoreCtx = document.getElementById('scoreChart').getContext('2d');
             
             const sortedQuizzes = [...quizHistory].sort((a, b) => 
                 new Date(a.timestamp || a.date) - new Date(b.timestamp || b.date)
             );
             
-            // Create more detailed labels for better horizontal scrolling
+            // Create detailed labels for horizontal scrolling
             const labels = sortedQuizzes.map((quiz, index) => {
                 const date = new Date(quiz.timestamp || quiz.date);
                 return `${date.getMonth()+1}/${date.getDate()} ${quiz.quiz_type === 'words' ? 'W' : 'S'}`;
@@ -889,14 +887,20 @@
             );
             
             // Calculate chart width based on number of data points
-            const minWidth = 600; // Minimum width
-            const pointWidth = 50; // Width per data point
+            const minWidth = 800; // Minimum width for good visibility
+            const pointWidth = 60; // Width per data point
             const chartWidth = Math.max(minWidth, labels.length * pointWidth);
             
-            // Set canvas width for horizontal scrolling
-            document.getElementById('scoreChart').parentElement.style.overflowX = 'auto';
-            document.getElementById('scoreChart').parentElement.style.position = 'relative';
+            // Set compact height and enable horizontal scrolling
+            const chartContainer = document.getElementById('scoreChart').parentElement;
+            chartContainer.style.overflowX = 'auto';
+            chartContainer.style.overflowY = 'hidden';
+            chartContainer.style.height = '200px'; // Compact vertical height
+            chartContainer.style.position = 'relative';
+            
+            // Set canvas dimensions
             document.getElementById('scoreChart').width = chartWidth;
+            document.getElementById('scoreChart').height = 180; // Compact height
             
             new Chart(scoreCtx, {
                 type: 'line',
@@ -907,14 +911,14 @@
                         data: scores,
                         backgroundColor: backgroundColors,
                         borderColor: '#5c7cfa',
-                        borderWidth: 3,
+                        borderWidth: 2,
                         fill: false,
-                        tension: 0.4,
+                        tension: 0.3,
                         pointBackgroundColor: backgroundColors,
                         pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 6,
-                        pointHoverRadius: 8
+                        pointBorderWidth: 1,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
                     }]
                 },
                 options: {
@@ -931,6 +935,9 @@
                                 color: '#94a3b8',
                                 callback: function(value) {
                                     return value + '%';
+                                },
+                                font: {
+                                    size: 11
                                 }
                             }
                         },
@@ -941,7 +948,10 @@
                             ticks: {
                                 color: '#94a3b8',
                                 maxRotation: 45,
-                                minRotation: 45
+                                minRotation: 45,
+                                font: {
+                                    size: 10
+                                }
                             }
                         }
                     },
@@ -966,7 +976,7 @@
                 }
             });
             
-            // Comparison Chart
+            // Comparison Chart - Keep original size
             const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
             
             const wordsMastery = calculateMasteryLevels(performanceData.words || {});
@@ -1053,13 +1063,13 @@
             return levels;
         }
 
-        // Update weaknesses and strengths with new actionable information
+        // Update weaknesses and strengths with frequently updated data
         function updateWeaknessesAndStrengths(performanceData) {
             updatePerformanceSection('words', performanceData.words || {});
             updatePerformanceSection('sentences', performanceData.sentences || {});
         }
 
-        // Helper function to update performance sections
+        // Helper function to update performance sections with dynamic data
         function updatePerformanceSection(type, performance) {
             const weaknessList = document.getElementById(`${type}-weakness-list`);
             const strengthList = document.getElementById(`${type}-strength-list`);
@@ -1072,7 +1082,8 @@
                 meaning: stats.meaning || '',
                 accuracy: stats.correct + (stats.incorrect || 0) > 0 ? 
                     (stats.correct / (stats.correct + (stats.incorrect || 0))) * 100 : 0,
-                attempts: stats.correct + (stats.incorrect || 0)
+                attempts: stats.correct + (stats.incorrect || 0),
+                lastUpdated: stats.lastUpdated || new Date().toISOString()
             }));
             
             // Weaknesses (accuracy < 60% and at least 2 attempts)
@@ -1087,7 +1098,7 @@
                 .sort((a, b) => b.accuracy - a.accuracy)
                 .slice(0, 5);
             
-            // Display weaknesses with actionable steps
+            // Display weaknesses with updated timestamp
             if (weaknesses.length > 0) {
                 weaknessList.innerHTML = weaknesses.map(item => `
                     <div class="flex justify-between items-center p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
@@ -1095,8 +1106,8 @@
                             <div class="font-medium">${item.item}</div>
                             <div class="text-sm text-text-muted">${item.pinyin}</div>
                             <div class="text-xs text-text-muted mt-1">
-                                <i class="fas fa-bullseye mr-1"></i>
-                                Target: Practice 3x daily • Write + Speak
+                                <i class="fas fa-clock mr-1"></i>
+                                Updated: ${new Date(item.lastUpdated).toLocaleTimeString()}
                             </div>
                         </div>
                         <div class="text-right">
@@ -1111,7 +1122,7 @@
                 noWeaknesses.classList.remove('hidden');
             }
             
-            // Display strengths with maintenance tips
+            // Display strengths with updated timestamp
             if (strengths.length > 0) {
                 strengthList.innerHTML = strengths.map(item => `
                     <div class="flex justify-between items-center p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
@@ -1119,8 +1130,8 @@
                             <div class="font-medium">${item.item}</div>
                             <div class="text-sm text-text-muted">${item.pinyin}</div>
                             <div class="text-xs text-green-400 mt-1">
-                                <i class="fas fa-check-circle mr-1"></i>
-                                Mastered! Review weekly to maintain
+                                <i class="fas fa-clock mr-1"></i>
+                                Updated: ${new Date(item.lastUpdated).toLocaleTimeString()}
                             </div>
                         </div>
                         <div class="text-right">
@@ -1134,6 +1145,66 @@
                 strengthList.innerHTML = '';
                 noStrengths.classList.remove('hidden');
             }
+        }
+
+        // Refresh performance data (simulates real-time updates)
+        function refreshPerformanceData() {
+            const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+            
+            // Simulate some data changes for demonstration
+            const updatedPerformanceData = simulateDataUpdates(performanceData);
+            
+            // Update localStorage with new data
+            localStorage.setItem('hsk1PerformanceData', JSON.stringify(updatedPerformanceData));
+            
+            // Update the UI
+            updateWeaknessesAndStrengths(updatedPerformanceData);
+            
+            // Show refresh indicator
+            showRefreshIndicator();
+        }
+
+        // Simulate data updates for demonstration
+        function simulateDataUpdates(performanceData) {
+            const updatedData = JSON.parse(JSON.stringify(performanceData));
+            
+            // Randomly update some word performances
+            if (updatedData.words) {
+                Object.keys(updatedData.words).forEach((word, index) => {
+                    // 20% chance to update each word
+                    if (Math.random() < 0.2) {
+                        const change = Math.random() < 0.5 ? 1 : -1;
+                        updatedData.words[word].correct = Math.max(0, updatedData.words[word].correct + change);
+                        updatedData.words[word].lastUpdated = new Date().toISOString();
+                    }
+                });
+            }
+            
+            // Randomly update some sentence performances
+            if (updatedData.sentences) {
+                Object.keys(updatedData.sentences).forEach((sentence, index) => {
+                    // 20% chance to update each sentence
+                    if (Math.random() < 0.2) {
+                        const change = Math.random() < 0.5 ? 1 : -1;
+                        updatedData.sentences[sentence].correct = Math.max(0, updatedData.sentences[sentence].correct + change);
+                        updatedData.sentences[sentence].lastUpdated = new Date().toISOString();
+                    }
+                });
+            }
+            
+            return updatedData;
+        }
+
+        // Show refresh indicator
+        function showRefreshIndicator() {
+            const indicator = document.createElement('div');
+            indicator.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-3 py-2 rounded-lg text-sm shadow-lg';
+            indicator.innerHTML = '<i class="fas fa-sync-alt mr-2"></i> Data Updated';
+            document.body.appendChild(indicator);
+            
+            setTimeout(() => {
+                indicator.remove();
+            }, 2000);
         }
 
         // Update quiz history
@@ -1255,7 +1326,7 @@
             });
         }
 
-        // Update difficulty analysis with new features
+        // Update difficulty analysis
         function updateDifficultyAnalysis(performanceData) {
             const wordsMastery = calculateMasteryLevels(performanceData.words || {});
             const sentencesMastery = calculateMasteryLevels(performanceData.sentences || {});
@@ -1274,7 +1345,7 @@
             updateMasteryList('sentences', performanceData.sentences || {});
         }
 
-        // Update mastery list with new features
+        // Update mastery list
         function updateMasteryList(type, performance) {
             const difficultyList = document.getElementById(`${type}-difficulty-list`);
             
@@ -1317,122 +1388,6 @@
             createMasterySection(hard, 'Hard', 'text-red-400');
             
             difficultyList.innerHTML = html || `<div class="text-text-muted text-center py-4">No ${type} data available</div>`;
-        }
-
-        // NEW FEATURE: Learning Recommendations
-        function updateLearningRecommendations(performanceData, quizHistory) {
-            // Create recommendations section if it doesn't exist
-            if (!document.getElementById('learning-recommendations')) {
-                const recommendationsHTML = `
-                    <section id="learning-recommendations" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-12">
-                        <div class="sophisticated-card p-6">
-                            <h3 class="text-xl font-bold mb-4 text-text-light flex items-center">
-                                <i class="fas fa-lightbulb text-yellow-400 mr-2"></i>
-                                Personalized Learning Recommendations
-                            </h3>
-                            <div id="recommendations-content" class="space-y-4">
-                                <!-- Recommendations will be populated here -->
-                            </div>
-                        </div>
-                    </section>
-                `;
-                difficultySection.insertAdjacentHTML('afterend', recommendationsHTML);
-            }
-
-            const recommendationsContent = document.getElementById('recommendations-content');
-            const recommendations = generateLearningRecommendations(performanceData, quizHistory);
-            
-            recommendationsContent.innerHTML = recommendations.map(rec => `
-                <div class="flex items-start p-3 bg-${rec.color}-900/20 border border-${rec.color}-500/30 rounded-lg">
-                    <i class="${rec.icon} text-${rec.color}-400 mr-3 mt-1"></i>
-                    <div class="flex-1">
-                        <div class="font-medium">${rec.title}</div>
-                        <div class="text-sm text-text-muted">${rec.description}</div>
-                        <div class="text-xs text-${rec.color}-400 mt-1">${rec.action}</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // Generate learning recommendations based on performance
-        function generateLearningRecommendations(performanceData, quizHistory) {
-            const recommendations = [];
-            const wordsPerformance = performanceData.words || {};
-            const sentencesPerformance = performanceData.sentences || {};
-            
-            // Calculate overall performance
-            const wordsMastery = calculateMasteryLevels(wordsPerformance);
-            const sentencesMastery = calculateMasteryLevels(sentencesPerformance);
-            
-            const totalWords = Object.keys(wordsPerformance).length;
-            const totalSentences = Object.keys(sentencesPerformance).length;
-            
-            // Recommendation 1: Based on weak areas
-            if (wordsMastery.hard > sentencesMastery.hard) {
-                recommendations.push({
-                    title: "Focus on Vocabulary Building",
-                    description: "Your word accuracy needs more attention than sentence comprehension.",
-                    action: "Spend 15 minutes daily on vocabulary drills",
-                    icon: "fas fa-font",
-                    color: "blue"
-                });
-            } else if (sentencesMastery.hard > wordsMastery.hard) {
-                recommendations.push({
-                    title: "Improve Sentence Understanding",
-                    description: "Sentence comprehension is your primary area for improvement.",
-                    action: "Practice sentence construction and reading",
-                    icon: "fas fa-comments",
-                    color: "cyan"
-                });
-            }
-            
-            // Recommendation 2: Based on study consistency
-            const recentQuizzes = quizHistory.slice(0, 7).length;
-            if (recentQuizzes < 3) {
-                recommendations.push({
-                    title: "Increase Practice Frequency",
-                    description: "Regular practice is key to language retention.",
-                    action: "Aim for at least 3 quizzes per week",
-                    icon: "fas fa-calendar-check",
-                    color: "green"
-                });
-            }
-            
-            // Recommendation 3: Based on mastery progress
-            const totalMastered = wordsMastery.mastered + sentencesMastery.mastered;
-            const totalItems = totalWords + totalSentences;
-            const masteryPercentage = totalItems > 0 ? (totalMastered / totalItems) * 100 : 0;
-            
-            if (masteryPercentage < 30) {
-                recommendations.push({
-                    title: "Build Foundation First",
-                    description: "Focus on mastering basic words and sentences before advancing.",
-                    action: "Review HSK1 fundamentals daily",
-                    icon: "fas fa-layer-group",
-                    color: "purple"
-                });
-            } else if (masteryPercentage > 70) {
-                recommendations.push({
-                    title: "Ready for Advancement",
-                    description: "You're mastering HSK1 content efficiently.",
-                    action: "Consider starting HSK2 preparation",
-                    icon: "fas fa-rocket",
-                    color: "yellow"
-                });
-            }
-            
-            // Default recommendation
-            if (recommendations.length === 0) {
-                recommendations.push({
-                    title: "Maintain Consistent Practice",
-                    description: "Your current learning pace is effective. Keep it up!",
-                    action: "Continue with your current study routine",
-                    icon: "fas fa-chart-line",
-                    color: "green"
-                });
-            }
-            
-            return recommendations.slice(0, 3); // Return top 3 recommendations
         }
 
         // Export user data
