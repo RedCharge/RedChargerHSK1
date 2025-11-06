@@ -681,13 +681,7 @@
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             initializeMobileMenu();
-            checkUserProfile();
-            initializeChat();
-            startPolling();
-            
-            // Set up page visibility change handlers
-            document.addEventListener('visibilitychange', handleVisibilityChange);
-            window.addEventListener('beforeunload', handleBeforeUnload);
+            checkUserProfileAndInitialize();
         });
 
         // Initialize Mobile Menu
@@ -757,20 +751,54 @@
             });
         }
 
-        // Check if user has completed profile
-        function checkUserProfile() {
+        // Check if user has completed profile and initialize chat
+        async function checkUserProfileAndInitialize() {
             const profile = getProfile();
             
             if (!profile.username) {
-                // Redirect to profile page if username is not set
-                window.location.href = '/profile';
+                // Show profile completion required message
+                showProfileRequiredMessage();
                 return;
             }
             
             currentUser = profile;
             
+            // Initialize chat functionality
+            initializeChat();
+            
             // Mark user as online
-            updateOnlineStatus(true);
+            try {
+                await updateOnlineStatus(true);
+            } catch (error) {
+                console.error('Failed to set online status:', error);
+            }
+            
+            // Start polling
+            startPolling();
+        }
+
+        // Show profile completion required message
+        function showProfileRequiredMessage() {
+            emptyChat.innerHTML = `
+                <div class="text-center">
+                    <i class="fas fa-user-slash empty-chat-icon text-yellow-500"></i>
+                    <h3 class="text-xl font-semibold mb-2">Profile Required</h3>
+                    <p class="text-text-muted mb-4">Please complete your profile before using the chat.</p>
+                    <button onclick="redirectToProfile()" class="cta-button-primary py-2 px-6 rounded-lg font-medium">
+                        <i class="fas fa-user-edit mr-2"></i> Complete Profile
+                    </button>
+                </div>
+            `;
+            
+            // Disable chat input
+            messageInput.disabled = true;
+            messageInput.placeholder = "Please complete your profile to chat";
+            sendButton.disabled = true;
+        }
+
+        // Redirect to profile page
+        function redirectToProfile() {
+            window.location.href = '/profile';
         }
 
         // Get user profile from localStorage
@@ -826,6 +854,10 @@
             
             // Initialize with disabled send button
             sendButton.disabled = true;
+
+            // Set up page visibility change handlers
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('beforeunload', handleBeforeUnload);
         }
 
         // Handle input for typing indicators
@@ -856,7 +888,11 @@
         async function sendMessage() {
             const messageText = messageInput.value.trim();
             
-            if (!messageText) return;
+            if (!messageText || !currentUser) return;
+            
+            // Disable send button temporarily
+            sendButton.disabled = true;
+            sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             
             try {
                 const response = await fetch(`${API_BASE}/send`, {
@@ -871,9 +907,13 @@
                     })
                 });
 
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
                 const result = await response.json();
                 
-                if (response.ok) {
+                if (result.success) {
                     // Message sent successfully
                     if (result.message) {
                         addMessageToChat(result.message);
@@ -897,11 +937,18 @@
                     // Scroll to bottom
                     scrollToBottom();
                 } else {
-                    showError(result.error || 'Failed to send message');
+                    throw new Error(result.error || 'Failed to send message');
                 }
             } catch (error) {
                 console.error('Error sending message:', error);
-                showError('Network error. Please check your connection.');
+                showError('Network error. Please check your connection and try again.');
+                
+                // Re-enable send button
+                sendButton.disabled = false;
+            } finally {
+                // Reset send button
+                sendButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
+                sendButton.disabled = messageInput.value.trim() === '';
             }
         }
 
@@ -1035,9 +1082,13 @@
                         })
                     });
 
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
                     const result = await response.json();
                     
-                    if (response.ok) {
+                    if (result.success) {
                         // Update UI
                         const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
                         if (messageElement) {
@@ -1051,7 +1102,7 @@
                             }
                         }
                     } else {
-                        showError(result.error || 'Failed to delete message');
+                        throw new Error(result.error || 'Failed to delete message');
                     }
                 } catch (error) {
                     console.error('Error deleting message:', error);
@@ -1064,29 +1115,30 @@
         async function loadMessages() {
             try {
                 const response = await fetch(`${API_BASE}/messages?limit=100`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
                 
-                if (response.ok) {
-                    if (result.messages && result.messages.length > 0) {
-                        emptyChat.style.display = 'none';
-                        
-                        result.messages.forEach(message => {
-                            addMessageToChat(message);
-                        });
-                        
-                        // Set last message ID for polling
-                        if (result.messages.length > 0) {
-                            lastMessageId = result.messages[result.messages.length - 1].id;
-                        }
-                        
-                        scrollToBottom();
+                if (result.messages && result.messages.length > 0) {
+                    emptyChat.style.display = 'none';
+                    
+                    result.messages.forEach(message => {
+                        addMessageToChat(message);
+                    });
+                    
+                    // Set last message ID for polling
+                    if (result.messages.length > 0) {
+                        lastMessageId = result.messages[result.messages.length - 1].id;
                     }
-                } else {
-                    showError(result.error || 'Failed to load messages');
+                    
+                    scrollToBottom();
                 }
             } catch (error) {
                 console.error('Error loading messages:', error);
-                showError('Network error. Please check your connection.');
+                showError('Failed to load messages. Please refresh the page.');
             }
         }
 
@@ -1117,7 +1169,7 @@
         // Update typing status via API
         async function updateTypingStatus(typing) {
             try {
-                await fetch(`${API_BASE}/typing`, {
+                const response = await fetch(`${API_BASE}/typing`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1127,6 +1179,10 @@
                         user_profile: currentUser
                     })
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
             } catch (error) {
                 console.error('Error updating typing status:', error);
             }
@@ -1135,7 +1191,7 @@
         // Update online status via API
         async function updateOnlineStatus(isOnline) {
             try {
-                await fetch(`${API_BASE}/online`, {
+                const response = await fetch(`${API_BASE}/online`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1145,6 +1201,16 @@
                         user_profile: currentUser
                     })
                 });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                if (result.online_users) {
+                    onlineUsers = new Set(result.online_users);
+                    updateOnlineCount();
+                }
             } catch (error) {
                 console.error('Error updating online status:', error);
             }
@@ -1152,7 +1218,7 @@
 
         // Real-time polling for new messages
         async function pollForUpdates() {
-            if (!pollingActive) return;
+            if (!pollingActive || !currentUser) return;
             
             try {
                 const url = lastMessageId ? 
@@ -1160,45 +1226,43 @@
                     `${API_BASE}/poll`;
                 
                 const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
                 const result = await response.json();
                 
-                if (response.ok) {
-                    // Process new messages
-                    if (result.new_messages && result.new_messages.length > 0) {
-                        result.new_messages.forEach(message => {
-                            addMessageToChat(message);
-                            lastMessageId = message.id;
-                        });
-                        
-                        if (result.new_messages.length > 0) {
-                            scrollToBottom();
-                        }
-                    }
+                // Process new messages
+                if (result.new_messages && result.new_messages.length > 0) {
+                    result.new_messages.forEach(message => {
+                        addMessageToChat(message);
+                        lastMessageId = message.id;
+                    });
                     
-                    // Update typing indicators
-                    if (result.typing_users) {
-                        typingUsersSet = new Set(result.typing_users.filter(user => user !== currentUser.username));
-                        updateTypingIndicator();
-                    }
-                    
-                    // Update online users
-                    if (result.online_users) {
-                        onlineUsers = new Set(result.online_users);
-                        updateOnlineCount();
-                    }
-                    
-                    // Handle typing updates
-                    if (result.typing_update) {
-                        typingUsersSet = new Set(result.typing_users.filter(user => user !== currentUser.username));
-                        updateTypingIndicator();
+                    if (result.new_messages.length > 0) {
+                        scrollToBottom();
                     }
                 }
+                
+                // Update typing indicators
+                if (result.typing_users) {
+                    typingUsersSet = new Set(result.typing_users.filter(user => user !== currentUser.username));
+                    updateTypingIndicator();
+                }
+                
+                // Update online users
+                if (result.online_users) {
+                    onlineUsers = new Set(result.online_users);
+                    updateOnlineCount();
+                }
+                
             } catch (error) {
                 console.error('Error polling for updates:', error);
                 // Don't show error for polling failures - they're expected
             } finally {
                 // Continue polling after a short delay
-                if (pollingActive) {
+                if (pollingActive && currentUser) {
                     setTimeout(pollForUpdates, 2000);
                 }
             }
@@ -1208,29 +1272,11 @@
         function startPolling() {
             pollingActive = true;
             pollForUpdates();
-            
-            // Also get initial online users
-            fetchOnlineUsers();
         }
 
         // Stop polling (when user leaves page)
         function stopPolling() {
             pollingActive = false;
-        }
-
-        // Fetch online users
-        async function fetchOnlineUsers() {
-            try {
-                const response = await fetch(`${API_BASE}/users/online`);
-                const result = await response.json();
-                
-                if (response.ok) {
-                    onlineUsers = new Set(result.online_users);
-                    updateOnlineCount();
-                }
-            } catch (error) {
-                console.error('Error fetching online users:', error);
-            }
         }
 
         // Update typing indicator UI
@@ -1267,7 +1313,9 @@
             
             // Remove after 5 seconds
             setTimeout(() => {
-                errorElement.remove();
+                if (errorElement.parentNode) {
+                    errorElement.remove();
+                }
             }, 5000);
         }
 
@@ -1287,25 +1335,6 @@
             stopPolling();
             updateOnlineStatus(false);
             updateTypingStatus(false);
-        }
-
-        // Search messages (optional feature)
-        async function searchMessages(query) {
-            try {
-                const response = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
-                const result = await response.json();
-                
-                if (response.ok) {
-                    return result.results;
-                } else {
-                    showError(result.error || 'Search failed');
-                    return [];
-                }
-            } catch (error) {
-                console.error('Error searching messages:', error);
-                showError('Network error during search');
-                return [];
-            }
         }
     </script>
 </body>
