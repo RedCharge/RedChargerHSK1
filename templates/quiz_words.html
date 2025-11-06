@@ -472,7 +472,7 @@
 
     <!-- Quiz Logic -->
      <script>
-        // Quiz state
+            // Quiz state
     let currentQuestion = 0;
     let score = 0;
     let correctAnswers = 0;
@@ -1072,8 +1072,19 @@
             console.log('API Response:', data);
             
             if (data.success && data.words && Array.isArray(data.words)) {
-                quizData = validateQuizData(data.words);
+                quizData = data.words;
                 console.log(`Successfully loaded ${quizData.length} questions`);
+                
+                // Log each question's correct answer for debugging
+                quizData.forEach((question, index) => {
+                    console.log(`Question ${index + 1}:`, {
+                        word: question.word,
+                        correctAnswer: question.correctAnswer,
+                        type: typeof question.correctAnswer,
+                        options: question.options
+                    });
+                });
+                
                 initQuiz();
             } else {
                 throw new Error(data.message || 'Invalid data structure received from API');
@@ -1083,118 +1094,6 @@
             console.error('Quiz loading error:', error);
             showError(`Failed to load quiz: ${error.message}. Please check if the server is running.`);
         }
-    }
-
-    // Validate and fix quiz data
-    function validateQuizData(data) {
-        console.log('=== VALIDATING QUIZ DATA ===');
-        
-        const validatedData = data.map((question, index) => {
-            // Create a clean copy
-            const cleanQuestion = { ...question };
-            
-            // Log original data for debugging
-            console.log(`Question ${index + 1} original:`, {
-                word: question.word,
-                pinyin: question.pinyin,
-                correctAnswer: question.correctAnswer,
-                type: typeof question.correctAnswer,
-                options: question.options
-            });
-            
-            // FIX: Ensure correctAnswer is properly parsed
-            let correctAnswer;
-            
-            // Method 1: Try direct parsing
-            correctAnswer = parseInt(question.correctAnswer);
-            
-            // Method 2: If parsing fails, try to find the correct answer by content
-            if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= question.options.length) {
-                console.warn(`Question ${index + 1}: Invalid correctAnswer, attempting to find correct answer by content`);
-                
-                // Try to determine correct answer based on word meaning
-                const correctIndex = findCorrectAnswerByContent(question);
-                correctAnswer = correctIndex;
-                console.log(`Question ${index + 1}: Determined correct answer as index ${correctAnswer} based on content`);
-            }
-            
-            // Final validation
-            if (isNaN(correctAnswer) || correctAnswer < 0 || correctAnswer >= question.options.length) {
-                console.error(`Question ${index + 1}: Still invalid, using fallback (0)`);
-                correctAnswer = 0;
-            }
-            
-            cleanQuestion.correctAnswer = correctAnswer;
-            
-            console.log(`Question ${index + 1} validated:`, {
-                word: cleanQuestion.word,
-                correctAnswer: cleanQuestion.correctAnswer,
-                correctOption: cleanQuestion.options[cleanQuestion.correctAnswer]
-            });
-            
-            return cleanQuestion;
-        });
-        
-        return validatedData;
-    }
-
-    // Find correct answer by analyzing word content and options
-    function findCorrectAnswerByContent(question) {
-        const word = question.word;
-        const pinyin = question.pinyin || '';
-        const options = question.options;
-        
-        // Common HSK1 word mappings
-        const wordMeanings = {
-            '教': 'to teach',
-            '说': 'to speak',
-            '你好': 'hello',
-            '谢谢': 'thank you',
-            '再见': 'goodbye',
-            '老师': 'teacher',
-            '学生': 'student',
-            '学校': 'school',
-            '学习': 'to study',
-            '看书': 'to read',
-            '写字': 'to write',
-            '听': 'to listen',
-            '说': 'to speak',
-            '读': 'to read',
-            '写': 'to write'
-        };
-        
-        // Check if we have a known mapping for this word
-        if (wordMeanings[word]) {
-            const correctMeaning = wordMeanings[word];
-            const correctIndex = options.findIndex(option => 
-                option.toLowerCase().includes(correctMeaning.toLowerCase())
-            );
-            if (correctIndex !== -1) {
-                return correctIndex;
-            }
-        }
-        
-        // Fallback: try to match based on pinyin or partial matches
-        for (let i = 0; i < options.length; i++) {
-            const option = options[i].toLowerCase();
-            
-            // Specific fix for "jiāo" which should be "to teach"
-            if (word === '教' && pinyin.includes('jiāo') && option.includes('teach')) {
-                return i;
-            }
-            if (word === '说' && option.includes('speak')) {
-                return i;
-            }
-            
-            // Other common patterns
-            if (word === '老师' && option.includes('teacher')) return i;
-            if (word === '学生' && option.includes('student')) return i;
-            if (word === '学校' && option.includes('school')) return i;
-            if (word === '学习' && option.includes('study')) return i;
-        }
-        
-        // Ultimate fallback
-        return 0;
     }
 
     // Initialize the quiz
@@ -1265,7 +1164,12 @@
             return;
         }
         
-        console.log(`Showing question ${currentQuestion + 1}:`, question);
+        console.log(`Showing question ${currentQuestion + 1}:`, {
+            word: question.word,
+            correctAnswer: question.correctAnswer,
+            correctAnswerType: typeof question.correctAnswer,
+            options: question.options
+        });
         
         questionContainer.innerHTML = `
             <div class="text-center mb-6">
@@ -1329,13 +1233,29 @@
         if (userAnswers[currentQuestion] !== null) return;
         
         const question = quizData[currentQuestion];
-        const correctAnswerIndex = parseInt(question.correctAnswer);
+        
+        // Get the correct answer directly from backend data
+        // Handle both string and number types for correctAnswer
+        let correctAnswerIndex;
+        
+        if (typeof question.correctAnswer === 'string') {
+            correctAnswerIndex = parseInt(question.correctAnswer);
+        } else {
+            correctAnswerIndex = question.correctAnswer;
+        }
+        
+        // Validate the correct answer index
+        if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
+            console.error('Invalid correct answer index:', correctAnswerIndex);
+            // Fallback to first option if invalid
+            correctAnswerIndex = 0;
+        }
+        
         const isCorrect = selectedIndex === correctAnswerIndex;
         
-        // EXTENSIVE DEBUGGING
+        // DEBUGGING
         console.log('=== ANSWER DEBUG INFO ===');
         console.log('Question word:', question.word);
-        console.log('Question pinyin:', question.pinyin);
         console.log('Selected index:', selectedIndex);
         console.log('Selected option:', question.options[selectedIndex]);
         console.log('Correct index:', correctAnswerIndex);
@@ -1439,12 +1359,21 @@
             // Track performance for each word in this quiz
             quizData.forEach((question, index) => {
                 const word = question.word;
-                const isCorrect = userAnswers[index] === parseInt(question.correctAnswer);
+                
+                // Get correct answer index properly
+                let correctAnswerIndex;
+                if (typeof question.correctAnswer === 'string') {
+                    correctAnswerIndex = parseInt(question.correctAnswer);
+                } else {
+                    correctAnswerIndex = question.correctAnswer;
+                }
+                
+                const isCorrect = userAnswers[index] === correctAnswerIndex;
                 
                 if (!performanceData.words[word]) {
                     performanceData.words[word] = {
                         pinyin: question.pinyin || '',
-                        meaning: question.options[question.correctAnswer] || '',
+                        meaning: question.options[correctAnswerIndex] || '',
                         correct: 0,
                         incorrect: 0
                     };
