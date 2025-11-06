@@ -7,7 +7,7 @@ import threading
 from collections import defaultdict
 
 # Create Blueprint for chat routes
-chat_bp = Blueprint('chat', __name__, url_prefix='/api/chat')
+chat_bp = Blueprint('chat', __name__)
 
 # In-memory storage (in production, use Redis or database)
 chat_messages: List[Dict] = []
