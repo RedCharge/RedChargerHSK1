@@ -31,6 +31,7 @@ def create_app():
     from .sentence_routes import sentence_bp
     from .learn_routes import learn_bp
     from .profile_routes import profile_bp
+    from chat_routes import chat_bp
     
     # Import leaderboard routes
     try:
@@ -55,6 +56,7 @@ def create_app():
     app.register_blueprint(sentence_bp, url_prefix='/sentences')
     app.register_blueprint(learn_bp)
     app.register_blueprint(profile_bp)
+    app.register_blueprint(chat_bp)
     
     # Create database tables
     with app.app_context():

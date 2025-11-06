@@ -647,7 +647,7 @@
         <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
     </footer>
 
-    <!-- Chat Logic -->
+        <!-- Chat Logic -->
     <script>
         // DOM Elements
         const mobileMenuButton = document.getElementById('mobile-menu-button');
@@ -665,12 +665,16 @@
         const typingUsers = document.getElementById('typing-users');
         const onlineCount = document.getElementById('online-count');
 
+        // API Base URL
+        const API_BASE = '/api/chat';
+
         // Chat state
         let currentUser = null;
         let replyingTo = null;
         let typingTimeout = null;
-        let lastMessageId = 0;
+        let lastMessageId = null;
         let isTyping = false;
+        let pollingActive = true;
         let onlineUsers = new Set();
         let typingUsersSet = new Set();
 
@@ -680,6 +684,10 @@
             checkUserProfile();
             initializeChat();
             startPolling();
+            
+            // Set up page visibility change handlers
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('beforeunload', handleBeforeUnload);
         });
 
         // Initialize Mobile Menu
@@ -760,6 +768,9 @@
             }
             
             currentUser = profile;
+            
+            // Mark user as online
+            updateOnlineStatus(true);
         }
 
         // Get user profile from localStorage
@@ -842,44 +853,56 @@
         }
 
         // Send a new message
-        function sendMessage() {
+        async function sendMessage() {
             const messageText = messageInput.value.trim();
             
             if (!messageText) return;
             
-            // Create message object
-            const message = {
-                id: Date.now(),
-                userId: currentUser.username,
-                username: currentUser.username,
-                avatar: currentUser.avatar,
-                text: messageText,
-                timestamp: new Date().toISOString(),
-                replyTo: replyingTo
-            };
-            
-            // Add message to chat
-            addMessageToChat(message);
-            
-            // Save message to storage
-            saveMessage(message);
-            
-            // Clear input and reset state
-            messageInput.value = '';
-            messageInput.style.height = 'auto';
-            sendButton.disabled = true;
-            
-            // Cancel any reply
-            if (replyingTo) {
-                cancelReplyTo();
+            try {
+                const response = await fetch(`${API_BASE}/send`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: messageText,
+                        reply_to: replyingTo ? replyingTo.id : null,
+                        user_profile: currentUser
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Message sent successfully
+                    if (result.message) {
+                        addMessageToChat(result.message);
+                        lastMessageId = result.message.id;
+                    }
+                    
+                    // Clear input and reset state
+                    messageInput.value = '';
+                    messageInput.style.height = 'auto';
+                    sendButton.disabled = true;
+                    
+                    // Cancel any reply
+                    if (replyingTo) {
+                        cancelReplyTo();
+                    }
+                    
+                    // Stop typing indicator
+                    isTyping = false;
+                    updateTypingStatus(false);
+                    
+                    // Scroll to bottom
+                    scrollToBottom();
+                } else {
+                    showError(result.error || 'Failed to send message');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showError('Network error. Please check your connection.');
             }
-            
-            // Stop typing indicator
-            isTyping = false;
-            updateTypingStatus(false);
-            
-            // Scroll to bottom
-            scrollToBottom();
         }
 
         // Add a message to the chat UI
@@ -890,7 +913,7 @@
             }
             
             const messageElement = document.createElement('div');
-            messageElement.className = `message ${message.userId === currentUser.username ? 'message-sent' : 'message-received'}`;
+            messageElement.className = `message ${message.user_id === currentUser.username ? 'message-sent' : 'message-received'}`;
             messageElement.dataset.messageId = message.id;
             
             // Create message header with avatar and username
@@ -918,21 +941,18 @@
             
             // Create reply indicator if this is a reply
             let replyIndicator = '';
-            if (message.replyTo) {
-                const repliedMessage = getMessageById(message.replyTo.id);
-                if (repliedMessage) {
-                    replyIndicator = `
-                        <div class="reply-indicator">
-                            Replying to <span class="reply-username">${repliedMessage.username}</span>: ${repliedMessage.text}
-                        </div>
-                    `;
-                }
+            if (message.reply_to) {
+                replyIndicator = `
+                    <div class="reply-indicator">
+                        Replying to <span class="reply-username">${message.reply_to.username}</span>: ${message.reply_to.text}
+                    </div>
+                `;
             }
             
             // Create message text
             const messageText = document.createElement('div');
             messageText.className = 'message-text';
-            messageText.innerHTML = message.isDeleted ? 
+            messageText.innerHTML = message.is_deleted ? 
                 '<span class="deleted-message">This message was deleted</span>' : 
                 message.text;
             
@@ -943,7 +963,7 @@
             
             // Create message actions (only for user's own messages)
             let messageActions = '';
-            if (message.userId === currentUser.username && !message.isDeleted) {
+            if (message.user_id === currentUser.username && !message.is_deleted) {
                 messageActions = `
                     <div class="message-actions">
                         <button class="message-action reply-action" title="Reply">
@@ -966,7 +986,7 @@
             `;
             
             // Add event listeners for actions
-            if (message.userId === currentUser.username && !message.isDeleted) {
+            if (message.user_id === currentUser.username && !message.is_deleted) {
                 const replyBtn = messageElement.querySelector('.reply-action');
                 const deleteBtn = messageElement.querySelector('.delete-action');
                 
@@ -1002,63 +1022,72 @@
         }
 
         // Delete a message
-        function deleteMessage(messageId) {
+        async function deleteMessage(messageId) {
             if (confirm('Are you sure you want to delete this message?')) {
-                // Mark message as deleted in storage
-                const messages = getMessages();
-                const messageIndex = messages.findIndex(m => m.id === messageId);
-                
-                if (messageIndex !== -1) {
-                    messages[messageIndex].isDeleted = true;
-                    localStorage.setItem('chatMessages', JSON.stringify(messages));
+                try {
+                    const response = await fetch(`${API_BASE}/delete/${messageId}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            user_profile: currentUser
+                        })
+                    });
+
+                    const result = await response.json();
                     
-                    // Update UI
-                    const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
-                    if (messageElement) {
-                        const messageText = messageElement.querySelector('.message-text');
-                        messageText.innerHTML = '<span class="deleted-message">This message was deleted</span>';
-                        
-                        // Remove actions
-                        const messageActions = messageElement.querySelector('.message-actions');
-                        if (messageActions) {
-                            messageActions.remove();
+                    if (response.ok) {
+                        // Update UI
+                        const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+                        if (messageElement) {
+                            const messageText = messageElement.querySelector('.message-text');
+                            messageText.innerHTML = '<span class="deleted-message">This message was deleted</span>';
+                            
+                            // Remove actions
+                            const messageActions = messageElement.querySelector('.message-actions');
+                            if (messageActions) {
+                                messageActions.remove();
+                            }
                         }
+                    } else {
+                        showError(result.error || 'Failed to delete message');
                     }
+                } catch (error) {
+                    console.error('Error deleting message:', error);
+                    showError('Network error. Please check your connection.');
                 }
             }
         }
 
-        // Load messages from storage
-        function loadMessages() {
-            const messages = getMessages();
-            
-            if (messages.length > 0) {
-                emptyChat.style.display = 'none';
+        // Load messages from API
+        async function loadMessages() {
+            try {
+                const response = await fetch(`${API_BASE}/messages?limit=100`);
+                const result = await response.json();
                 
-                messages.forEach(message => {
-                    addMessageToChat(message);
-                });
-                
-                scrollToBottom();
+                if (response.ok) {
+                    if (result.messages && result.messages.length > 0) {
+                        emptyChat.style.display = 'none';
+                        
+                        result.messages.forEach(message => {
+                            addMessageToChat(message);
+                        });
+                        
+                        // Set last message ID for polling
+                        if (result.messages.length > 0) {
+                            lastMessageId = result.messages[result.messages.length - 1].id;
+                        }
+                        
+                        scrollToBottom();
+                    }
+                } else {
+                    showError(result.error || 'Failed to load messages');
+                }
+            } catch (error) {
+                console.error('Error loading messages:', error);
+                showError('Network error. Please check your connection.');
             }
-        }
-
-        // Get messages from storage
-        function getMessages() {
-            return JSON.parse(localStorage.getItem('chatMessages') || '[]');
-        }
-
-        // Save a message to storage
-        function saveMessage(message) {
-            const messages = getMessages();
-            messages.push(message);
-            localStorage.setItem('chatMessages', JSON.stringify(messages));
-        }
-
-        // Get a message by ID
-        function getMessageById(id) {
-            const messages = getMessages();
-            return messages.find(m => m.id === id);
         }
 
         // Format timestamp for display
@@ -1085,19 +1114,123 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Update typing status
-        function updateTypingStatus(typing) {
-            // In a real app, this would send to server
-            // For demo, we'll just simulate other users typing occasionally
-            if (typing) {
-                // Add current user to typing set
-                typingUsersSet.add(currentUser.username);
-            } else {
-                // Remove current user from typing set
-                typingUsersSet.delete(currentUser.username);
+        // Update typing status via API
+        async function updateTypingStatus(typing) {
+            try {
+                await fetch(`${API_BASE}/typing`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        is_typing: typing,
+                        user_profile: currentUser
+                    })
+                });
+            } catch (error) {
+                console.error('Error updating typing status:', error);
             }
+        }
+
+        // Update online status via API
+        async function updateOnlineStatus(isOnline) {
+            try {
+                await fetch(`${API_BASE}/online`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        is_online: isOnline,
+                        user_profile: currentUser
+                    })
+                });
+            } catch (error) {
+                console.error('Error updating online status:', error);
+            }
+        }
+
+        // Real-time polling for new messages
+        async function pollForUpdates() {
+            if (!pollingActive) return;
             
-            updateTypingIndicator();
+            try {
+                const url = lastMessageId ? 
+                    `${API_BASE}/poll?last_message_id=${lastMessageId}` : 
+                    `${API_BASE}/poll`;
+                
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Process new messages
+                    if (result.new_messages && result.new_messages.length > 0) {
+                        result.new_messages.forEach(message => {
+                            addMessageToChat(message);
+                            lastMessageId = message.id;
+                        });
+                        
+                        if (result.new_messages.length > 0) {
+                            scrollToBottom();
+                        }
+                    }
+                    
+                    // Update typing indicators
+                    if (result.typing_users) {
+                        typingUsersSet = new Set(result.typing_users.filter(user => user !== currentUser.username));
+                        updateTypingIndicator();
+                    }
+                    
+                    // Update online users
+                    if (result.online_users) {
+                        onlineUsers = new Set(result.online_users);
+                        updateOnlineCount();
+                    }
+                    
+                    // Handle typing updates
+                    if (result.typing_update) {
+                        typingUsersSet = new Set(result.typing_users.filter(user => user !== currentUser.username));
+                        updateTypingIndicator();
+                    }
+                }
+            } catch (error) {
+                console.error('Error polling for updates:', error);
+                // Don't show error for polling failures - they're expected
+            } finally {
+                // Continue polling after a short delay
+                if (pollingActive) {
+                    setTimeout(pollForUpdates, 2000);
+                }
+            }
+        }
+
+        // Start polling for real-time updates
+        function startPolling() {
+            pollingActive = true;
+            pollForUpdates();
+            
+            // Also get initial online users
+            fetchOnlineUsers();
+        }
+
+        // Stop polling (when user leaves page)
+        function stopPolling() {
+            pollingActive = false;
+        }
+
+        // Fetch online users
+        async function fetchOnlineUsers() {
+            try {
+                const response = await fetch(`${API_BASE}/users/online`);
+                const result = await response.json();
+                
+                if (response.ok) {
+                    onlineUsers = new Set(result.online_users);
+                    updateOnlineCount();
+                }
+            } catch (error) {
+                console.error('Error fetching online users:', error);
+            }
         }
 
         // Update typing indicator UI
@@ -1118,103 +1251,61 @@
             }
         }
 
-        // Simulate real-time updates with polling
-        function startPolling() {
-            // In a real app, this would be API calls to a server
-            // For demo, we'll simulate new messages and online users
-            
-            // Add current user to online users
-            onlineUsers.add(currentUser.username);
-            updateOnlineCount();
-            
-            // Simulate other users joining
-            setTimeout(() => {
-                onlineUsers.add('MandarinMaster');
-                updateOnlineCount();
-            }, 3000);
-            
-            setTimeout(() => {
-                onlineUsers.add('HSKLearner');
-                updateOnlineCount();
-                
-                // Simulate a welcome message
-                if (getMessages().length === 0) {
-                    const welcomeMessage = {
-                        id: Date.now() - 1000,
-                        userId: 'system',
-                        username: 'RedCharger Bot',
-                        avatar: '',
-                        text: 'Welcome to the RedCharger community chat! Feel free to introduce yourself and ask any questions about learning Mandarin.',
-                        timestamp: new Date(Date.now() - 5000).toISOString()
-                    };
-                    
-                    saveMessage(welcomeMessage);
-                    addMessageToChat(welcomeMessage);
-                    scrollToBottom();
-                }
-            }, 5000);
-            
-            // Periodically check for new messages
-            setInterval(() => {
-                // In a real app, this would fetch new messages from server
-                // For demo, we'll occasionally simulate new messages from other users
-                if (Math.random() < 0.1 && onlineUsers.size > 1) {
-                    const otherUsers = Array.from(onlineUsers).filter(u => u !== currentUser.username);
-                    if (otherUsers.length > 0) {
-                        const randomUser = otherUsers[Math.floor(Math.random() * otherUsers.length)];
-                        
-                        const sampleMessages = [
-                            "Has anyone tried the new HSK 2.0 practice tests?",
-                            "I'm struggling with the pronunciation of 'q' and 'x' sounds. Any tips?",
-                            "What's your favorite resource for learning Chinese characters?",
-                            "Just completed my 10-day streak! 🎉",
-                            "Does anyone want to practice speaking together?",
-                            "I found this great app for practicing tones: TonePerfect",
-                            "How long did it take you to feel comfortable with basic conversations?",
-                            "Anyone here preparing for the HSK 1 exam?"
-                        ];
-                        
-                        const randomMessage = sampleMessages[Math.floor(Math.random() * sampleMessages.length)];
-                        
-                        const newMessage = {
-                            id: Date.now(),
-                            userId: randomUser,
-                            username: randomUser,
-                            avatar: '',
-                            text: randomMessage,
-                            timestamp: new Date().toISOString()
-                        };
-                        
-                        // Only add if we haven't already added this message
-                        const messages = getMessages();
-                        if (!messages.some(m => m.text === randomMessage && m.userId === randomUser)) {
-                            saveMessage(newMessage);
-                            addMessageToChat(newMessage);
-                            scrollToBottom();
-                        }
-                    }
-                }
-                
-                // Simulate typing from other users occasionally
-                if (Math.random() < 0.05 && onlineUsers.size > 1) {
-                    const otherUsers = Array.from(onlineUsers).filter(u => u !== currentUser.username);
-                    if (otherUsers.length > 0) {
-                        const randomUser = otherUsers[Math.floor(Math.random() * otherUsers.length)];
-                        typingUsersSet.add(randomUser);
-                        updateTypingIndicator();
-                        
-                        setTimeout(() => {
-                            typingUsersSet.delete(randomUser);
-                            updateTypingIndicator();
-                        }, 2000);
-                    }
-                }
-            }, 5000);
-        }
-
         // Update online user count
         function updateOnlineCount() {
             onlineCount.textContent = onlineUsers.size;
+        }
+
+        // Show error message
+        function showError(message) {
+            // Create a temporary error message
+            const errorElement = document.createElement('div');
+            errorElement.className = 'bg-red-600 text-white p-3 rounded-lg mb-4 text-center';
+            errorElement.textContent = message;
+            
+            messagesContainer.insertBefore(errorElement, messagesContainer.firstChild);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                errorElement.remove();
+            }, 5000);
+        }
+
+        // Handle page visibility changes
+        function handleVisibilityChange() {
+            if (document.hidden) {
+                // Page is hidden, mark user as offline
+                updateOnlineStatus(false);
+            } else {
+                // Page is visible, mark user as online
+                updateOnlineStatus(true);
+            }
+        }
+
+        // Handle page unload
+        function handleBeforeUnload() {
+            stopPolling();
+            updateOnlineStatus(false);
+            updateTypingStatus(false);
+        }
+
+        // Search messages (optional feature)
+        async function searchMessages(query) {
+            try {
+                const response = await fetch(`${API_BASE}/search?q=${encodeURIComponent(query)}`);
+                const result = await response.json();
+                
+                if (response.ok) {
+                    return result.results;
+                } else {
+                    showError(result.error || 'Search failed');
+                    return [];
+                }
+            } catch (error) {
+                console.error('Error searching messages:', error);
+                showError('Network error during search');
+                return [];
+            }
         }
     </script>
 </body>
