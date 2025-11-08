@@ -468,7 +468,7 @@
 
     <!-- Quiz Logic -->
     <script>
-                // Quiz state
+                    // Quiz state
     let currentQuestion = 0;
     let score = 0;
     let correctAnswers = 0;
@@ -895,7 +895,7 @@
             console.log('API Response:', data);
             
             if (data.success && data.sentences && Array.isArray(data.sentences)) {
-                // Use the data directly from backend - no complex validation
+                // USE DATA DIRECTLY FROM BACKEND - NO VALIDATION
                 quizData = data.sentences;
                 
                 // Log each question for debugging
@@ -903,8 +903,9 @@
                     console.log(`Question ${index + 1}:`, {
                         sentence: question.sentence,
                         correctAnswer: question.correctAnswer,
-                        type: typeof question.correctAnswer,
-                        options: question.options
+                        correctAnswerType: typeof question.correctAnswer,
+                        correctOption: question.options[question.correctAnswer],
+                        allOptions: question.options
                     });
                 });
                 
@@ -988,7 +989,8 @@
             sentence: question.sentence,
             correctAnswer: question.correctAnswer,
             correctAnswerType: typeof question.correctAnswer,
-            options: question.options
+            correctOption: question.options[question.correctAnswer],
+            allOptions: question.options
         });
         
         questionContainer.innerHTML = `
@@ -1051,39 +1053,26 @@
         }, 500);
     }
 
-    // Select an option - SIMPLIFIED VERSION
+    // Select an option - USE BACKEND CORRECT ANSWER DIRECTLY
     function selectOption(selectedIndex) {
         if (userAnswers[currentQuestion] !== null) return; // Already answered
         
         const question = quizData[currentQuestion];
         
-        // Get the correct answer directly from backend data
-        // Handle both string and number types for correctAnswer
-        let correctAnswerIndex;
+        // USE CORRECT ANSWER DIRECTLY FROM BACKEND - NO PROCESSING
+        const correctAnswerIndex = question.correctAnswer;
         
-        if (typeof question.correctAnswer === 'string') {
-            correctAnswerIndex = parseInt(question.correctAnswer);
-        } else {
-            correctAnswerIndex = question.correctAnswer;
-        }
-        
-        // Validate the correct answer index
-        if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
-            console.error('Invalid correct answer index:', correctAnswerIndex);
-            // Fallback to first option if invalid
-            correctAnswerIndex = 0;
-        }
-        
-        const isCorrect = selectedIndex === correctAnswerIndex;
-        
-        // DEBUGGING
+        // DEBUGGING - SHOW ALL DETAILS
         console.log('=== ANSWER DEBUG INFO ===');
         console.log('Question sentence:', question.sentence);
         console.log('Selected index:', selectedIndex);
         console.log('Selected option:', question.options[selectedIndex]);
-        console.log('Correct index:', correctAnswerIndex);
-        console.log('Correct option:', question.options[correctAnswerIndex]);
-        console.log('Is correct:', isCorrect);
+        console.log('Correct index (from backend):', correctAnswerIndex);
+        console.log('Correct option (from backend):', question.options[correctAnswerIndex]);
+        console.log('Is correct:', selectedIndex === correctAnswerIndex);
+        
+        // DIRECT COMPARISON - NO CONVERSION, NO VALIDATION
+        const isCorrect = selectedIndex === correctAnswerIndex;
         
         userAnswers[currentQuestion] = selectedIndex;
         
@@ -1193,14 +1182,8 @@
             quizData.forEach((question, index) => {
                 const sentence = question.sentence;
                 
-                // Get correct answer index properly
-                let correctAnswerIndex;
-                if (typeof question.correctAnswer === 'string') {
-                    correctAnswerIndex = parseInt(question.correctAnswer);
-                } else {
-                    correctAnswerIndex = question.correctAnswer;
-                }
-                
+                // USE CORRECT ANSWER DIRECTLY FROM BACKEND
+                const correctAnswerIndex = question.correctAnswer;
                 const isCorrect = userAnswers[index] === correctAnswerIndex;
                 
                 if (!performanceData.sentences[sentence]) {
