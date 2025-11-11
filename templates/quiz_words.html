@@ -473,525 +473,808 @@
     <!-- Quiz Logic -->
      <script>
             // Quiz state
-    let currentQuestion = 0;
-    let score = 0;
-    let correctAnswers = 0;
-    let incorrectAnswers = 0;
-    let userAnswers = [];
-    let quizData = [];
-    let quizStarted = false;
-    let startTime = null;
-    let speechEnabled = true;
-    let speechSynthesis = window.speechSynthesis;
-    let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    let userInteractedWithSpeech = false;
-    let audioContext = null;
-    let preloadedAudio = {};
-    let autoSpeakEnabled = true;
+let currentQuestion = 0;
+let score = 0;
+let correctAnswers = 0;
+let incorrectAnswers = 0;
+let userAnswers = [];
+let quizData = [];
+let quizStarted = false;
+let startTime = null;
+let speechEnabled = true;
+let speechSynthesis = window.speechSynthesis;
+let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+let userInteractedWithSpeech = false;
+let audioContext = null;
+let preloadedAudio = {};
+let autoSpeakEnabled = true;
 
-    // DOM elements
-    const loadingState = document.getElementById('loading-state');
-    const startScreen = document.getElementById('start-screen');
-    const quizContent = document.getElementById('quiz-content');
-    const errorState = document.getElementById('error-state');
-    const questionContainer = document.getElementById('question-container');
-    const optionsContainer = document.getElementById('options-container');
-    const feedbackElement = document.getElementById('feedback');
-    const nextButton = document.getElementById('next-btn');
-    const prevButton = document.getElementById('prev-btn');
-    const progressText = document.getElementById('progress-text');
-    const progressFill = document.getElementById('progress-fill');
-    const scoreElement = document.getElementById('score');
-    const correctCountElement = document.getElementById('correct-count');
-    const incorrectCountElement = document.getElementById('incorrect-count');
-    const resultsSection = document.getElementById('results-section');
-    const finalScoreElement = document.getElementById('final-score');
-    const finalCorrectElement = document.getElementById('final-correct');
-    const finalIncorrectElement = document.getElementById('final-incorrect');
-    const finalPercentageElement = document.getElementById('final-percentage');
-    const performanceMessageElement = document.getElementById('performance-message');
-    const restartButton = document.getElementById('restart-btn');
-    const homeButton = document.getElementById('home-btn');
-    const retryButton = document.getElementById('retry-btn');
-    const errorMessage = document.getElementById('error-message');
-    const startButton = document.getElementById('start-btn');
-    const speechToggle = document.getElementById('speech-toggle');
-    const speechStatus = document.getElementById('speech-status');
+// Adaptive Learning State
+let wordMastery = {}; // Track mastery for each word
+let currentWordQueue = []; // Queue of words to be presented
+let masteredWords = new Set(); // Words the user has mastered
+let reviewWords = []; // Words that need review
+let questionTypes = ['multiple-choice', 'typing', 'audio-recognition']; // Different question formats
 
-    // Mobile Menu Elements
-    const mobileMenuButton = document.getElementById('mobile-menu-button');
-    const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
-    const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+// DOM elements
+const loadingState = document.getElementById('loading-state');
+const startScreen = document.getElementById('start-screen');
+const quizContent = document.getElementById('quiz-content');
+const errorState = document.getElementById('error-state');
+const questionContainer = document.getElementById('question-container');
+const optionsContainer = document.getElementById('options-container');
+const feedbackElement = document.getElementById('feedback');
+const nextButton = document.getElementById('next-btn');
+const prevButton = document.getElementById('prev-btn');
+const progressText = document.getElementById('progress-text');
+const progressFill = document.getElementById('progress-fill');
+const scoreElement = document.getElementById('score');
+const correctCountElement = document.getElementById('correct-count');
+const incorrectCountElement = document.getElementById('incorrect-count');
+const resultsSection = document.getElementById('results-section');
+const finalScoreElement = document.getElementById('final-score');
+const finalCorrectElement = document.getElementById('final-correct');
+const finalIncorrectElement = document.getElementById('final-incorrect');
+const finalPercentageElement = document.getElementById('final-percentage');
+const performanceMessageElement = document.getElementById('performance-message');
+const restartButton = document.getElementById('restart-btn');
+const homeButton = document.getElementById('home-btn');
+const retryButton = document.getElementById('retry-btn');
+const errorMessage = document.getElementById('error-message');
+const startButton = document.getElementById('start-btn');
+const speechToggle = document.getElementById('speech-toggle');
+const speechStatus = document.getElementById('speech-status');
 
-    // Mobile Menu State
-    let isMenuOpen = false;
+// Mobile Menu Elements
+const mobileMenuButton = document.getElementById('mobile-menu-button');
+const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
 
-    // Initialize the application
-    document.addEventListener('DOMContentLoaded', function() {
-        // Show start screen first
-        loadingState.classList.add('hidden');
-        quizContent.classList.add('hidden');
-        errorState.classList.add('hidden');
-        resultsSection.classList.add('hidden');
-        startScreen.classList.remove('hidden');
-        
-        // Set up event listeners
-        startButton.addEventListener('click', startQuiz);
-        retryButton.addEventListener('click', startQuiz);
-        restartButton.addEventListener('click', startQuiz);
-        homeButton.addEventListener('click', () => {
-            window.location.href = '/';
-        });
-        
-        // Speech toggle
-        speechToggle.addEventListener('click', toggleSpeech);
-        
-        // Initialize speech system
-        initializeSpeechSystem();
-        
-        // Initialize audio context for sound effects
-        initializeAudioContext();
-        
-        // Test speech capabilities
-        testSpeechCapabilities();
-        
-        // Add user interaction listeners for mobile auto-speak
-        setupUserInteractionListeners();
-        
-        // Initialize mobile menu
-        initializeMobileMenu();
+// Mobile Menu State
+let isMenuOpen = false;
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', function() {
+    // Show start screen first
+    loadingState.classList.add('hidden');
+    quizContent.classList.add('hidden');
+    errorState.classList.add('hidden');
+    resultsSection.classList.add('hidden');
+    startScreen.classList.remove('hidden');
+    
+    // Set up event listeners
+    startButton.addEventListener('click', startQuiz);
+    retryButton.addEventListener('click', startQuiz);
+    restartButton.addEventListener('click', startQuiz);
+    homeButton.addEventListener('click', () => {
+        window.location.href = '/';
     });
+    
+    // Speech toggle
+    speechToggle.addEventListener('click', toggleSpeech);
+    
+    // Initialize speech system
+    initializeSpeechSystem();
+    
+    // Initialize audio context for sound effects
+    initializeAudioContext();
+    
+    // Test speech capabilities
+    testSpeechCapabilities();
+    
+    // Add user interaction listeners for mobile auto-speak
+    setupUserInteractionListeners();
+    
+    // Initialize mobile menu
+    initializeMobileMenu();
+    
+    // Initialize adaptive learning
+    initializeAdaptiveLearning();
+    
+    // Add reset button (optional)
+    addResetButton();
+});
 
-    // Initialize Audio Context for sound effects
-    function initializeAudioContext() {
-        try {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            console.log('AudioContext initialized for sound effects');
-        } catch (e) {
-            console.log('AudioContext not supported for sound effects');
-        }
+// ============================
+// ADAPTIVE LEARNING ALGORITHM
+// ============================
+
+// Initialize adaptive learning system
+function initializeAdaptiveLearning() {
+    console.log('Initializing adaptive learning system...');
+    
+    // Load mastery data from localStorage if available
+    const savedMastery = localStorage.getItem('wordMastery');
+    if (savedMastery) {
+        wordMastery = JSON.parse(savedMastery);
+        console.log('Loaded mastery data for', Object.keys(wordMastery).length, 'words');
     }
+    
+    // Load mastered words
+    const savedMasteredWords = localStorage.getItem('masteredWords');
+    if (savedMasteredWords) {
+        masteredWords = new Set(JSON.parse(savedMasteredWords));
+        console.log('Loaded', masteredWords.size, 'mastered words');
+    }
+    
+    // Load review words
+    const savedReviewWords = localStorage.getItem('reviewWords');
+    if (savedReviewWords) {
+        reviewWords = JSON.parse(savedReviewWords);
+        console.log('Loaded', reviewWords.length, 'words for review');
+    }
+}
 
-    // Play correct answer sound
-    function playCorrectSound() {
-        if (!audioContext) {
-            console.log('AudioContext not available for sound effects');
+// Save adaptive learning data
+function saveAdaptiveLearningData() {
+    localStorage.setItem('wordMastery', JSON.stringify(wordMastery));
+    localStorage.setItem('masteredWords', JSON.stringify([...masteredWords]));
+    localStorage.setItem('reviewWords', JSON.stringify(reviewWords));
+    console.log('Adaptive learning data saved');
+}
+
+// Process words with adaptive learning logic
+function processWordsWithAdaptiveLearning(words) {
+    // Reset current word queue
+    currentWordQueue = [];
+    
+    // Separate words into categories based on mastery
+    const newWords = [];
+    const weakWords = [];
+    const strongWords = [];
+    
+    words.forEach(word => {
+        const wordKey = word.word; // Use the word itself as the key
+        
+        // If word is already mastered, skip it (or include occasionally for reinforcement)
+        if (masteredWords.has(wordKey) && Math.random() > 0.1) { // 10% chance to include mastered words
             return;
         }
-
-        try {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
+        
+        // Check if we have mastery data for this word
+        if (wordMastery[wordKey]) {
+            const mastery = wordMastery[wordKey];
             
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
+            // Calculate mastery score (0-100)
+            const totalAttempts = mastery.correct + mastery.incorrect;
+            const masteryScore = totalAttempts > 0 ? (mastery.correct / totalAttempts) * 100 : 0;
             
-            // Happy, ascending sound
-            oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
-            oscillator.frequency.exponentialRampToValueAtTime(1046.50, audioContext.currentTime + 0.3); // C6
-            
-            oscillator.type = 'sine';
-            
-            // Smooth volume envelope
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.5);
-            
-            console.log('Played correct answer sound');
-        } catch (e) {
-            console.log('Correct sound failed:', e);
-        }
-    }
-
-    // Play incorrect answer sound
-    function playIncorrectSound() {
-        if (!audioContext) {
-            console.log('AudioContext not available for sound effects');
-            return;
-        }
-
-        try {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            // Sad, descending sound
-            oscillator.frequency.setValueAtTime(392.00, audioContext.currentTime); // G4
-            oscillator.frequency.exponentialRampToValueAtTime(261.63, audioContext.currentTime + 0.4); // C4
-            
-            oscillator.type = 'sawtooth';
-            
-            // Quick attack, slower release
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.6);
-            
-            console.log('Played incorrect answer sound');
-        } catch (e) {
-            console.log('Incorrect sound failed:', e);
-        }
-    }
-
-    // Play level up sound for excellent scores
-    function playLevelUpSound() {
-        if (!audioContext) return;
-
-        try {
-            const times = [0, 0.1, 0.2, 0.3, 0.4];
-            const frequencies = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
-            
-            times.forEach((time, index) => {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.setValueAtTime(frequencies[index], audioContext.currentTime + time);
-                oscillator.type = 'sine';
-                
-                gainNode.gain.setValueAtTime(0, audioContext.currentTime + time);
-                gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + time + 0.05);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.3);
-                
-                oscillator.start(audioContext.currentTime + time);
-                oscillator.stop(audioContext.currentTime + time + 0.3);
-            });
-            
-            console.log('Played level up sound');
-        } catch (e) {
-            console.log('Level up sound failed:', e);
-        }
-    }
-
-    // Initialize Mobile Menu
-    function initializeMobileMenu() {
-        // Toggle mobile menu
-        function toggleMobileMenu() {
-            isMenuOpen = !isMenuOpen;
-            
-            if (isMenuOpen) {
-                // Open menu
-                mobileDropdownMenu.classList.add('open');
-                mobileDropdownBackdrop.style.display = 'block';
-                document.body.style.overflow = 'hidden'; // Prevent scrolling
-                
-                // Change icon to X
-                mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
-                mobileMenuButton.classList.remove('text-text-muted');
-                mobileMenuButton.classList.add('text-secondary-cyan');
+            // Categorize based on mastery score
+            if (masteryScore < 60) {
+                weakWords.push(word);
+            } else if (masteryScore < 85) {
+                strongWords.push(word);
             } else {
-                // Close menu
-                mobileDropdownMenu.classList.remove('open');
-                mobileDropdownBackdrop.style.display = 'none';
-                document.body.style.overflow = ''; // Re-enable scrolling
-                
-                // Change icon back to hamburger
-                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
-                mobileMenuButton.classList.remove('text-secondary-cyan');
-                mobileMenuButton.classList.add('text-text-muted');
+                // Consider mastered if consistently high performance
+                if (mastery.correct >= 3 && masteryScore >= 85) {
+                    masteredWords.add(wordKey);
+                } else {
+                    strongWords.push(word);
+                }
+            }
+        } else {
+            // New word - no previous data
+            newWords.push(word);
+        }
+    });
+    
+    console.log('Word categorization:', {
+        newWords: newWords.length,
+        weakWords: weakWords.length,
+        strongWords: strongWords.length
+    });
+    
+    // Build word queue with adaptive distribution
+    // Priority: Weak words > New words > Strong words
+    const targetCount = Math.min(20, words.length);
+    
+    // Add weak words (highest priority - 50% of quiz)
+    const weakCount = Math.min(Math.ceil(targetCount * 0.5), weakWords.length);
+    currentWordQueue.push(...weakWords.slice(0, weakCount));
+    
+    // Add new words (medium priority - 30% of quiz)
+    const newCount = Math.min(Math.ceil(targetCount * 0.3), newWords.length);
+    currentWordQueue.push(...newWords.slice(0, newCount));
+    
+    // Add strong words (lowest priority - 20% of quiz)
+    const strongCount = Math.min(targetCount - currentWordQueue.length, strongWords.length);
+    currentWordQueue.push(...strongWords.slice(0, strongCount));
+    
+    // If we still need more words, add from review list
+    if (currentWordQueue.length < targetCount && reviewWords.length > 0) {
+        const needed = targetCount - currentWordQueue.length;
+        const reviewToAdd = reviewWords.slice(0, Math.min(needed, reviewWords.length));
+        currentWordQueue.push(...reviewToAdd);
+        
+        // Remove added words from review list
+        reviewWords = reviewWords.slice(reviewToAdd.length);
+    }
+    
+    // Shuffle the queue to mix word difficulties
+    shuffleArray(currentWordQueue);
+    
+    console.log('Final word queue:', currentWordQueue.length, 'words');
+    return currentWordQueue;
+}
+
+// Update word mastery after each question
+function updateWordMastery(word, isCorrect) {
+    const wordKey = word.word;
+    
+    // Initialize word mastery if it doesn't exist
+    if (!wordMastery[wordKey]) {
+        wordMastery[wordKey] = {
+            correct: 0,
+            incorrect: 0,
+            lastSeen: new Date().toISOString(),
+            questionTypes: {},
+            streak: 0
+        };
+    }
+    
+    const mastery = wordMastery[wordKey];
+    
+    // Update counts
+    if (isCorrect) {
+        mastery.correct++;
+        mastery.streak = Math.max(0, mastery.streak + 1); // Increment positive streak
+    } else {
+        mastery.incorrect++;
+        mastery.streak = Math.min(0, mastery.streak - 1); // Decrement streak (goes negative)
+    }
+    
+    mastery.lastSeen = new Date().toISOString();
+    
+    // Track question type usage
+    const questionType = 'multiple-choice'; // Default, can be expanded
+    if (!mastery.questionTypes[questionType]) {
+        mastery.questionTypes[questionType] = { correct: 0, incorrect: 0 };
+    }
+    
+    if (isCorrect) {
+        mastery.questionTypes[questionType].correct++;
+    } else {
+        mastery.questionTypes[questionType].incorrect++;
+    }
+    
+    // Check if word should be added to review list
+    if (!isCorrect && !reviewWords.some(w => w.word === wordKey)) {
+        reviewWords.push(word);
+        console.log('Added to review words:', wordKey);
+    }
+    
+    // Check for mastery (3 consecutive correct answers)
+    if (mastery.streak >= 3) {
+        masteredWords.add(wordKey);
+        console.log('Word mastered:', wordKey);
+        
+        // Remove from review list if it was there
+        reviewWords = reviewWords.filter(w => w.word !== wordKey);
+    }
+    
+    // Save updated data
+    saveAdaptiveLearningData();
+    
+    console.log('Updated mastery for', wordKey, ':', mastery);
+}
+
+// Calculate adaptive learning statistics
+function calculateAdaptiveLearningStats() {
+    const stats = {
+        masteredThisSession: 0,
+        weakWordsCount: 0,
+        reviewWordsCount: reviewWords.length,
+        totalMastered: masteredWords.size,
+        masteryProgress: 0
+    };
+    
+    // Count words mastered in this session
+    quizData.forEach(question => {
+        const wordKey = question.word;
+        if (masteredWords.has(wordKey) && wordMastery[wordKey]) {
+            const mastery = wordMastery[wordKey];
+            // Check if mastered recently (in this session)
+            const lastSeen = new Date(mastery.lastSeen);
+            const sessionStart = new Date(startTime);
+            if (lastSeen > sessionStart && mastery.streak >= 3) {
+                stats.masteredThisSession++;
             }
         }
+    });
+    
+    // Count weak words (less than 60% accuracy)
+    Object.keys(wordMastery).forEach(wordKey => {
+        const mastery = wordMastery[wordKey];
+        const totalAttempts = mastery.correct + mastery.incorrect;
+        if (totalAttempts > 0) {
+            const accuracy = (mastery.correct / totalAttempts) * 100;
+            if (accuracy < 60) {
+                stats.weakWordsCount++;
+            }
+        }
+    });
+    
+    // Calculate overall mastery progress
+    const totalTrackedWords = Object.keys(wordMastery).length;
+    if (totalTrackedWords > 0) {
+        stats.masteryProgress = Math.round((masteredWords.size / totalTrackedWords) * 100);
+    }
+    
+    return stats;
+}
 
-        // Close mobile menu
-        function closeMobileMenu() {
-            isMenuOpen = false;
+// Utility function to shuffle array
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+// Reset adaptive learning data (for testing or user reset)
+function resetAdaptiveLearningData() {
+    if (confirm('Are you sure you want to reset your learning progress? This will clear all your mastery data.')) {
+        wordMastery = {};
+        masteredWords = new Set();
+        reviewWords = [];
+        localStorage.removeItem('wordMastery');
+        localStorage.removeItem('masteredWords');
+        localStorage.removeItem('reviewWords');
+        console.log('Adaptive learning data reset');
+        alert('Learning progress has been reset. Starting fresh!');
+    }
+}
+
+// Add reset button to your UI (optional)
+function addResetButton() {
+    const resetButton = document.createElement('button');
+    resetButton.id = 'reset-progress-btn';
+    resetButton.className = 'py-2 px-4 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition duration-300 mt-4';
+    resetButton.innerHTML = '<i class="fas fa-redo mr-2"></i> Reset Progress';
+    resetButton.addEventListener('click', resetAdaptiveLearningData);
+    
+    // Add to start screen or settings area
+    const startScreen = document.getElementById('start-screen');
+    if (startScreen) {
+        startScreen.appendChild(resetButton);
+    }
+}
+
+// ============================
+// EXISTING QUIZ FUNCTIONALITY
+// ============================
+
+// Initialize Audio Context for sound effects
+function initializeAudioContext() {
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        console.log('AudioContext initialized for sound effects');
+    } catch (e) {
+        console.log('AudioContext not supported for sound effects');
+    }
+}
+
+// Play correct answer sound
+function playCorrectSound() {
+    if (!audioContext) {
+        console.log('AudioContext not available for sound effects');
+        return;
+    }
+
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Happy, ascending sound
+        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+        oscillator.frequency.exponentialRampToValueAtTime(1046.50, audioContext.currentTime + 0.3); // C6
+        
+        oscillator.type = 'sine';
+        
+        // Smooth volume envelope
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+        
+        console.log('Played correct answer sound');
+    } catch (e) {
+        console.log('Correct sound failed:', e);
+    }
+}
+
+// Play incorrect answer sound
+function playIncorrectSound() {
+    if (!audioContext) {
+        console.log('AudioContext not available for sound effects');
+        return;
+    }
+
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Sad, descending sound
+        oscillator.frequency.setValueAtTime(392.00, audioContext.currentTime); // G4
+        oscillator.frequency.exponentialRampToValueAtTime(261.63, audioContext.currentTime + 0.4); // C4
+        
+        oscillator.type = 'sawtooth';
+        
+        // Quick attack, slower release
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.6);
+        
+        console.log('Played incorrect answer sound');
+    } catch (e) {
+        console.log('Incorrect sound failed:', e);
+    }
+}
+
+// Play level up sound for excellent scores
+function playLevelUpSound() {
+    if (!audioContext) return;
+
+    try {
+        const times = [0, 0.1, 0.2, 0.3, 0.4];
+        const frequencies = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+        
+        times.forEach((time, index) => {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(frequencies[index], audioContext.currentTime + time);
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime + time);
+            gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + time + 0.05);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.3);
+            
+            oscillator.start(audioContext.currentTime + time);
+            oscillator.stop(audioContext.currentTime + time + 0.3);
+        });
+        
+        console.log('Played level up sound');
+    } catch (e) {
+        console.log('Level up sound failed:', e);
+    }
+}
+
+// Initialize Mobile Menu
+function initializeMobileMenu() {
+    // Toggle mobile menu
+    function toggleMobileMenu() {
+        isMenuOpen = !isMenuOpen;
+        
+        if (isMenuOpen) {
+            // Open menu
+            mobileDropdownMenu.classList.add('open');
+            mobileDropdownBackdrop.style.display = 'block';
+            document.body.style.overflow = 'hidden'; // Prevent scrolling
+            
+            // Change icon to X
+            mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+            mobileMenuButton.classList.remove('text-text-muted');
+            mobileMenuButton.classList.add('text-secondary-cyan');
+        } else {
+            // Close menu
             mobileDropdownMenu.classList.remove('open');
             mobileDropdownBackdrop.style.display = 'none';
             document.body.style.overflow = ''; // Re-enable scrolling
             
-            // Reset icon
+            // Change icon back to hamburger
             mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
             mobileMenuButton.classList.remove('text-secondary-cyan');
             mobileMenuButton.classList.add('text-text-muted');
         }
-
-        // Event Listeners
-        mobileMenuButton.addEventListener('click', function(e) {
-            e.stopPropagation();
-            toggleMobileMenu();
-        });
-
-        // Close menu when clicking on backdrop
-        mobileDropdownBackdrop.addEventListener('click', closeMobileMenu);
-
-        // Close menu when clicking on menu links
-        const menuLinks = mobileDropdownMenu.querySelectorAll('a');
-        menuLinks.forEach(link => {
-            link.addEventListener('click', closeMobileMenu);
-        });
-
-        // Close menu when clicking outside
-        document.addEventListener('click', function(e) {
-            if (isMenuOpen && 
-                !mobileDropdownMenu.contains(e.target) && 
-                !mobileMenuButton.contains(e.target)) {
-                closeMobileMenu();
-            }
-        });
-
-        // Close menu on escape key
-        document.addEventListener('keydown', function(e) {
-            if (isMenuOpen && e.key === 'Escape') {
-                closeMobileMenu();
-            }
-        });
-
-        // Close menu on window resize (if resizing to desktop)
-        window.addEventListener('resize', function() {
-            if (window.innerWidth >= 768 && isMenuOpen) {
-                closeMobileMenu();
-            }
-        });
     }
 
-    // Setup user interaction listeners for mobile
-    function setupUserInteractionListeners() {
-        // Listen for any user interaction to enable auto-speak
-        document.addEventListener('click', function() {
+    // Close mobile menu
+    function closeMobileMenu() {
+        isMenuOpen = false;
+        mobileDropdownMenu.classList.remove('open');
+        mobileDropdownBackdrop.style.display = 'none';
+        document.body.style.overflow = ''; // Re-enable scrolling
+        
+        // Reset icon
+        mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+        mobileMenuButton.classList.remove('text-secondary-cyan');
+        mobileMenuButton.classList.add('text-text-muted');
+    }
+
+    // Event Listeners
+    mobileMenuButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleMobileMenu();
+    });
+
+    // Close menu when clicking on backdrop
+    mobileDropdownBackdrop.addEventListener('click', closeMobileMenu);
+
+    // Close menu when clicking on menu links
+    const menuLinks = mobileDropdownMenu.querySelectorAll('a');
+    menuLinks.forEach(link => {
+        link.addEventListener('click', closeMobileMenu);
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function(e) {
+        if (isMenuOpen && 
+            !mobileDropdownMenu.contains(e.target) && 
+            !mobileMenuButton.contains(e.target)) {
+            closeMobileMenu();
+        }
+    });
+
+    // Close menu on escape key
+    document.addEventListener('keydown', function(e) {
+        if (isMenuOpen && e.key === 'Escape') {
+            closeMobileMenu();
+        }
+    });
+
+    // Close menu on window resize (if resizing to desktop)
+    window.addEventListener('resize', function() {
+        if (window.innerWidth >= 768 && isMenuOpen) {
+            closeMobileMenu();
+        }
+    });
+}
+
+// Setup user interaction listeners for mobile
+function setupUserInteractionListeners() {
+    // Listen for any user interaction to enable auto-speak
+    document.addEventListener('click', function() {
+        userInteractedWithSpeech = true;
+        console.log('User interaction detected - auto-speak enabled');
+    }, { once: true });
+    
+    // Also listen for touch events on mobile
+    if (isMobile) {
+        document.addEventListener('touchstart', function() {
             userInteractedWithSpeech = true;
-            console.log('User interaction detected - auto-speak enabled');
+            console.log('Touch interaction detected - auto-speak enabled');
         }, { once: true });
-        
-        // Also listen for touch events on mobile
-        if (isMobile) {
-            document.addEventListener('touchstart', function() {
-                userInteractedWithSpeech = true;
-                console.log('Touch interaction detected - auto-speak enabled');
-            }, { once: true });
-        }
     }
+}
 
-    // Initialize speech system
-    function initializeSpeechSystem() {
-        if (!speechSynthesis) {
-            speechToggle.disabled = true;
-            speechToggle.innerHTML = '<i class="fas fa-volume-mute mr-2"></i> Speech Not Supported';
-            speechStatus.textContent = 'Your browser does not support text-to-speech';
-            speechEnabled = false;
-            autoSpeakEnabled = false;
-            return;
-        }
+// Initialize speech system
+function initializeSpeechSystem() {
+    if (!speechSynthesis) {
+        speechToggle.disabled = true;
+        speechToggle.innerHTML = '<i class="fas fa-volume-mute mr-2"></i> Speech Not Supported';
+        speechStatus.textContent = 'Your browser does not support text-to-speech';
+        speechEnabled = false;
+        autoSpeakEnabled = false;
+        return;
+    }
+    
+    // Check for mobile-specific speech issues
+    if (isMobile) {
+        speechStatus.textContent = 'Auto-speak enabled after first interaction';
+        console.log('Mobile device detected - auto-speak will work after user interaction');
         
-        // Check for mobile-specific speech issues
-        if (isMobile) {
-            speechStatus.textContent = 'Auto-speak enabled after first interaction';
-            console.log('Mobile device detected - auto-speak will work after user interaction');
-            
-            // Try to initialize AudioContext for fallback sounds
-            try {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                console.log('AudioContext initialized for fallback sounds');
-            } catch (e) {
-                console.log('AudioContext not supported for fallback sounds');
-            }
-        } else {
-            speechStatus.textContent = 'Auto-speak enabled - words will be read automatically';
+        // Try to initialize AudioContext for fallback sounds
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('AudioContext initialized for fallback sounds');
+        } catch (e) {
+            console.log('AudioContext not supported for fallback sounds');
         }
+    } else {
+        speechStatus.textContent = 'Auto-speak enabled - words will be read automatically';
+    }
+    
+    // Load voices when available
+    speechSynthesis.onvoiceschanged = function() {
+        const voices = speechSynthesis.getVoices();
+        console.log('Available voices:', voices.length);
+        const chineseVoices = voices.filter(voice => 
+            voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
+        );
+        console.log('Chinese voices available:', chineseVoices.length);
         
-        // Load voices when available
-        speechSynthesis.onvoiceschanged = function() {
-            const voices = speechSynthesis.getVoices();
-            console.log('Available voices:', voices.length);
-            const chineseVoices = voices.filter(voice => 
-                voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
-            );
-            console.log('Chinese voices available:', chineseVoices.length);
-            
-            if (chineseVoices.length === 0) {
-                speechStatus.textContent += '. No Chinese voice found - using default voice.';
-            }
+        if (chineseVoices.length === 0) {
+            speechStatus.textContent += '. No Chinese voice found - using default voice.';
+        }
+    };
+    
+    // Force voices to load
+    setTimeout(() => {
+        const voices = speechSynthesis.getVoices();
+        console.log('Voices loaded:', voices.length);
+    }, 1000);
+}
+
+// Test speech capabilities
+function testSpeechCapabilities() {
+    if (!speechSynthesis) return;
+    
+    // Test with a simple English word to see if TTS works at all
+    setTimeout(() => {
+        const testUtterance = new SpeechSynthesisUtterance('test');
+        testUtterance.volume = 0.1; // Very quiet
+        testUtterance.onend = function() {
+            console.log('Basic TTS test passed');
         };
-        
-        // Force voices to load
-        setTimeout(() => {
-            const voices = speechSynthesis.getVoices();
-            console.log('Voices loaded:', voices.length);
-        }, 1000);
-    }
+        testUtterance.onerror = function(e) {
+            console.log('Basic TTS test failed:', e.error);
+        };
+        speechSynthesis.speak(testUtterance);
+        setTimeout(() => speechSynthesis.cancel(), 100);
+    }, 2000);
+}
 
-    // Test speech capabilities
-    function testSpeechCapabilities() {
-        if (!speechSynthesis) return;
-        
-        // Test with a simple English word to see if TTS works at all
-        setTimeout(() => {
-            const testUtterance = new SpeechSynthesisUtterance('test');
-            testUtterance.volume = 0.1; // Very quiet
-            testUtterance.onend = function() {
-                console.log('Basic TTS test passed');
-            };
-            testUtterance.onerror = function(e) {
-                console.log('Basic TTS test failed:', e.error);
-            };
-            speechSynthesis.speak(testUtterance);
-            setTimeout(() => speechSynthesis.cancel(), 100);
-        }, 2000);
-    }
-
-    // Toggle speech functionality
-    function toggleSpeech() {
-        speechEnabled = !speechEnabled;
-        autoSpeakEnabled = speechEnabled; // Auto-speak follows speech toggle
-        
-        if (speechEnabled) {
-            speechToggle.innerHTML = '<i class="fas fa-volume-up mr-2"></i> Disable Speech';
-            updateSpeechStatus();
-            speechToggle.classList.remove('bg-red-500', 'text-white');
-            speechToggle.classList.add('bg-card-bg', 'text-text-light');
-        } else {
-            speechToggle.innerHTML = '<i class="fas fa-volume-mute mr-2"></i> Enable Speech';
-            speechStatus.textContent = 'Speech is disabled';
-            speechToggle.classList.remove('bg-card-bg', 'text-text-light');
-            speechToggle.classList.add('bg-red-500', 'text-white');
-            
-            // Stop any ongoing speech
-            speechSynthesis.cancel();
-        }
-    }
-
-    // Update speech status message
-    function updateSpeechStatus() {
-        if (isMobile) {
-            speechStatus.textContent = 'Auto-speak enabled after first interaction';
-        } else {
-            speechStatus.textContent = 'Auto-speak enabled - words will be read automatically';
-        }
-    }
-
-    // Auto-speak function for new questions
-    function autoSpeakQuestion(word) {
-        if (!speechEnabled || !autoSpeakEnabled) {
-            console.log('Auto-speak disabled');
-            return;
-        }
-        
-        // On mobile, only auto-speak after user has interacted
-        if (isMobile && !userInteractedWithSpeech) {
-            console.log('Waiting for user interaction before auto-speaking on mobile');
-            return;
-        }
-        
-        console.log('Auto-speaking word:', word);
-        speakText(word);
-    }
-
-    // Speak text using Web Speech API with multiple fallbacks
-    function speakText(text, language = 'zh-CN') {
-        if (!speechEnabled) {
-            console.log('Speech is disabled');
-            return;
-        }
+// Toggle speech functionality
+function toggleSpeech() {
+    speechEnabled = !speechEnabled;
+    autoSpeakEnabled = speechEnabled; // Auto-speak follows speech toggle
+    
+    if (speechEnabled) {
+        speechToggle.innerHTML = '<i class="fas fa-volume-up mr-2"></i> Disable Speech';
+        updateSpeechStatus();
+        speechToggle.classList.remove('bg-red-500', 'text-white');
+        speechToggle.classList.add('bg-card-bg', 'text-text-light');
+    } else {
+        speechToggle.innerHTML = '<i class="fas fa-volume-mute mr-2"></i> Enable Speech';
+        speechStatus.textContent = 'Speech is disabled';
+        speechToggle.classList.remove('bg-card-bg', 'text-text-light');
+        speechToggle.classList.add('bg-red-500', 'text-white');
         
         // Stop any ongoing speech
         speechSynthesis.cancel();
-        
-        // Update button to show loading state
+    }
+}
+
+// Update speech status message
+function updateSpeechStatus() {
+    if (isMobile) {
+        speechStatus.textContent = 'Auto-speak enabled after first interaction';
+    } else {
+        speechStatus.textContent = 'Auto-speak enabled - words will be read automatically';
+    }
+}
+
+// Auto-speak function for new questions
+function autoSpeakQuestion(word) {
+    if (!speechEnabled || !autoSpeakEnabled) {
+        console.log('Auto-speak disabled');
+        return;
+    }
+    
+    // On mobile, only auto-speak after user has interacted
+    if (isMobile && !userInteractedWithSpeech) {
+        console.log('Waiting for user interaction before auto-speaking on mobile');
+        return;
+    }
+    
+    console.log('Auto-speaking word:', word);
+    speakText(word);
+}
+
+// Speak text using Web Speech API with multiple fallbacks
+function speakText(text, language = 'zh-CN') {
+    if (!speechEnabled) {
+        console.log('Speech is disabled');
+        return;
+    }
+    
+    // Stop any ongoing speech
+    speechSynthesis.cancel();
+    
+    // Update button to show loading state
+    const speechButton = document.getElementById('speech-button');
+    if (speechButton) {
+        speechButton.disabled = true;
+        speechButton.classList.add('opacity-50', 'cursor-not-allowed', 'bg-secondary-cyan/20', 'text-secondary-cyan', 'border-secondary-cyan');
+        speechButton.classList.remove('cursor-pointer', 'hover:bg-card-bg/70', 'bg-card-bg', 'text-text-light', 'border-text-muted/30');
+        speechButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        speechButton.title = 'Loading...';
+    }
+    
+    // Try multiple speech methods
+    attemptSpeech(text, language, 0);
+}
+
+// Attempt speech with fallbacks
+function attemptSpeech(text, language, attempt) {
+    const speechButton = document.getElementById('speech-button');
+    
+    if (attempt === 0) {
+        // Method 1: Try with Chinese voice
+        console.log('Attempt 1: Trying Chinese TTS');
+        speakWithVoice(text, language, true);
+    } else if (attempt === 1) {
+        // Method 2: Try with any available voice
+        console.log('Attempt 2: Trying any available voice');
+        speakWithVoice(text, 'en-US', false);
+    } else if (attempt === 2) {
+        // Method 3: Try fallback beep sound
+        console.log('Attempt 3: Using fallback sound');
+        playFallbackSound();
+        resetSpeechButton();
+    } else {
+        // All methods failed
+        console.log('All speech methods failed');
+        speechStatus.textContent = 'Speech not available';
+        resetSpeechButton();
+    }
+}
+
+// Speak with specific voice preference
+function speakWithVoice(text, language, preferChinese = true) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language;
+    utterance.rate = isMobile ? 0.7 : 0.8;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    
+    // Get available voices
+    const voices = speechSynthesis.getVoices();
+    let selectedVoice = null;
+    
+    if (preferChinese) {
+        // Try to find Chinese voice
+        selectedVoice = voices.find(voice => 
+            voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
+        );
+    }
+    
+    // If no Chinese voice found or not preferring Chinese, use default
+    if (!selectedVoice) {
+        selectedVoice = voices.find(voice => voice.default) || voices[0];
+    }
+    
+    if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
+    }
+    
+    // Set up event handlers
+    utterance.onstart = function() {
+        console.log('Speech started successfully');
         const speechButton = document.getElementById('speech-button');
         if (speechButton) {
-            speechButton.disabled = true;
-            speechButton.classList.add('opacity-50', 'cursor-not-allowed', 'bg-secondary-cyan/20', 'text-secondary-cyan', 'border-secondary-cyan');
-            speechButton.classList.remove('cursor-pointer', 'hover:bg-card-bg/70', 'bg-card-bg', 'text-text-light', 'border-text-muted/30');
-            speechButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            speechButton.title = 'Loading...';
+            speechButton.innerHTML = '<i class="fas fa-volume-up animate-pulse"></i>';
+            speechButton.title = 'Speaking...';
         }
-        
-        // Try multiple speech methods
-        attemptSpeech(text, language, 0);
-    }
-
-    // Attempt speech with fallbacks
-    function attemptSpeech(text, language, attempt) {
-        const speechButton = document.getElementById('speech-button');
-        
-        if (attempt === 0) {
-            // Method 1: Try with Chinese voice
-            console.log('Attempt 1: Trying Chinese TTS');
-            speakWithVoice(text, language, true);
-        } else if (attempt === 1) {
-            // Method 2: Try with any available voice
-            console.log('Attempt 2: Trying any available voice');
-            speakWithVoice(text, 'en-US', false);
-        } else if (attempt === 2) {
-            // Method 3: Try fallback beep sound
-            console.log('Attempt 3: Using fallback sound');
-            playFallbackSound();
-            resetSpeechButton();
+    };
+    
+    utterance.onend = function() {
+        console.log('Speech completed successfully');
+        resetSpeechButton();
+    };
+    
+    utterance.onerror = function(event) {
+        console.error('Speech error:', event.error);
+        // Try next method
+        setTimeout(() => attemptSpeech(text, language, attempt + 1), 100);
+    };
+    
+    // Speak with timeout
+    speechSynthesis.speak(utterance);
+    
+    // Set timeout in case speech never starts
+    setTimeout(() => {
+        if (speechSynthesis.speaking) {
+            console.log('Speech is speaking, seems successful');
         } else {
-            // All methods failed
-            console.log('All speech methods failed');
-            speechStatus.textContent = 'Speech not available';
-            resetSpeechButton();
-        }
-    }
-
-    // Speak with specific voice preference
-    function speakWithVoice(text, language, preferChinese = true) {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = language;
-        utterance.rate = isMobile ? 0.7 : 0.8;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-        
-        // Get available voices
-        const voices = speechSynthesis.getVoices();
-        let selectedVoice = null;
-        
-        if (preferChinese) {
-            // Try to find Chinese voice
-            selectedVoice = voices.find(voice => 
-                voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
-            );
-        }
-        
-        // If no Chinese voice found or not preferring Chinese, use default
-        if (!selectedVoice) {
-            selectedVoice = voices.find(voice => voice.default) || voices[0];
-        }
-        
-        if (selectedVoice) {
-            utterance.voice = selectedVoice;
-            console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
-        }
-        
-        // Set up event handlers
-        utterance.onstart = function() {
-            console.log('Speech started successfully');
-            const speechButton = document.getElementById('speech-button');
-            if (speechButton) {
-                speechButton.innerHTML = '<i class="fas fa-volume-up animate-pulse"></i>';
-                speechButton.title = 'Speaking...';
-            }
-        };
-        
-        utterance.onend = function() {
-            console.log('Speech completed successfully');
-            resetSpeechButton();
-        };
-        
-        utterance.onerror = function(event) {
-            console.error('Speech error:', event.error);
-            // Try next method
-            setTimeout(() => attemptSpeech(text, language, attempt + 1), 100);
-        };
-        
-        // Speak with timeout
-        speechSynthesis.speak(utterance);
-        
-        // Set timeout in case speech never starts
-        setTimeout(() => {
-            if (speechSynthesis.speaking) {
-                console.log('Speech is speaking, seems successful');
-            } else {
-                console.log('Speech never started, trying next method');
+            console.log('Speech never started, trying next method');
                 speechSynthesis.cancel();
                 setTimeout(() => attemptSpeech(text, language, attempt + 1), 100);
             }
@@ -1057,10 +1340,10 @@
         loadQuizData();
     }
 
-    // Load quiz data from Flask backend
+    // Enhanced loadQuizData function with adaptive learning
     async function loadQuizData() {
         try {
-            console.log('Loading quiz data...');
+            console.log('Loading quiz data with adaptive learning...');
             
             const response = await fetch('/words/api/quiz-words?count=20');
             
@@ -1072,17 +1355,16 @@
             console.log('API Response:', data);
             
             if (data.success && data.words && Array.isArray(data.words)) {
-                quizData = data.words;
-                console.log(`Successfully loaded ${quizData.length} questions`);
+                // Process words with adaptive learning logic
+                quizData = processWordsWithAdaptiveLearning(data.words);
+                console.log(`Successfully loaded ${quizData.length} questions with adaptive learning`);
                 
-                // Log each question's correct answer for debugging
-                quizData.forEach((question, index) => {
-                    console.log(`Question ${index + 1}:`, {
-                        word: question.word,
-                        correctAnswer: question.correctAnswer,
-                        type: typeof question.correctAnswer,
-                        options: question.options
-                    });
+                // Log adaptive learning info
+                console.log('Adaptive Learning Stats:', {
+                    totalWords: data.words.length,
+                    masteredWords: masteredWords.size,
+                    reviewWords: reviewWords.length,
+                    wordQueueLength: currentWordQueue.length
                 });
                 
                 initQuiz();
@@ -1228,14 +1510,13 @@
         }, 500);
     }
 
-    // Select an option
+    // Enhanced selectOption function with adaptive learning
     function selectOption(selectedIndex) {
         if (userAnswers[currentQuestion] !== null) return;
         
         const question = quizData[currentQuestion];
         
         // Get the correct answer directly from backend data
-        // Handle both string and number types for correctAnswer
         let correctAnswerIndex;
         
         if (typeof question.correctAnswer === 'string') {
@@ -1252,6 +1533,9 @@
         }
         
         const isCorrect = selectedIndex === correctAnswerIndex;
+        
+        // Update adaptive learning system
+        updateWordMastery(question, isCorrect);
         
         // DEBUGGING
         console.log('=== ANSWER DEBUG INFO ===');
@@ -1395,12 +1679,15 @@
         }
     }
 
-    // Finish quiz and show results
+    // Enhanced finishQuiz function with adaptive learning summary
     function finishQuiz() {
         speechSynthesis.cancel();
         
         const percentage = Math.round((correctAnswers / quizData.length) * 100);
         const timeTaken = Math.round((new Date() - startTime) / 1000);
+        
+        // Calculate adaptive learning statistics
+        const adaptiveStats = calculateAdaptiveLearningStats();
         
         // Play celebration sound for excellent scores
         if (percentage >= 90) {
@@ -1422,6 +1709,13 @@
         } else {
             performanceMessage = 'Keep practicing! HSK1 vocabulary takes time to master. Try reviewing the words and taking the quiz again.';
         }
+        
+        // Add adaptive learning insights
+        performanceMessage += `\n\nAdaptive Learning Insights:\n`;
+        performanceMessage += `• ${adaptiveStats.masteredThisSession} words mastered this session\n`;
+        performanceMessage += `• ${adaptiveStats.weakWordsCount} words need more practice\n`;
+        performanceMessage += `• ${adaptiveStats.reviewWordsCount} words in your review list`;
+        
         performanceMessageElement.textContent = performanceMessage;
         
         quizContent.classList.add('hidden');
@@ -1436,9 +1730,12 @@
             correct_answers: correctAnswers,
             total_questions: quizData.length,
             percentage: percentage,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            adaptive_stats: adaptiveStats
         };
         sessionStorage.setItem('quizResults', JSON.stringify(quizResult));
+        
+        console.log('Quiz completed with adaptive learning stats:', adaptiveStats);
     }
 
     // UI State Management

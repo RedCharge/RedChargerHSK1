@@ -167,7 +167,7 @@ HSK1_WORDS = [
   { "id": 155, "word": "回家", "pinyin": "huí jiā", "english": "to go back home", "options": ["to travel", "to move out", "to rest", "to go back home"], "correctAnswer": 3 },
   { "id": 156, "word": "回来", "pinyin": "huílái", "english": "to come back", "options": ["to arrive", "to return", "to come back", "to go"], "correctAnswer": 2 },
   { "id": 157, "word": "回去", "pinyin": "huíqù", "english": "to go back", "options": ["to return", "to come back", "to go", "to go back"], "correctAnswer": 0 },
-  { "id": 158, "word": "会", "pinyin": "huì", "english": "can; will", "options": ["must", "can; will", "should", "may"], "correctAnswer": 2 },
+  { "id": 158, "word": "会", "pinyin": "huì", "english": "can; will", "options": ["must", "can; will", "should", "may"], "correctAnswer": 1 },
   { "id": 159, "word": "火车", "pinyin": "huǒchē", "english": "train", "options": ["car", "bus", "train", "ship"], "correctAnswer": 2 },
   { "id": 160, "word": "机场", "pinyin": "jīchǎng", "english": "airport", "options": ["station", "airport", "port", "bus stop"], "correctAnswer": 1 },
   { "id": 161, "word": "机票", "pinyin": "jīpiào", "english": "air ticket", "options": ["passport", "air ticket", "boarding pass", "visa"], "correctAnswer": 2 },
