@@ -534,890 +534,1020 @@
     <!-- Results Logic -->
         <script>
         // DOM elements
-        const loadingState = document.getElementById('loading-state');
-        const resultsHeader = document.getElementById('results-header');
-        const overallStats = document.getElementById('overall-stats');
-        const progressCharts = document.getElementById('progress-charts');
-        const weaknessesSection = document.getElementById('weaknesses-section');
-        const strengthsSection = document.getElementById('strengths-section');
-        const quizHistorySection = document.getElementById('quiz-history-section');
-        const difficultySection = document.getElementById('difficulty-section');
-        const noDataState = document.getElementById('no-data-state');
-        const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
-        const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
-        const exportDataBtn = document.getElementById('export-data');
-        const mobileExportBtn = document.getElementById('mobile-export');
-        const mobileExportDropdownBtn = document.getElementById('mobile-export-dropdown');
+const loadingState = document.getElementById('loading-state');
+const resultsHeader = document.getElementById('results-header');
+const overallStats = document.getElementById('overall-stats');
+const progressCharts = document.getElementById('progress-charts');
+const weaknessesSection = document.getElementById('weaknesses-section');
+const strengthsSection = document.getElementById('strengths-section');
+const quizHistorySection = document.getElementById('quiz-history-section');
+const difficultySection = document.getElementById('difficulty-section');
+const noDataState = document.getElementById('no-data-state');
+const mobileMenuButton = document.getElementById('mobile-menu-button');
+const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+const exportDataBtn = document.getElementById('export-data');
+const mobileExportBtn = document.getElementById('mobile-export');
+const mobileExportDropdownBtn = document.getElementById('mobile-export-dropdown');
 
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeMobileMenu();
-            loadResultsData();
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    initializeMobileMenu();
+    loadResultsData();
+    
+    exportDataBtn.addEventListener('click', exportUserData);
+    mobileExportBtn.addEventListener('click', exportUserData);
+    mobileExportDropdownBtn.addEventListener('click', exportUserData);
+    
+    // Auto-refresh weaknesses/strengths every 5 minutes
+    setInterval(refreshPerformanceData, 300000);
+});
+
+// ============================
+// ADAPTIVE LEARNING INTEGRATION
+// ============================
+
+// Load adaptive learning data
+function loadAdaptiveLearningData() {
+    const wordMastery = JSON.parse(localStorage.getItem('wordMastery') || '{}');
+    const sentenceMastery = JSON.parse(localStorage.getItem('sentenceMastery') || '{}');
+    const masteredWords = new Set(JSON.parse(localStorage.getItem('masteredWords') || '[]'));
+    const masteredSentences = new Set(JSON.parse(localStorage.getItem('masteredSentences') || '[]'));
+    const reviewWords = JSON.parse(localStorage.getItem('reviewWords') || '[]');
+    const reviewSentences = JSON.parse(localStorage.getItem('reviewSentences') || '[]');
+    
+    return {
+        wordMastery,
+        sentenceMastery,
+        masteredWords,
+        masteredSentences,
+        reviewWords,
+        reviewSentences
+    };
+}
+
+// Calculate mastery levels with adaptive learning data
+function calculateMasteryLevelsWithAdaptive(performance, masteryData, masteredItems) {
+    const levels = { mastered: 0, easy: 0, medium: 0, hard: 0 };
+    
+    Object.entries(performance).forEach(([item, stats]) => {
+        // Check if item is mastered in adaptive learning
+        if (masteredItems.has(item)) {
+            levels.mastered++;
+            return;
+        }
+        
+        // Use adaptive learning mastery data if available
+        if (masteryData[item]) {
+            const mastery = masteryData[item];
+            const totalAttempts = mastery.correct + mastery.incorrect;
+            const accuracy = totalAttempts > 0 ? (mastery.correct / totalAttempts) * 100 : 0;
             
-            exportDataBtn.addEventListener('click', exportUserData);
-            mobileExportBtn.addEventListener('click', exportUserData);
-            mobileExportDropdownBtn.addEventListener('click', exportUserData);
+            if (accuracy >= 85) levels.mastered++;
+            else if (accuracy >= 70) levels.easy++;
+            else if (accuracy >= 50) levels.medium++;
+            else levels.hard++;
+        } else {
+            // Fallback to basic performance data
+            const totalAttempts = stats.correct + (stats.incorrect || 0);
+            const accuracy = totalAttempts > 0 ? (stats.correct / totalAttempts) * 100 : 0;
             
-            // Auto-refresh weaknesses/strengths every 5 minutes
-            setInterval(refreshPerformanceData, 300000);
+            if (accuracy >= 90) levels.mastered++;
+            else if (accuracy >= 70) levels.easy++;
+            else if (accuracy >= 50) levels.medium++;
+            else levels.hard++;
+        }
+    });
+    
+    return levels;
+}
+
+// Get adaptive learning insights
+function getAdaptiveLearningInsights(adaptiveData) {
+    const insights = {
+        totalWordsTracked: Object.keys(adaptiveData.wordMastery).length,
+        totalSentencesTracked: Object.keys(adaptiveData.sentenceMastery).length,
+        wordsMastered: adaptiveData.masteredWords.size,
+        sentencesMastered: adaptiveData.masteredSentences.size,
+        wordsInReview: adaptiveData.reviewWords.length,
+        sentencesInReview: adaptiveData.reviewSentences.length,
+        overallMasteryProgress: 0
+    };
+    
+    const totalTracked = insights.totalWordsTracked + insights.totalSentencesTracked;
+    const totalMastered = insights.wordsMastered + insights.sentencesMastered;
+    
+    if (totalTracked > 0) {
+        insights.overallMasteryProgress = Math.round((totalMastered / totalTracked) * 100);
+    }
+    
+    return insights;
+}
+
+// Mobile menu functionality with full-width dropdown
+function initializeMobileMenu() {
+    let isMenuOpen = false;
+
+    mobileMenuButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMobileMenu();
+    });
+
+    mobileDropdownBackdrop.addEventListener('click', () => {
+        closeMobileMenu();
+    });
+
+    // Close menu when clicking on menu links
+    const menuLinks = document.querySelectorAll('#mobile-dropdown-menu a');
+    menuLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            closeMobileMenu();
         });
+    });
 
-        // Mobile menu functionality with full-width dropdown
-        function initializeMobileMenu() {
-            let isMenuOpen = false;
-
-            mobileMenuButton.addEventListener('click', (e) => {
-                e.stopPropagation();
-                toggleMobileMenu();
-            });
-
-            mobileDropdownBackdrop.addEventListener('click', () => {
-                closeMobileMenu();
-            });
-
-            // Close menu when clicking on menu links
-            const menuLinks = document.querySelectorAll('#mobile-dropdown-menu a');
-            menuLinks.forEach(link => {
-                link.addEventListener('click', () => {
-                    closeMobileMenu();
-                });
-            });
-
-            // Close menu when clicking outside
-            document.addEventListener('click', (e) => {
-                if (isMenuOpen && !mobileDropdownMenu.contains(e.target) && !mobileMenuButton.contains(e.target)) {
-                    closeMobileMenu();
-                }
-            });
-
-            function toggleMobileMenu() {
-                if (isMenuOpen) {
-                    closeMobileMenu();
-                } else {
-                    openMobileMenu();
-                }
-            }
-
-            function openMobileMenu() {
-                mobileDropdownMenu.classList.add('open');
-                mobileDropdownBackdrop.style.display = 'block';
-                isMenuOpen = true;
-            }
-
-            function closeMobileMenu() {
-                mobileDropdownMenu.classList.remove('open');
-                mobileDropdownBackdrop.style.display = 'none';
-                isMenuOpen = false;
-            }
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (isMenuOpen && !mobileDropdownMenu.contains(e.target) && !mobileMenuButton.contains(e.target)) {
+            closeMobileMenu();
         }
+    });
 
-        // Generate mock data for demonstration
-        function generateMockData() {
-            // Mock quiz history
-            const quizHistory = [];
-            const today = new Date();
-            
-            for (let i = 0; i < 25; i++) { // Increased to 25 for more horizontal data
-                const date = new Date();
-                date.setDate(today.getDate() - i);
-                
-                const quizType = Math.random() > 0.5 ? 'words' : 'sentences';
-                const correct = Math.floor(Math.random() * 8) + 3;
-                const total = 10;
-                const percentage = Math.round((correct / total) * 100);
-                
-                quizHistory.push({
-                    quiz_type: quizType,
-                    correct_answers: correct,
-                    total_questions: total,
-                    percentage: percentage,
-                    timestamp: date.toISOString(),
-                    id: `quiz-${Date.now()}-${i}`
-                });
-            }
-            
-            // Mock performance data
-            const hsk1Words = [
-                { word: '你好', pinyin: 'nǐ hǎo', meaning: 'hello' },
-                { word: '谢谢', pinyin: 'xiè xiè', meaning: 'thank you' },
-                { word: '再见', pinyin: 'zài jiàn', meaning: 'goodbye' },
-                { word: '我', pinyin: 'wǒ', meaning: 'I, me' },
-                { word: '你', pinyin: 'nǐ', meaning: 'you' },
-                { word: '他', pinyin: 'tā', meaning: 'he, him' },
-                { word: '她', pinyin: 'tā', meaning: 'she, her' },
-                { word: '是', pinyin: 'shì', meaning: 'to be' },
-                { word: '不', pinyin: 'bù', meaning: 'no, not' },
-                { word: '好', pinyin: 'hǎo', meaning: 'good' },
-                { word: '人', pinyin: 'rén', meaning: 'person' },
-                { word: '大', pinyin: 'dà', meaning: 'big' },
-                { word: '小', pinyin: 'xiǎo', meaning: 'small' },
-                { word: '上', pinyin: 'shàng', meaning: 'up, above' },
-                { word: '下', pinyin: 'xià', meaning: 'down, below' }
-            ];
-            
-            const hsk1Sentences = [
-                { sentence: '你好吗？', pinyin: 'nǐ hǎo ma?', meaning: 'How are you?' },
-                { sentence: '我很好。', pinyin: 'wǒ hěn hǎo.', meaning: 'I am fine.' },
-                { sentence: '你叫什么名字？', pinyin: 'nǐ jiào shén me míng zì?', meaning: 'What is your name?' },
-                { sentence: '我叫小明。', pinyin: 'wǒ jiào xiǎo míng.', meaning: 'My name is Xiaoming.' },
-                { sentence: '你是哪国人？', pinyin: 'nǐ shì nǎ guó rén?', meaning: 'Which country are you from?' },
-                { sentence: '我是美国人。', pinyin: 'wǒ shì měi guó rén.', meaning: 'I am American.' },
-                { sentence: '这是什么？', pinyin: 'zhè shì shén me?', meaning: 'What is this?' },
-                { sentence: '那是一本书。', pinyin: 'nà shì yī běn shū.', meaning: 'That is a book.' },
-                { sentence: '我喜欢中国。', pinyin: 'wǒ xǐ huān zhōng guó.', meaning: 'I like China.' },
-                { sentence: '你会说英语吗？', pinyin: 'nǐ huì shuō yīng yǔ ma?', meaning: 'Can you speak English?' },
-                { sentence: '我会说一点中文。', pinyin: 'wǒ huì shuō yī diǎn zhōng wén.', meaning: 'I can speak a little Chinese.' },
-                { sentence: '今天天气很好。', pinyin: 'jīn tiān tiān qì hěn hǎo.', meaning: 'The weather is good today.' },
-                { sentence: '明天见。', pinyin: 'míng tiān jiàn.', meaning: 'See you tomorrow.' },
-                { sentence: '多少钱？', pinyin: 'duō shǎo qián?', meaning: 'How much is it?' },
-                { sentence: '太贵了。', pinyin: 'tài guì le.', meaning: 'Too expensive.' }
-            ];
-            
-            const performanceData = {
-                words: {},
-                sentences: {}
-            };
-            
-            // Generate performance data for words with dynamic patterns
-            hsk1Words.forEach((word, index) => {
-                let correct, incorrect;
-                
-                if (index < 3) {
-                    correct = Math.floor(Math.random() * 2) + 1;
-                    incorrect = Math.floor(Math.random() * 4) + 3;
-                } else if (index < 8) {
-                    correct = Math.floor(Math.random() * 4) + 4;
-                    incorrect = Math.floor(Math.random() * 2);
-                } else {
-                    correct = Math.floor(Math.random() * 4) + 2;
-                    incorrect = Math.floor(Math.random() * 3) + 1;
-                }
-                
-                performanceData.words[word.word] = {
-                    pinyin: word.pinyin,
-                    meaning: word.meaning,
-                    correct: correct,
-                    incorrect: incorrect,
-                    lastUpdated: new Date().toISOString()
-                };
-            });
-            
-            // Generate performance data for sentences with dynamic patterns
-            hsk1Sentences.forEach((sentence, index) => {
-                let correct, incorrect;
-                
-                if (index < 3) {
-                    correct = Math.floor(Math.random() * 2) + 1;
-                    incorrect = Math.floor(Math.random() * 3) + 2;
-                } else if (index < 8) {
-                    correct = Math.floor(Math.random() * 3) + 3;
-                    incorrect = Math.floor(Math.random() * 2);
-                } else {
-                    correct = Math.floor(Math.random() * 3) + 2;
-                    incorrect = Math.floor(Math.random() * 2) + 1;
-                }
-                
-                performanceData.sentences[sentence.sentence] = {
-                    pinyin: sentence.pinyin,
-                    meaning: sentence.meaning,
-                    correct: correct,
-                    incorrect: incorrect,
-                    lastUpdated: new Date().toISOString()
-                };
-            });
-            
-            return {
-                quizHistory,
-                performanceData
-            };
+    function toggleMobileMenu() {
+        if (isMenuOpen) {
+            closeMobileMenu();
+        } else {
+            openMobileMenu();
         }
+    }
 
-        // Load and process results data
-        function loadResultsData() {
-            const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
-            let quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
-            let performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
-            
-            if (quizHistory.length === 0 && Object.keys(performanceData).length === 0) {
-                const mockData = generateMockData();
-                quizHistory = mockData.quizHistory;
-                performanceData = mockData.performanceData;
-                
-                localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
-                localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
-            }
-            
-            const hasData = currentQuiz || quizHistory.length > 0 || Object.keys(performanceData).length > 0;
-            
-            if (hasData) {
-                displayResults(currentQuiz, quizHistory, performanceData);
-            } else {
-                showNoDataState();
-            }
+    function openMobileMenu() {
+        mobileDropdownMenu.classList.add('open');
+        mobileDropdownBackdrop.style.display = 'block';
+        isMenuOpen = true;
+    }
+
+    function closeMobileMenu() {
+        mobileDropdownMenu.classList.remove('open');
+        mobileDropdownBackdrop.style.display = 'none';
+        isMenuOpen = false;
+    }
+}
+
+// Generate mock data for demonstration
+function generateMockData() {
+    // Mock quiz history
+    const quizHistory = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 25; i++) { // Increased to 25 for more horizontal data
+        const date = new Date();
+        date.setDate(today.getDate() - i);
+        
+        const quizType = Math.random() > 0.5 ? 'words' : 'sentences';
+        const correct = Math.floor(Math.random() * 8) + 3;
+        const total = 10;
+        const percentage = Math.round((correct / total) * 100);
+        
+        quizHistory.push({
+            quiz_type: quizType,
+            correct_answers: correct,
+            total_questions: total,
+            percentage: percentage,
+            timestamp: date.toISOString(),
+            id: `quiz-${Date.now()}-${i}`
+        });
+    }
+    
+    // Mock performance data
+    const hsk1Words = [
+        { word: '你好', pinyin: 'nǐ hǎo', meaning: 'hello' },
+        { word: '谢谢', pinyin: 'xiè xiè', meaning: 'thank you' },
+        { word: '再见', pinyin: 'zài jiàn', meaning: 'goodbye' },
+        { word: '我', pinyin: 'wǒ', meaning: 'I, me' },
+        { word: '你', pinyin: 'nǐ', meaning: 'you' },
+        { word: '他', pinyin: 'tā', meaning: 'he, him' },
+        { word: '她', pinyin: 'tā', meaning: 'she, her' },
+        { word: '是', pinyin: 'shì', meaning: 'to be' },
+        { word: '不', pinyin: 'bù', meaning: 'no, not' },
+        { word: '好', pinyin: 'hǎo', meaning: 'good' },
+        { word: '人', pinyin: 'rén', meaning: 'person' },
+        { word: '大', pinyin: 'dà', meaning: 'big' },
+        { word: '小', pinyin: 'xiǎo', meaning: 'small' },
+        { word: '上', pinyin: 'shàng', meaning: 'up, above' },
+        { word: '下', pinyin: 'xià', meaning: 'down, below' }
+    ];
+    
+    const hsk1Sentences = [
+        { sentence: '你好吗？', pinyin: 'nǐ hǎo ma?', meaning: 'How are you?' },
+        { sentence: '我很好。', pinyin: 'wǒ hěn hǎo.', meaning: 'I am fine.' },
+        { sentence: '你叫什么名字？', pinyin: 'nǐ jiào shén me míng zì?', meaning: 'What is your name?' },
+        { sentence: '我叫小明。', pinyin: 'wǒ jiào xiǎo míng.', meaning: 'My name is Xiaoming.' },
+        { sentence: '你是哪国人？', pinyin: 'nǐ shì nǎ guó rén?', meaning: 'Which country are you from?' },
+        { sentence: '我是美国人。', pinyin: 'wǒ shì měi guó rén.', meaning: 'I am American.' },
+        { sentence: '这是什么？', pinyin: 'zhè shì shén me?', meaning: 'What is this?' },
+        { sentence: '那是一本书。', pinyin: 'nà shì yī běn shū.', meaning: 'That is a book.' },
+        { sentence: '我喜欢中国。', pinyin: 'wǒ xǐ huān zhōng guó.', meaning: 'I like China.' },
+        { sentence: '你会说英语吗？', pinyin: 'nǐ huì shuō yīng yǔ ma?', meaning: 'Can you speak English?' },
+        { sentence: '我会说一点中文。', pinyin: 'wǒ huì shuō yī diǎn zhōng wén.', meaning: 'I can speak a little Chinese.' },
+        { sentence: '今天天气很好。', pinyin: 'jīn tiān tiān qì hěn hǎo.', meaning: 'The weather is good today.' },
+        { sentence: '明天见。', pinyin: 'míng tiān jiàn.', meaning: 'See you tomorrow.' },
+        { sentence: '多少钱？', pinyin: 'duō shǎo qián?', meaning: 'How much is it?' },
+        { sentence: '太贵了。', pinyin: 'tài guì le.', meaning: 'Too expensive.' }
+    ];
+    
+    const performanceData = {
+        words: {},
+        sentences: {}
+    };
+    
+    // Generate performance data for words with dynamic patterns
+    hsk1Words.forEach((word, index) => {
+        let correct, incorrect;
+        
+        if (index < 3) {
+            correct = Math.floor(Math.random() * 2) + 1;
+            incorrect = Math.floor(Math.random() * 4) + 3;
+        } else if (index < 8) {
+            correct = Math.floor(Math.random() * 4) + 4;
+            incorrect = Math.floor(Math.random() * 2);
+        } else {
+            correct = Math.floor(Math.random() * 4) + 2;
+            incorrect = Math.floor(Math.random() * 3) + 1;
         }
-
-        // Display results
-        function displayResults(currentQuiz, quizHistory, performanceData) {
-            loadingState.classList.add('hidden');
-            resultsHeader.classList.remove('hidden');
-            overallStats.classList.remove('hidden');
-            progressCharts.classList.remove('hidden');
-            weaknessesSection.classList.remove('hidden');
-            strengthsSection.classList.remove('hidden');
-            quizHistorySection.classList.remove('hidden');
-            difficultySection.classList.remove('hidden');
-            
-            updateOverallStats(quizHistory, performanceData);
-            updateCharts(quizHistory, performanceData);
-            updateWeaknessesAndStrengths(performanceData);
-            updateQuizHistory(quizHistory, currentQuiz);
-            updateDifficultyAnalysis(performanceData);
+        
+        performanceData.words[word.word] = {
+            pinyin: word.pinyin,
+            meaning: word.meaning,
+            correct: correct,
+            incorrect: incorrect,
+            lastUpdated: new Date().toISOString()
+        };
+    });
+    
+    // Generate performance data for sentences with dynamic patterns
+    hsk1Sentences.forEach((sentence, index) => {
+        let correct, incorrect;
+        
+        if (index < 3) {
+            correct = Math.floor(Math.random() * 2) + 1;
+            incorrect = Math.floor(Math.random() * 3) + 2;
+        } else if (index < 8) {
+            correct = Math.floor(Math.random() * 3) + 3;
+            incorrect = Math.floor(Math.random() * 2);
+        } else {
+            correct = Math.floor(Math.random() * 3) + 2;
+            incorrect = Math.floor(Math.random() * 2) + 1;
         }
+        
+        performanceData.sentences[sentence.sentence] = {
+            pinyin: sentence.pinyin,
+            meaning: sentence.meaning,
+            correct: correct,
+            incorrect: incorrect,
+            lastUpdated: new Date().toISOString()
+        };
+    });
+    
+    return {
+        quizHistory,
+        performanceData
+    };
+}
 
-        // Show no data state
-        function showNoDataState() {
-            loadingState.classList.add('hidden');
-            noDataState.classList.remove('hidden');
+// Load and process results data with adaptive learning integration
+function loadResultsData() {
+    const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
+    let quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
+    let performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+    
+    // Load adaptive learning data
+    const adaptiveData = loadAdaptiveLearningData();
+    
+    if (quizHistory.length === 0 && Object.keys(performanceData).length === 0) {
+        const mockData = generateMockData();
+        quizHistory = mockData.quizHistory;
+        performanceData = mockData.performanceData;
+        
+        localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
+        localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
+    }
+    
+    const hasData = currentQuiz || quizHistory.length > 0 || Object.keys(performanceData).length > 0;
+    
+    if (hasData) {
+        displayResults(currentQuiz, quizHistory, performanceData, adaptiveData);
+    } else {
+        showNoDataState();
+    }
+}
+
+// Display results with adaptive learning insights
+function displayResults(currentQuiz, quizHistory, performanceData, adaptiveData) {
+    loadingState.classList.add('hidden');
+    resultsHeader.classList.remove('hidden');
+    overallStats.classList.remove('hidden');
+    progressCharts.classList.remove('hidden');
+    weaknessesSection.classList.remove('hidden');
+    strengthsSection.classList.remove('hidden');
+    quizHistorySection.classList.remove('hidden');
+    difficultySection.classList.remove('hidden');
+    
+    updateOverallStats(quizHistory, performanceData, adaptiveData);
+    updateCharts(quizHistory, performanceData, adaptiveData);
+    updateWeaknessesAndStrengths(performanceData, adaptiveData);
+    updateQuizHistory(quizHistory, currentQuiz);
+    updateDifficultyAnalysis(performanceData, adaptiveData);
+}
+
+// Show no data state
+function showNoDataState() {
+    loadingState.classList.add('hidden');
+    noDataState.classList.remove('hidden');
+}
+
+// Update overall statistics with adaptive learning data
+function updateOverallStats(quizHistory, performanceData, adaptiveData) {
+    const totalQuizzes = quizHistory.length;
+    document.getElementById('total-quizzes').textContent = totalQuizzes;
+    
+    const wordsQuizzes = quizHistory.filter(q => q.quiz_type === 'words').length;
+    const sentencesQuizzes = quizHistory.filter(q => q.quiz_type === 'sentences').length;
+    
+    document.getElementById('words-quizzes').textContent = `${wordsQuizzes} words`;
+    document.getElementById('sentences-quizzes').textContent = `${sentencesQuizzes} sentences`;
+    
+    let totalScore = 0;
+    quizHistory.forEach(quiz => {
+        totalScore += quiz.percentage;
+    });
+    const avgScore = totalQuizzes > 0 ? Math.round(totalScore / totalQuizzes) : 0;
+    
+    let wordsTotalScore = 0;
+    let sentencesTotalScore = 0;
+    
+    quizHistory.forEach(quiz => {
+        if (quiz.quiz_type === 'words') {
+            wordsTotalScore += quiz.percentage;
+        } else {
+            sentencesTotalScore += quiz.percentage;
         }
+    });
+    
+    const wordsAvgScore = wordsQuizzes > 0 ? Math.round(wordsTotalScore / wordsQuizzes) : 0;
+    const sentencesAvgScore = sentencesQuizzes > 0 ? Math.round(sentencesTotalScore / sentencesQuizzes) : 0;
+    
+    document.getElementById('avg-score').textContent = `${avgScore}%`;
+    document.getElementById('words-score').textContent = `${wordsAvgScore}% words`;
+    document.getElementById('sentences-score').textContent = `${sentencesAvgScore}% sentences`;
+    
+    // Use adaptive learning data for items learned
+    const adaptiveInsights = getAdaptiveLearningInsights(adaptiveData);
+    const wordsLearned = adaptiveInsights.totalWordsTracked;
+    const sentencesLearned = adaptiveInsights.totalSentencesTracked;
+    
+    document.getElementById('items-learned').textContent = wordsLearned + sentencesLearned;
+    document.getElementById('words-learned').textContent = `${wordsLearned} words`;
+    document.getElementById('sentences-learned').textContent = `${sentencesLearned} sentences`;
+    
+    const streak = calculateStudyStreak(quizHistory);
+    document.getElementById('study-streak').textContent = streak;
+    
+    // Add adaptive learning progress indicator
+    addAdaptiveProgressIndicator(adaptiveInsights);
+}
 
-        // Update overall statistics
-        function updateOverallStats(quizHistory, performanceData) {
-            const totalQuizzes = quizHistory.length;
-            document.getElementById('total-quizzes').textContent = totalQuizzes;
-            
-            const wordsQuizzes = quizHistory.filter(q => q.quiz_type === 'words').length;
-            const sentencesQuizzes = quizHistory.filter(q => q.quiz_type === 'sentences').length;
-            
-            document.getElementById('words-quizzes').textContent = `${wordsQuizzes} words`;
-            document.getElementById('sentences-quizzes').textContent = `${sentencesQuizzes} sentences`;
-            
-            let totalScore = 0;
-            quizHistory.forEach(quiz => {
-                totalScore += quiz.percentage;
-            });
-            const avgScore = totalQuizzes > 0 ? Math.round(totalScore / totalQuizzes) : 0;
-            
-            let wordsTotalScore = 0;
-            let sentencesTotalScore = 0;
-            
-            quizHistory.forEach(quiz => {
-                if (quiz.quiz_type === 'words') {
-                    wordsTotalScore += quiz.percentage;
-                } else {
-                    sentencesTotalScore += quiz.percentage;
-                }
-            });
-            
-            const wordsAvgScore = wordsQuizzes > 0 ? Math.round(wordsTotalScore / wordsQuizzes) : 0;
-            const sentencesAvgScore = sentencesQuizzes > 0 ? Math.round(sentencesTotalScore / sentencesQuizzes) : 0;
-            
-            document.getElementById('avg-score').textContent = `${avgScore}%`;
-            document.getElementById('words-score').textContent = `${wordsAvgScore}% words`;
-            document.getElementById('sentences-score').textContent = `${sentencesAvgScore}% sentences`;
-            
-            const wordsLearned = Object.values(performanceData.words || {}).filter(item => item.correct > 0).length;
-            const sentencesLearned = Object.values(performanceData.sentences || {}).filter(item => item.correct > 0).length;
-            
-            document.getElementById('items-learned').textContent = wordsLearned + sentencesLearned;
-            document.getElementById('words-learned').textContent = `${wordsLearned} words`;
-            document.getElementById('sentences-learned').textContent = `${sentencesLearned} sentences`;
-            
-            const streak = calculateStudyStreak(quizHistory);
-            document.getElementById('study-streak').textContent = streak;
+// Add adaptive learning progress indicator
+function addAdaptiveProgressIndicator(adaptiveInsights) {
+    const overallStats = document.getElementById('overall-stats');
+    
+    // Remove existing adaptive progress if present
+    const existingProgress = document.getElementById('adaptive-progress');
+    if (existingProgress) {
+        existingProgress.remove();
+    }
+    
+    const progressHTML = `
+        <div id="adaptive-progress" class="sophisticated-card stat-card p-6 text-center col-span-full mt-4">
+            <h4 class="text-lg font-bold mb-3 text-text-light">Adaptive Learning Progress</h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                    <div class="text-xl font-bold text-primary-blue">${adaptiveInsights.wordsMastered}</div>
+                    <div class="text-text-muted">Words Mastered</div>
+                </div>
+                <div>
+                    <div class="text-xl font-bold text-secondary-cyan">${adaptiveInsights.sentencesMastered}</div>
+                    <div class="text-text-muted">Sentences Mastered</div>
+                </div>
+                <div>
+                    <div class="text-xl font-bold text-yellow-400">${adaptiveInsights.wordsInReview}</div>
+                    <div class="text-text-muted">Words in Review</div>
+                </div>
+                <div>
+                    <div class="text-xl font-bold text-green-400">${adaptiveInsights.overallMasteryProgress}%</div>
+                    <div class="text-text-muted">Overall Mastery</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    overallStats.insertAdjacentHTML('beforeend', progressHTML);
+}
+
+// Calculate study streak from quiz history
+function calculateStudyStreak(quizHistory) {
+    if (quizHistory.length === 0) return 0;
+    
+    const sortedQuizzes = [...quizHistory].sort((a, b) => 
+        new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date)
+    );
+    
+    let streak = 0;
+    let currentDate = new Date();
+    
+    const today = new Date().toDateString();
+    const hasQuizToday = sortedQuizzes.some(quiz => {
+        const quizDate = new Date(quiz.timestamp || quiz.date).toDateString();
+        return quizDate === today;
+    });
+    
+    if (hasQuizToday) {
+        streak = 1;
+        currentDate.setDate(currentDate.getDate() - 1);
+    }
+    
+    for (let i = 0; i < sortedQuizzes.length; i++) {
+        const quizDate = new Date(sortedQuizzes[i].timestamp || sortedQuizzes[i].date).toDateString();
+        const expectedDate = currentDate.toDateString();
+        
+        if (quizDate === expectedDate) {
+            streak++;
+            currentDate.setDate(currentDate.getDate() - 1);
+        } else if (quizDate < expectedDate) {
+            continue;
+        } else {
+            break;
         }
+    }
+    
+    return streak;
+}
 
-        // Calculate study streak from quiz history
-        function calculateStudyStreak(quizHistory) {
-            if (quizHistory.length === 0) return 0;
-            
-            const sortedQuizzes = [...quizHistory].sort((a, b) => 
-                new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date)
-            );
-            
-            let streak = 0;
-            let currentDate = new Date();
-            
-            const today = new Date().toDateString();
-            const hasQuizToday = sortedQuizzes.some(quiz => {
-                const quizDate = new Date(quiz.timestamp || quiz.date).toDateString();
-                return quizDate === today;
-            });
-            
-            if (hasQuizToday) {
-                streak = 1;
-                currentDate.setDate(currentDate.getDate() - 1);
-            }
-            
-            for (let i = 0; i < sortedQuizzes.length; i++) {
-                const quizDate = new Date(sortedQuizzes[i].timestamp || sortedQuizzes[i].date).toDateString();
-                const expectedDate = currentDate.toDateString();
-                
-                if (quizDate === expectedDate) {
-                    streak++;
-                    currentDate.setDate(currentDate.getDate() - 1);
-                } else if (quizDate < expectedDate) {
-                    continue;
-                } else {
-                    break;
-                }
-            }
-            
-            return streak;
-        }
-
-        // Update progress charts with compact vertical height and horizontal scroll
-        function updateCharts(quizHistory, performanceData) {
-            // Score Progress Chart - Compact height, horizontal scroll
-            const scoreCtx = document.getElementById('scoreChart').getContext('2d');
-            
-            const sortedQuizzes = [...quizHistory].sort((a, b) => 
-                new Date(a.timestamp || a.date) - new Date(b.timestamp || b.date)
-            );
-            
-            // Create detailed labels for horizontal scrolling
-            const labels = sortedQuizzes.map((quiz, index) => {
-                const date = new Date(quiz.timestamp || quiz.date);
-                return `${date.getMonth()+1}/${date.getDate()} ${quiz.quiz_type === 'words' ? 'W' : 'S'}`;
-            });
-            
-            const scores = sortedQuizzes.map(quiz => quiz.percentage);
-            const backgroundColors = sortedQuizzes.map(quiz => 
-                quiz.quiz_type === 'words' ? 'rgba(92, 124, 250, 0.8)' : 'rgba(51, 240, 232, 0.8)'
-            );
-            
-            // Calculate chart width based on number of data points
-            const minWidth = 800; // Minimum width for good visibility
-            const pointWidth = 60; // Width per data point
-            const chartWidth = Math.max(minWidth, labels.length * pointWidth);
-            
-            // Set compact height and enable horizontal scrolling
-            const chartContainer = document.getElementById('scoreChart').parentElement;
-            chartContainer.style.overflowX = 'auto';
-            chartContainer.style.overflowY = 'hidden';
-            chartContainer.style.height = '200px'; // Compact vertical height
-            chartContainer.style.position = 'relative';
-            
-            // Set canvas dimensions
-            document.getElementById('scoreChart').width = chartWidth;
-            document.getElementById('scoreChart').height = 180; // Compact height
-            
-            new Chart(scoreCtx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Quiz Scores',
-                        data: scores,
-                        backgroundColor: backgroundColors,
-                        borderColor: '#5c7cfa',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.3,
-                        pointBackgroundColor: backgroundColors,
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 1,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: false,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: '#94a3b8',
-                                callback: function(value) {
-                                    return value + '%';
-                                },
-                                font: {
-                                    size: 11
-                                }
-                            }
-                        },
-                        x: {
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: '#94a3b8',
-                                maxRotation: 45,
-                                minRotation: 45,
-                                font: {
-                                    size: 10
-                                }
-                            }
-                        }
+// Update progress charts with compact vertical height and horizontal scroll
+function updateCharts(quizHistory, performanceData, adaptiveData) {
+    // Score Progress Chart - Compact height, horizontal scroll
+    const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+    
+    const sortedQuizzes = [...quizHistory].sort((a, b) => 
+        new Date(a.timestamp || a.date) - new Date(b.timestamp || b.date)
+    );
+    
+    // Create detailed labels for horizontal scrolling
+    const labels = sortedQuizzes.map((quiz, index) => {
+        const date = new Date(quiz.timestamp || quiz.date);
+        return `${date.getMonth()+1}/${date.getDate()} ${quiz.quiz_type === 'words' ? 'W' : 'S'}`;
+    });
+    
+    const scores = sortedQuizzes.map(quiz => quiz.percentage);
+    const backgroundColors = sortedQuizzes.map(quiz => 
+        quiz.quiz_type === 'words' ? 'rgba(92, 124, 250, 0.8)' : 'rgba(51, 240, 232, 0.8)'
+    );
+    
+    // Calculate chart width based on number of data points
+    const minWidth = 800; // Minimum width for good visibility
+    const pointWidth = 60; // Width per data point
+    const chartWidth = Math.max(minWidth, labels.length * pointWidth);
+    
+    // Set compact height and enable horizontal scrolling
+    const chartContainer = document.getElementById('scoreChart').parentElement;
+    chartContainer.style.overflowX = 'auto';
+    chartContainer.style.overflowY = 'hidden';
+    chartContainer.style.height = '200px'; // Compact vertical height
+    chartContainer.style.position = 'relative';
+    
+    // Set canvas dimensions
+    document.getElementById('scoreChart').width = chartWidth;
+    document.getElementById('scoreChart').height = 180; // Compact height
+    
+    new Chart(scoreCtx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Quiz Scores',
+                data: scores,
+                backgroundColor: backgroundColors,
+                borderColor: '#5c7cfa',
+                borderWidth: 2,
+                fill: false,
+                tension: 0.3,
+                pointBackgroundColor: backgroundColors,
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 1,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: false,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
                     },
-                    plugins: {
-                        legend: {
-                            display: false
+                    ticks: {
+                        color: '#94a3b8',
+                        callback: function(value) {
+                            return value + '%';
                         },
-                        tooltip: {
-                            backgroundColor: 'rgba(42, 58, 80, 0.9)',
-                            titleColor: '#e2e8f0',
-                            bodyColor: '#e2e8f0',
-                            borderColor: '#5c7cfa',
-                            borderWidth: 1,
-                            callbacks: {
-                                label: function(context) {
-                                    const quiz = sortedQuizzes[context.dataIndex];
-                                    return `Score: ${context.parsed.y}% (${quiz.correct_answers}/${quiz.total_questions})`;
-                                }
-                            }
+                        font: {
+                            size: 11
+                        }
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                        color: '#94a3b8',
+                        maxRotation: 45,
+                        minRotation: 45,
+                        font: {
+                            size: 10
                         }
                     }
                 }
-            });
-            
-            // Comparison Chart - Keep original size
-            const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
-            
-            const wordsMastery = calculateMasteryLevels(performanceData.words || {});
-            const sentencesMastery = calculateMasteryLevels(performanceData.sentences || {});
-            
-            new Chart(comparisonCtx, {
-                type: 'bar',
-                data: {
-                    labels: ['Mastered', 'Easy', 'Medium', 'Hard'],
-                    datasets: [
-                        {
-                            label: 'Words',
-                            data: [
-                                wordsMastery.mastered,
-                                wordsMastery.easy, 
-                                wordsMastery.medium,
-                                wordsMastery.hard
-                            ],
-                            backgroundColor: 'rgba(92, 124, 250, 0.8)',
-                            borderColor: 'rgba(92, 124, 250, 1)',
-                            borderWidth: 1
-                        },
-                        {
-                            label: 'Sentences',
-                            data: [
-                                sentencesMastery.mastered,
-                                sentencesMastery.easy, 
-                                sentencesMastery.medium,
-                                sentencesMastery.hard
-                            ],
-                            backgroundColor: 'rgba(51, 240, 232, 0.8)',
-                            borderColor: 'rgba(51, 240, 232, 1)',
-                            borderWidth: 1
-                        }
-                    ]
+            },
+            plugins: {
+                legend: {
+                    display: false
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: '#94a3b8'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                color: 'rgba(255, 255, 255, 0.1)'
-                            },
-                            ticks: {
-                                color: '#94a3b8'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            labels: {
-                                color: '#e2e8f0'
-                            }
+                tooltip: {
+                    backgroundColor: 'rgba(42, 58, 80, 0.9)',
+                    titleColor: '#e2e8f0',
+                    bodyColor: '#e2e8f0',
+                    borderColor: '#5c7cfa',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            const quiz = sortedQuizzes[context.dataIndex];
+                            return `Score: ${context.parsed.y}% (${quiz.correct_answers}/${quiz.total_questions})`;
                         }
                     }
                 }
-            });
+            }
         }
-
-        // Calculate mastery levels
-        function calculateMasteryLevels(performance) {
-            const levels = { mastered: 0, easy: 0, medium: 0, hard: 0 };
-            
-            Object.values(performance).forEach(item => {
-                const totalAttempts = item.correct + (item.incorrect || 0);
-                const accuracy = totalAttempts > 0 ? (item.correct / totalAttempts) * 100 : 0;
-                
-                if (accuracy >= 90) levels.mastered++;
-                else if (accuracy >= 70) levels.easy++;
-                else if (accuracy >= 50) levels.medium++;
-                else levels.hard++;
-            });
-            
-            return levels;
+    });
+    
+    // Comparison Chart - Keep original size
+    const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
+    
+    const adaptiveInsights = getAdaptiveLearningInsights(adaptiveData);
+    
+    new Chart(comparisonCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Mastered', 'In Review', 'Learning', 'New'],
+            datasets: [
+                {
+                    label: 'Words',
+                    data: [
+                        adaptiveInsights.wordsMastered,
+                        adaptiveInsights.wordsInReview,
+                        Math.max(0, adaptiveInsights.totalWordsTracked - adaptiveInsights.wordsMastered - adaptiveInsights.wordsInReview),
+                        0 // New words (not tracked yet)
+                    ],
+                    backgroundColor: 'rgba(92, 124, 250, 0.8)',
+                    borderColor: 'rgba(92, 124, 250, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Sentences',
+                    data: [
+                        adaptiveInsights.sentencesMastered,
+                        adaptiveInsights.sentencesInReview,
+                        Math.max(0, adaptiveInsights.totalSentencesTracked - adaptiveInsights.sentencesMastered - adaptiveInsights.sentencesInReview),
+                        0 // New sentences (not tracked yet)
+                    ],
+                    backgroundColor: 'rgba(51, 240, 232, 0.8)',
+                    borderColor: 'rgba(51, 240, 232, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                        color: '#94a3b8'
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                        color: '#94a3b8'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#e2e8f0'
+                    }
+                }
+            }
         }
+    });
+}
 
-        // Update weaknesses and strengths with frequently updated data
-        function updateWeaknessesAndStrengths(performanceData) {
-            updatePerformanceSection('words', performanceData.words || {});
-            updatePerformanceSection('sentences', performanceData.sentences || {});
+// Update weaknesses and strengths with adaptive learning data
+function updateWeaknessesAndStrengths(performanceData, adaptiveData) {
+    updatePerformanceSection('words', performanceData.words || {}, adaptiveData.wordMastery, adaptiveData.masteredWords, adaptiveData.reviewWords);
+    updatePerformanceSection('sentences', performanceData.sentences || {}, adaptiveData.sentenceMastery, adaptiveData.masteredSentences, adaptiveData.reviewSentences);
+}
+
+// Helper function to update performance sections with adaptive learning data
+function updatePerformanceSection(type, performance, masteryData, masteredItems, reviewItems) {
+    const weaknessList = document.getElementById(`${type}-weakness-list`);
+    const strengthList = document.getElementById(`${type}-strength-list`);
+    const noWeaknesses = document.getElementById(`no-${type}-weaknesses`);
+    const noStrengths = document.getElementById(`no-${type}-strengths`);
+    
+    // Get review items (weaknesses from adaptive learning)
+    const weaknesses = reviewItems.slice(0, 5).map(item => {
+        const stats = performance[item[type === 'words' ? 'word' : 'sentence']] || {};
+        const mastery = masteryData[item[type === 'words' ? 'word' : 'sentence']] || { correct: 0, incorrect: 0 };
+        
+        return {
+            item: item[type === 'words' ? 'word' : 'sentence'],
+            pinyin: item.pinyin || stats.pinyin || '',
+            meaning: item.meaning || stats.meaning || '',
+            accuracy: mastery.correct + mastery.incorrect > 0 ? 
+                (mastery.correct / (mastery.correct + mastery.incorrect)) * 100 : 0,
+            attempts: mastery.correct + mastery.incorrect,
+            lastUpdated: mastery.lastSeen || new Date().toISOString(),
+            isReview: true
+        };
+    });
+    
+    // Get strengths from mastered items
+    const strengths = Array.from(masteredItems).slice(0, 5).map(item => {
+        const stats = performance[item] || {};
+        const mastery = masteryData[item] || { correct: 0, incorrect: 0 };
+        
+        return {
+            item: item,
+            pinyin: stats.pinyin || '',
+            meaning: stats.meaning || '',
+            accuracy: mastery.correct + mastery.incorrect > 0 ? 
+                (mastery.correct / (mastery.correct + mastery.incorrect)) * 100 : 100,
+            attempts: mastery.correct + mastery.incorrect,
+            lastUpdated: mastery.lastSeen || new Date().toISOString(),
+            isMastered: true
+        };
+    });
+    
+    // Display weaknesses
+    if (weaknesses.length > 0) {
+        weaknessList.innerHTML = weaknesses.map(item => `
+            <div class="flex justify-between items-center p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
+                <div class="flex-1">
+                    <div class="font-medium">${item.item}</div>
+                    <div class="text-sm text-text-muted">${item.pinyin}</div>
+                    <div class="text-xs text-text-muted mt-1">
+                        <i class="fas fa-sync-alt mr-1"></i>
+                        In Review • Updated: ${new Date(item.lastUpdated).toLocaleTimeString()}
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="text-red-400 font-bold">${Math.round(item.accuracy)}%</span>
+                    <div class="text-xs text-text-muted">${item.attempts} attempts</div>
+                </div>
+            </div>
+        `).join('');
+        noWeaknesses.classList.add('hidden');
+    } else {
+        weaknessList.innerHTML = '';
+        noWeaknesses.classList.remove('hidden');
+    }
+    
+    // Display strengths
+    if (strengths.length > 0) {
+        strengthList.innerHTML = strengths.map(item => `
+            <div class="flex justify-between items-center p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
+                <div class="flex-1">
+                    <div class="font-medium">${item.item}</div>
+                    <div class="text-sm text-text-muted">${item.pinyin}</div>
+                    <div class="text-xs text-green-400 mt-1">
+                        <i class="fas fa-check-circle mr-1"></i>
+                        Mastered • Updated: ${new Date(item.lastUpdated).toLocaleTimeString()}
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span class="text-green-400 font-bold">${Math.round(item.accuracy)}%</span>
+                    <div class="text-xs text-text-muted">${item.attempts} attempts</div>
+                </div>
+            </div>
+        `).join('');
+        noStrengths.classList.add('hidden');
+    } else {
+        strengthList.innerHTML = '';
+        noStrengths.classList.remove('hidden');
+    }
+}
+
+// Refresh performance data (simulates real-time updates)
+function refreshPerformanceData() {
+    const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+    const adaptiveData = loadAdaptiveLearningData();
+    
+    // Simulate some data changes for demonstration
+    const updatedPerformanceData = simulateDataUpdates(performanceData);
+    
+    // Update localStorage with new data
+    localStorage.setItem('hsk1PerformanceData', JSON.stringify(updatedPerformanceData));
+    
+    // Update the UI
+    updateWeaknessesAndStrengths(updatedPerformanceData, adaptiveData);
+    
+    // Show refresh indicator
+    showRefreshIndicator();
+}
+
+// Simulate data updates for demonstration
+function simulateDataUpdates(performanceData) {
+    const updatedData = JSON.parse(JSON.stringify(performanceData));
+    
+    // Randomly update some word performances
+    if (updatedData.words) {
+        Object.keys(updatedData.words).forEach((word, index) => {
+            // 20% chance to update each word
+            if (Math.random() < 0.2) {
+                const change = Math.random() < 0.5 ? 1 : -1;
+                updatedData.words[word].correct = Math.max(0, updatedData.words[word].correct + change);
+                updatedData.words[word].lastUpdated = new Date().toISOString();
+            }
+        });
+    }
+    
+    // Randomly update some sentence performances
+    if (updatedData.sentences) {
+        Object.keys(updatedData.sentences).forEach((sentence, index) => {
+            // 20% chance to update each sentence
+            if (Math.random() < 0.2) {
+                const change = Math.random() < 0.5 ? 1 : -1;
+                updatedData.sentences[sentence].correct = Math.max(0, updatedData.sentences[sentence].correct + change);
+                updatedData.sentences[sentence].lastUpdated = new Date().toISOString();
+            }
+        });
+    }
+    
+    return updatedData;
+}
+
+// Show refresh indicator
+function showRefreshIndicator() {
+    const indicator = document.createElement('div');
+    indicator.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-3 py-2 rounded-lg text-sm shadow-lg';
+    indicator.innerHTML = '<i class="fas fa-sync-alt mr-2"></i> Data Updated';
+    document.body.appendChild(indicator);
+    
+    setTimeout(() => {
+        indicator.remove();
+    }, 2000);
+}
+
+// Update quiz history
+function updateQuizHistory(quizHistory, currentQuiz) {
+    const historyContainer = document.getElementById('quiz-history');
+    const noHistory = document.getElementById('no-history');
+    
+    let allQuizzes = [...quizHistory];
+    
+    if (currentQuiz && isValidQuiz(currentQuiz)) {
+        const normalizedCurrentQuiz = normalizeQuizData(currentQuiz);
+        const isDuplicate = quizHistory.some(quiz => isSameQuiz(quiz, normalizedCurrentQuiz));
+        
+        if (!isDuplicate) {
+            allQuizzes = [normalizedCurrentQuiz, ...quizHistory];
         }
-
-        // Helper function to update performance sections with dynamic data
-        function updatePerformanceSection(type, performance) {
-            const weaknessList = document.getElementById(`${type}-weakness-list`);
-            const strengthList = document.getElementById(`${type}-strength-list`);
-            const noWeaknesses = document.getElementById(`no-${type}-weaknesses`);
-            const noStrengths = document.getElementById(`no-${type}-strengths`);
+    }
+    
+    const normalizedQuizzes = allQuizzes.map(quiz => normalizeQuizData(quiz));
+    const uniqueQuizzes = removeDuplicateQuizzes(normalizedQuizzes);
+    
+    uniqueQuizzes.sort((a, b) => {
+        const dateA = getQuizDate(a);
+        const dateB = getQuizDate(b);
+        return dateB - dateA;
+    });
+    
+    if (uniqueQuizzes.length > 0) {
+        noHistory.classList.add('hidden');
+        
+        const recentQuizzes = uniqueQuizzes.slice(0, 6);
+        
+        historyContainer.innerHTML = recentQuizzes.map(quiz => {
+            const quizDate = getQuizDate(quiz);
+            const dateStr = isValidDate(quizDate) ? quizDate.toLocaleDateString() : 'Recent';
+            const type = quiz.quiz_type || 'words';
+            const correct = quiz.correct_answers || quiz.correct || 0;
+            const total = quiz.total_questions || quiz.total || 10;
+            const percentage = quiz.percentage || Math.round((correct / total) * 100);
             
-            const items = Object.entries(performance).map(([item, stats]) => ({
-                item,
-                pinyin: stats.pinyin || '',
-                meaning: stats.meaning || '',
-                accuracy: stats.correct + (stats.incorrect || 0) > 0 ? 
-                    (stats.correct / (stats.correct + (stats.incorrect || 0))) * 100 : 0,
-                attempts: stats.correct + (stats.incorrect || 0),
-                lastUpdated: stats.lastUpdated || new Date().toISOString()
-            }));
-            
-            // Weaknesses (accuracy < 60% and at least 2 attempts)
-            const weaknesses = items
-                .filter(item => item.accuracy < 60 && item.attempts >= 2)
-                .sort((a, b) => a.accuracy - b.accuracy)
-                .slice(0, 5);
-            
-            // Strengths (accuracy >= 80% and at least 2 attempts)
-            const strengths = items
-                .filter(item => item.accuracy >= 80 && item.attempts >= 2)
-                .sort((a, b) => b.accuracy - a.accuracy)
-                .slice(0, 5);
-            
-            // Display weaknesses with updated timestamp
-            if (weaknesses.length > 0) {
-                weaknessList.innerHTML = weaknesses.map(item => `
-                    <div class="flex justify-between items-center p-3 bg-red-900/20 border border-red-500/30 rounded-lg">
-                        <div class="flex-1">
-                            <div class="font-medium">${item.item}</div>
-                            <div class="text-sm text-text-muted">${item.pinyin}</div>
-                            <div class="text-xs text-text-muted mt-1">
-                                <i class="fas fa-clock mr-1"></i>
-                                Updated: ${new Date(item.lastUpdated).toLocaleTimeString()}
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-red-400 font-bold">${Math.round(item.accuracy)}%</span>
-                            <div class="text-xs text-text-muted">${item.attempts} attempts</div>
+            return `
+                <div class="flex justify-between items-center p-4 bg-card-bg/50 rounded-lg border border-text-muted/20 ${type === 'words' ? 'quiz-type-words' : 'quiz-type-sentences'}">
+                    <div>
+                        <div class="font-medium">${dateStr}</div>
+                        <div class="text-sm text-text-muted">
+                            ${type === 'words' ? 'Vocabulary Words' : 'Sentence Comprehension'} • 
+                            ${correct}/${total} correct
                         </div>
                     </div>
-                `).join('');
-                noWeaknesses.classList.add('hidden');
-            } else {
-                weaknessList.innerHTML = '';
-                noWeaknesses.classList.remove('hidden');
-            }
-            
-            // Display strengths with updated timestamp
-            if (strengths.length > 0) {
-                strengthList.innerHTML = strengths.map(item => `
-                    <div class="flex justify-between items-center p-3 bg-green-900/20 border border-green-500/30 rounded-lg">
-                        <div class="flex-1">
-                            <div class="font-medium">${item.item}</div>
-                            <div class="text-sm text-text-muted">${item.pinyin}</div>
-                            <div class="text-xs text-green-400 mt-1">
-                                <i class="fas fa-clock mr-1"></i>
-                                Updated: ${new Date(item.lastUpdated).toLocaleTimeString()}
-                            </div>
+                    <div class="text-right">
+                        <div class="text-xl font-bold ${percentage >= 70 ? 'text-green-400' : percentage >= 50 ? 'text-yellow-400' : 'text-red-400'}">
+                            ${percentage}%
                         </div>
-                        <div class="text-right">
-                            <span class="text-green-400 font-bold">${Math.round(item.accuracy)}%</span>
-                            <div class="text-xs text-text-muted">${item.attempts} attempts</div>
-                        </div>
+                        <div class="text-sm text-text-muted">Accuracy</div>
                     </div>
-                `).join('');
-                noStrengths.classList.add('hidden');
-            } else {
-                strengthList.innerHTML = '';
-                noStrengths.classList.remove('hidden');
-            }
-        }
+                </div>
+            `;
+        }).join('');
+    } else {
+        noHistory.classList.remove('hidden');
+        historyContainer.innerHTML = '';
+    }
+}
 
-        // Refresh performance data (simulates real-time updates)
-        function refreshPerformanceData() {
-            const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
-            
-            // Simulate some data changes for demonstration
-            const updatedPerformanceData = simulateDataUpdates(performanceData);
-            
-            // Update localStorage with new data
-            localStorage.setItem('hsk1PerformanceData', JSON.stringify(updatedPerformanceData));
-            
-            // Update the UI
-            updateWeaknessesAndStrengths(updatedPerformanceData);
-            
-            // Show refresh indicator
-            showRefreshIndicator();
-        }
+// Helper function to normalize quiz data
+function normalizeQuizData(quiz) {
+    return {
+        quiz_type: quiz.quiz_type || 'words',
+        correct_answers: quiz.correct_answers || quiz.correct || 0,
+        total_questions: quiz.total_questions || quiz.total || 10,
+        percentage: quiz.percentage || Math.round(((quiz.correct_answers || quiz.correct || 0) / (quiz.total_questions || quiz.total || 10)) * 100),
+        timestamp: quiz.timestamp || quiz.date || new Date().toISOString(),
+        id: quiz.id || `quiz-${Date.now()}`
+    };
+}
 
-        // Simulate data updates for demonstration
-        function simulateDataUpdates(performanceData) {
-            const updatedData = JSON.parse(JSON.stringify(performanceData));
-            
-            // Randomly update some word performances
-            if (updatedData.words) {
-                Object.keys(updatedData.words).forEach((word, index) => {
-                    // 20% chance to update each word
-                    if (Math.random() < 0.2) {
-                        const change = Math.random() < 0.5 ? 1 : -1;
-                        updatedData.words[word].correct = Math.max(0, updatedData.words[word].correct + change);
-                        updatedData.words[word].lastUpdated = new Date().toISOString();
-                    }
-                });
-            }
-            
-            // Randomly update some sentence performances
-            if (updatedData.sentences) {
-                Object.keys(updatedData.sentences).forEach((sentence, index) => {
-                    // 20% chance to update each sentence
-                    if (Math.random() < 0.2) {
-                        const change = Math.random() < 0.5 ? 1 : -1;
-                        updatedData.sentences[sentence].correct = Math.max(0, updatedData.sentences[sentence].correct + change);
-                        updatedData.sentences[sentence].lastUpdated = new Date().toISOString();
-                    }
-                });
-            }
-            
-            return updatedData;
-        }
+// Helper function to check if two quizzes are the same
+function isSameQuiz(quiz1, quiz2) {
+    const date1 = getQuizDate(quiz1);
+    const date2 = getQuizDate(quiz2);
+    
+    return (
+        quiz1.quiz_type === quiz2.quiz_type &&
+        quiz1.correct_answers === quiz2.correct_answers &&
+        quiz1.total_questions === quiz2.total_questions &&
+        Math.abs(date1 - date2) < 60000
+    );
+}
 
-        // Show refresh indicator
-        function showRefreshIndicator() {
-            const indicator = document.createElement('div');
-            indicator.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-3 py-2 rounded-lg text-sm shadow-lg';
-            indicator.innerHTML = '<i class="fas fa-sync-alt mr-2"></i> Data Updated';
-            document.body.appendChild(indicator);
-            
-            setTimeout(() => {
-                indicator.remove();
-            }, 2000);
-        }
+// Helper function to get quiz date
+function getQuizDate(quiz) {
+    try {
+        return new Date(quiz.timestamp || quiz.date || new Date());
+    } catch (e) {
+        return new Date();
+    }
+}
 
-        // Update quiz history
-        function updateQuizHistory(quizHistory, currentQuiz) {
-            const historyContainer = document.getElementById('quiz-history');
-            const noHistory = document.getElementById('no-history');
-            
-            let allQuizzes = [...quizHistory];
-            
-            if (currentQuiz && isValidQuiz(currentQuiz)) {
-                const normalizedCurrentQuiz = normalizeQuizData(currentQuiz);
-                const isDuplicate = quizHistory.some(quiz => isSameQuiz(quiz, normalizedCurrentQuiz));
-                
-                if (!isDuplicate) {
-                    allQuizzes = [normalizedCurrentQuiz, ...quizHistory];
-                }
-            }
-            
-            const normalizedQuizzes = allQuizzes.map(quiz => normalizeQuizData(quiz));
-            const uniqueQuizzes = removeDuplicateQuizzes(normalizedQuizzes);
-            
-            uniqueQuizzes.sort((a, b) => {
-                const dateA = getQuizDate(a);
-                const dateB = getQuizDate(b);
-                return dateB - dateA;
+// Helper function to check if date is valid
+function isValidDate(date) {
+    return date instanceof Date && !isNaN(date);
+}
+
+// Helper function to check if quiz is valid
+function isValidQuiz(quiz) {
+    return quiz && (quiz.quiz_type === 'words' || quiz.quiz_type === 'sentences');
+}
+
+// Helper function to remove duplicate quizzes
+function removeDuplicateQuizzes(quizzes) {
+    const seen = new Set();
+    return quizzes.filter(quiz => {
+        const key = `${quiz.quiz_type}-${quiz.correct_answers}-${quiz.total_questions}-${getQuizDate(quiz).getTime()}`;
+        if (seen.has(key)) {
+            return false;
+        }
+        seen.add(key);
+        return true;
+    });
+}
+
+// Update difficulty analysis with adaptive learning data
+function updateDifficultyAnalysis(performanceData, adaptiveData) {
+    const wordsMastery = calculateMasteryLevelsWithAdaptive(performanceData.words || {}, adaptiveData.wordMastery, adaptiveData.masteredWords);
+    const sentencesMastery = calculateMasteryLevelsWithAdaptive(performanceData.sentences || {}, adaptiveData.sentenceMastery, adaptiveData.masteredSentences);
+    
+    document.getElementById('words-mastered-count').textContent = wordsMastery.mastered;
+    document.getElementById('words-easy-count').textContent = wordsMastery.easy;
+    document.getElementById('words-medium-count').textContent = wordsMastery.medium;
+    document.getElementById('words-hard-count').textContent = wordsMastery.hard;
+    
+    document.getElementById('sentences-mastered-count').textContent = sentencesMastery.mastered;
+    document.getElementById('sentences-easy-count').textContent = sentencesMastery.easy;
+    document.getElementById('sentences-medium-count').textContent = sentencesMastery.medium;
+    document.getElementById('sentences-hard-count').textContent = sentencesMastery.hard;
+    
+    updateMasteryList('words', performanceData.words || {}, adaptiveData.wordMastery, adaptiveData.masteredWords);
+    updateMasteryList('sentences', performanceData.sentences || {}, adaptiveData.sentenceMastery, adaptiveData.masteredSentences);
+}
+
+// Update mastery list with adaptive learning data
+function updateMasteryList(type, performance, masteryData, masteredItems) {
+    const difficultyList = document.getElementById(`${type}-difficulty-list`);
+    
+    const items = Object.entries(performance).map(([item, stats]) => ({
+        item,
+        pinyin: stats.pinyin || '',
+        accuracy: masteryData[item] ? 
+            (masteryData[item].correct / (masteryData[item].correct + masteryData[item].incorrect)) * 100 :
+            (stats.correct + (stats.incorrect || 0) > 0 ? 
+                (stats.correct / (stats.correct + (stats.incorrect || 0))) * 100 : 0),
+        attempts: masteryData[item] ? 
+            masteryData[item].correct + masteryData[item].incorrect :
+            stats.correct + (stats.incorrect || 0),
+        isMastered: masteredItems.has(item)
+    }));
+    
+    const mastered = items.filter(item => item.isMastered || item.accuracy >= 85);
+    const easy = items.filter(item => !item.isMastered && item.accuracy >= 70 && item.accuracy < 85);
+    const medium = items.filter(item => !item.isMastered && item.accuracy >= 50 && item.accuracy < 70);
+    const hard = items.filter(item => !item.isMastered && item.accuracy < 50 && item.accuracy > 0);
+    
+    let html = '';
+    
+    const createMasterySection = (items, level, color, icon) => {
+        if (items.length > 0) {
+            html += `<div class="mb-4">
+                <div class="text-sm font-semibold ${color} mb-2 flex items-center">
+                    <i class="${icon} mr-2"></i>${level} (${items.length})
+                </div>
+                <div class="space-y-1">`;
+            items.slice(0, 4).forEach(item => {
+                html += `<div class="flex justify-between items-center text-sm p-1 rounded">
+                    <div>
+                        <div class="font-medium">${item.item}</div>
+                        <div class="text-xs text-text-muted">${item.pinyin}</div>
+                    </div>
+                    <div class="text-xs ${color}">${Math.round(item.accuracy)}%</div>
+                </div>`;
             });
-            
-            if (uniqueQuizzes.length > 0) {
-                noHistory.classList.add('hidden');
-                
-                const recentQuizzes = uniqueQuizzes.slice(0, 6);
-                
-                historyContainer.innerHTML = recentQuizzes.map(quiz => {
-                    const quizDate = getQuizDate(quiz);
-                    const dateStr = isValidDate(quizDate) ? quizDate.toLocaleDateString() : 'Recent';
-                    const type = quiz.quiz_type || 'words';
-                    const correct = quiz.correct_answers || quiz.correct || 0;
-                    const total = quiz.total_questions || quiz.total || 10;
-                    const percentage = quiz.percentage || Math.round((correct / total) * 100);
-                    
-                    return `
-                        <div class="flex justify-between items-center p-4 bg-card-bg/50 rounded-lg border border-text-muted/20 ${type === 'words' ? 'quiz-type-words' : 'quiz-type-sentences'}">
-                            <div>
-                                <div class="font-medium">${dateStr}</div>
-                                <div class="text-sm text-text-muted">
-                                    ${type === 'words' ? 'Vocabulary Words' : 'Sentence Comprehension'} • 
-                                    ${correct}/${total} correct
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-xl font-bold ${percentage >= 70 ? 'text-green-400' : percentage >= 50 ? 'text-yellow-400' : 'text-red-400'}">
-                                    ${percentage}%
-                                </div>
-                                <div class="text-sm text-text-muted">Accuracy</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                noHistory.classList.remove('hidden');
-                historyContainer.innerHTML = '';
-            }
+            html += `</div></div>`;
         }
+    };
+    
+    createMasterySection(mastered, 'Mastered', 'text-purple-400', 'fas fa-crown');
+    createMasterySection(easy, 'Easy', 'text-green-400', 'fas fa-smile');
+    createMasterySection(medium, 'Medium', 'text-yellow-400', 'fas fa-meh');
+    createMasterySection(hard, 'Hard', 'text-red-400', 'fas fa-frown');
+    
+    difficultyList.innerHTML = html || `<div class="text-text-muted text-center py-4">No ${type} data available</div>`;
+}
 
-        // Helper function to normalize quiz data
-        function normalizeQuizData(quiz) {
-            return {
-                quiz_type: quiz.quiz_type || 'words',
-                correct_answers: quiz.correct_answers || quiz.correct || 0,
-                total_questions: quiz.total_questions || quiz.total || 10,
-                percentage: quiz.percentage || Math.round(((quiz.correct_answers || quiz.correct || 0) / (quiz.total_questions || quiz.total || 10)) * 100),
-                timestamp: quiz.timestamp || quiz.date || new Date().toISOString(),
-                id: quiz.id || `quiz-${Date.now()}`
-            };
-        }
-
-        // Helper function to check if two quizzes are the same
-        function isSameQuiz(quiz1, quiz2) {
-            const date1 = getQuizDate(quiz1);
-            const date2 = getQuizDate(quiz2);
-            
-            return (
-                quiz1.quiz_type === quiz2.quiz_type &&
-                quiz1.correct_answers === quiz2.correct_answers &&
-                quiz1.total_questions === quiz2.total_questions &&
-                Math.abs(date1 - date2) < 60000
-            );
-        }
-
-        // Helper function to get quiz date
-        function getQuizDate(quiz) {
-            try {
-                return new Date(quiz.timestamp || quiz.date || new Date());
-            } catch (e) {
-                return new Date();
-            }
-        }
-
-        // Helper function to check if date is valid
-        function isValidDate(date) {
-            return date instanceof Date && !isNaN(date);
-        }
-
-        // Helper function to check if quiz is valid
-        function isValidQuiz(quiz) {
-            return quiz && (quiz.quiz_type === 'words' || quiz.quiz_type === 'sentences');
-        }
-
-        // Helper function to remove duplicate quizzes
-        function removeDuplicateQuizzes(quizzes) {
-            const seen = new Set();
-            return quizzes.filter(quiz => {
-                const key = `${quiz.quiz_type}-${quiz.correct_answers}-${quiz.total_questions}-${getQuizDate(quiz).getTime()}`;
-                if (seen.has(key)) {
-                    return false;
-                }
-                seen.add(key);
-                return true;
-            });
-        }
-
-        // Update difficulty analysis
-        function updateDifficultyAnalysis(performanceData) {
-            const wordsMastery = calculateMasteryLevels(performanceData.words || {});
-            const sentencesMastery = calculateMasteryLevels(performanceData.sentences || {});
-            
-            document.getElementById('words-mastered-count').textContent = wordsMastery.mastered;
-            document.getElementById('words-easy-count').textContent = wordsMastery.easy;
-            document.getElementById('words-medium-count').textContent = wordsMastery.medium;
-            document.getElementById('words-hard-count').textContent = wordsMastery.hard;
-            
-            document.getElementById('sentences-mastered-count').textContent = sentencesMastery.mastered;
-            document.getElementById('sentences-easy-count').textContent = sentencesMastery.easy;
-            document.getElementById('sentences-medium-count').textContent = sentencesMastery.medium;
-            document.getElementById('sentences-hard-count').textContent = sentencesMastery.hard;
-            
-            updateMasteryList('words', performanceData.words || {});
-            updateMasteryList('sentences', performanceData.sentences || {});
-        }
-
-        // Update mastery list
-        function updateMasteryList(type, performance) {
-            const difficultyList = document.getElementById(`${type}-difficulty-list`);
-            
-            const items = Object.entries(performance).map(([item, stats]) => ({
-                item,
-                pinyin: stats.pinyin || '',
-                accuracy: stats.correct + (stats.incorrect || 0) > 0 ? 
-                    (stats.correct / (stats.correct + (stats.incorrect || 0))) * 100 : 0,
-                attempts: stats.correct + (stats.incorrect || 0)
-            }));
-            
-            const mastered = items.filter(item => item.accuracy >= 90);
-            const easy = items.filter(item => item.accuracy >= 70 && item.accuracy < 90);
-            const medium = items.filter(item => item.accuracy >= 50 && item.accuracy < 70);
-            const hard = items.filter(item => item.accuracy < 50 && item.accuracy > 0);
-            
-            let html = '';
-            
-            const createMasterySection = (items, level, color) => {
-                if (items.length > 0) {
-                    html += `<div class="mb-4">
-                        <div class="text-sm font-semibold ${color} mb-2">${level} (${items.length})</div>
-                        <div class="space-y-1">`;
-                    items.slice(0, 4).forEach(item => {
-                        html += `<div class="flex justify-between items-center text-sm p-1 rounded">
-                            <div>
-                                <div class="font-medium">${item.item}</div>
-                                <div class="text-xs text-text-muted">${item.pinyin}</div>
-                            </div>
-                            <div class="text-xs ${color}">${Math.round(item.accuracy)}%</div>
-                        </div>`;
-                    });
-                    html += `</div></div>`;
-                }
-            };
-            
-            createMasterySection(mastered, 'Mastered', 'text-purple-400');
-            createMasterySection(easy, 'Easy', 'text-green-400');
-            createMasterySection(medium, 'Medium', 'text-yellow-400');
-            createMasterySection(hard, 'Hard', 'text-red-400');
-            
-            difficultyList.innerHTML = html || `<div class="text-text-muted text-center py-4">No ${type} data available</div>`;
-        }
-
-        // Export user data
-        function exportUserData() {
-            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
-            const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
-            const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
-            
-            const exportData = {
-                quizHistory,
-                performanceData,
-                currentQuiz,
-                exportDate: new Date().toISOString(),
-                version: '1.0'
-            };
-            
-            const dataStr = JSON.stringify(exportData, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `hsk1-quiz-data-${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            
-            alert('Your learning data has been exported successfully!');
-        }
+// Export user data including adaptive learning data
+function exportUserData() {
+    const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
+    const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+    const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
+    const adaptiveData = loadAdaptiveLearningData();
+    
+    const exportData = {
+        quizHistory,
+        performanceData,
+        adaptiveData,
+        currentQuiz,
+        exportDate: new Date().toISOString(),
+        version: '2.0'
+    };
+    
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `hsk1-learning-data-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    alert('Your complete learning data has been exported successfully!');
+}
     </script>
 </body>
 </html>

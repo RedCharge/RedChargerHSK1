@@ -468,890 +468,1156 @@
 
     <!-- Quiz Logic -->
     <script>
-                    // Quiz state
-    let currentQuestion = 0;
-    let score = 0;
-    let correctAnswers = 0;
-    let incorrectAnswers = 0;
-    let userAnswers = [];
-    let quizData = [];
-    let quizStarted = false;
-    let startTime = null;
-    let quizResults = null;
-    let audioContext = null;
+                   // Quiz state
+let currentQuestion = 0;
+let score = 0;
+let correctAnswers = 0;
+let incorrectAnswers = 0;
+let userAnswers = [];
+let quizData = [];
+let quizStarted = false;
+let startTime = null;
+let quizResults = null;
+let audioContext = null;
 
-    // Speech functionality
-    let speechEnabled = true;
-    let speechSynthesis = window.speechSynthesis;
-    let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    let userInteractedWithSpeech = false;
-    let autoSpeakEnabled = true;
+// Speech functionality
+let speechEnabled = true;
+let speechSynthesis = window.speechSynthesis;
+let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+let userInteractedWithSpeech = false;
+let autoSpeakEnabled = true;
 
-    // DOM elements
-    const loadingState = document.getElementById('loading-state');
-    const quizContent = document.getElementById('quiz-content');
-    const errorState = document.getElementById('error-state');
-    const questionContainer = document.getElementById('question-container');
-    const optionsContainer = document.getElementById('options-container');
-    const feedbackElement = document.getElementById('feedback');
-    const nextButton = document.getElementById('next-btn');
-    const prevButton = document.getElementById('prev-btn');
-    const progressText = document.getElementById('progress-text');
-    const progressFill = document.getElementById('progress-fill');
-    const scoreElement = document.getElementById('score');
-    const correctCountElement = document.getElementById('correct-count');
-    const incorrectCountElement = document.getElementById('incorrect-count');
-    const resultsSection = document.getElementById('results-section');
-    const finalScoreElement = document.getElementById('final-score');
-    const finalCorrectElement = document.getElementById('final-correct');
-    const finalIncorrectElement = document.getElementById('final-incorrect');
-    const finalPercentageElement = document.getElementById('final-percentage');
-    const performanceMessageElement = document.getElementById('performance-message');
-    const resultsBadge = document.getElementById('results-badge');
-    const restartButton = document.getElementById('restart-btn');
-    const viewResultsButton = document.getElementById('view-results-btn');
-    const homeButton = document.getElementById('home-btn');
-    const retryButton = document.getElementById('retry-btn');
-    const errorMessage = document.getElementById('error-message');
+// Adaptive Learning State
+let sentenceMastery = {}; // Track mastery for each sentence
+let currentSentenceQueue = []; // Queue of sentences to be presented
+let masteredSentences = new Set(); // Sentences the user has mastered
+let reviewSentences = []; // Sentences that need review
 
-    // Mobile Menu Elements
-    const mobileMenuButton = document.getElementById('mobile-menu-button');
-    const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
-    const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+// DOM elements
+const loadingState = document.getElementById('loading-state');
+const quizContent = document.getElementById('quiz-content');
+const errorState = document.getElementById('error-state');
+const questionContainer = document.getElementById('question-container');
+const optionsContainer = document.getElementById('options-container');
+const feedbackElement = document.getElementById('feedback');
+const nextButton = document.getElementById('next-btn');
+const prevButton = document.getElementById('prev-btn');
+const progressText = document.getElementById('progress-text');
+const progressFill = document.getElementById('progress-fill');
+const scoreElement = document.getElementById('score');
+const correctCountElement = document.getElementById('correct-count');
+const incorrectCountElement = document.getElementById('incorrect-count');
+const resultsSection = document.getElementById('results-section');
+const finalScoreElement = document.getElementById('final-score');
+const finalCorrectElement = document.getElementById('final-correct');
+const finalIncorrectElement = document.getElementById('final-incorrect');
+const finalPercentageElement = document.getElementById('final-percentage');
+const performanceMessageElement = document.getElementById('performance-message');
+const resultsBadge = document.getElementById('results-badge');
+const restartButton = document.getElementById('restart-btn');
+const viewResultsButton = document.getElementById('view-results-btn');
+const homeButton = document.getElementById('home-btn');
+const retryButton = document.getElementById('retry-btn');
+const errorMessage = document.getElementById('error-message');
 
-    // Mobile Menu State
-    let isMenuOpen = false;
+// Mobile Menu Elements
+const mobileMenuButton = document.getElementById('mobile-menu-button');
+const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
 
-    // Initialize the application
-    document.addEventListener('DOMContentLoaded', function() {
-        // Initialize mobile menu
-        initializeMobileMenu();
-        
-        // Initialize audio context for sound effects
-        initializeAudioContext();
-        
-        // Initialize speech system
-        initializeSpeechSystem();
-        
-        // Add user interaction listeners for mobile auto-speak
-        setupUserInteractionListeners();
-        
-        // Load quiz data
-        loadQuizData();
-        
-        // Add event listeners
-        restartButton.addEventListener('click', restartQuiz);
-        viewResultsButton.addEventListener('click', viewDetailedResults);
-        homeButton.addEventListener('click', () => {
-            window.location.href = '/';
-        });
-        retryButton.addEventListener('click', loadQuizData);
-    });
+// Mobile Menu State
+let isMenuOpen = false;
 
-    // Initialize Audio Context for sound effects
-    function initializeAudioContext() {
-        try {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            console.log('AudioContext initialized for sound effects');
-        } catch (e) {
-            console.log('AudioContext not supported for sound effects');
-        }
-    }
-
-    // Setup user interaction listeners for mobile
-    function setupUserInteractionListeners() {
-        // Listen for any user interaction to enable auto-speak
-        document.addEventListener('click', function() {
-            userInteractedWithSpeech = true;
-            console.log('User interaction detected - auto-speak enabled');
-        }, { once: true });
-        
-        // Also listen for touch events on mobile
-        if (isMobile) {
-            document.addEventListener('touchstart', function() {
-                userInteractedWithSpeech = true;
-                console.log('Touch interaction detected - auto-speak enabled');
-            }, { once: true });
-        }
-    }
-
+// Initialize the application
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize mobile menu
+    initializeMobileMenu();
+    
+    // Initialize audio context for sound effects
+    initializeAudioContext();
+    
     // Initialize speech system
-    function initializeSpeechSystem() {
-        if (!speechSynthesis) {
-            speechEnabled = false;
-            autoSpeakEnabled = false;
-            console.log('Speech synthesis not supported');
+    initializeSpeechSystem();
+    
+    // Add user interaction listeners for mobile auto-speak
+    setupUserInteractionListeners();
+    
+    // Initialize adaptive learning
+    initializeAdaptiveLearning();
+    
+    // Load quiz data
+    loadQuizData();
+    
+    // Add event listeners
+    restartButton.addEventListener('click', restartQuiz);
+    viewResultsButton.addEventListener('click', viewDetailedResults);
+    homeButton.addEventListener('click', () => {
+        window.location.href = '/';
+    });
+    retryButton.addEventListener('click', loadQuizData);
+});
+
+// ============================
+// ADAPTIVE LEARNING ALGORITHM
+// ============================
+
+// Initialize adaptive learning system
+function initializeAdaptiveLearning() {
+    console.log('Initializing adaptive learning system for sentences...');
+    
+    // Load mastery data from localStorage if available
+    const savedMastery = localStorage.getItem('sentenceMastery');
+    if (savedMastery) {
+        sentenceMastery = JSON.parse(savedMastery);
+        console.log('Loaded mastery data for', Object.keys(sentenceMastery).length, 'sentences');
+    }
+    
+    // Load mastered sentences
+    const savedMasteredSentences = localStorage.getItem('masteredSentences');
+    if (savedMasteredSentences) {
+        masteredSentences = new Set(JSON.parse(savedMasteredSentences));
+        console.log('Loaded', masteredSentences.size, 'mastered sentences');
+    }
+    
+    // Load review sentences
+    const savedReviewSentences = localStorage.getItem('reviewSentences');
+    if (savedReviewSentences) {
+        reviewSentences = JSON.parse(savedReviewSentences);
+        console.log('Loaded', reviewSentences.length, 'sentences for review');
+    }
+}
+
+// Save adaptive learning data
+function saveAdaptiveLearningData() {
+    localStorage.setItem('sentenceMastery', JSON.stringify(sentenceMastery));
+    localStorage.setItem('masteredSentences', JSON.stringify([...masteredSentences]));
+    localStorage.setItem('reviewSentences', JSON.stringify(reviewSentences));
+    console.log('Adaptive learning data saved');
+}
+
+// Process sentences with adaptive learning logic
+function processSentencesWithAdaptiveLearning(sentences) {
+    // Reset current sentence queue
+    currentSentenceQueue = [];
+    
+    // Separate sentences into categories based on mastery
+    const newSentences = [];
+    const weakSentences = [];
+    const strongSentences = [];
+    
+    sentences.forEach(sentence => {
+        const sentenceKey = sentence.sentence; // Use the sentence itself as the key
+        
+        // If sentence is already mastered, skip it (or include occasionally for reinforcement)
+        if (masteredSentences.has(sentenceKey) && Math.random() > 0.1) { // 10% chance to include mastered sentences
             return;
         }
         
-        // Load voices when available
-        speechSynthesis.onvoiceschanged = function() {
-            const voices = speechSynthesis.getVoices();
-            const chineseVoices = voices.filter(voice => 
-                voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
-            );
-            console.log('Chinese voices available:', chineseVoices.length);
+        // Check if we have mastery data for this sentence
+        if (sentenceMastery[sentenceKey]) {
+            const mastery = sentenceMastery[sentenceKey];
+            
+            // Calculate mastery score (0-100)
+            const totalAttempts = mastery.correct + mastery.incorrect;
+            const masteryScore = totalAttempts > 0 ? (mastery.correct / totalAttempts) * 100 : 0;
+            
+            // Categorize based on mastery score
+            if (masteryScore < 60) {
+                weakSentences.push(sentence);
+            } else if (masteryScore < 85) {
+                strongSentences.push(sentence);
+            } else {
+                // Consider mastered if consistently high performance
+                if (mastery.correct >= 3 && masteryScore >= 85) {
+                    masteredSentences.add(sentenceKey);
+                } else {
+                    strongSentences.push(sentence);
+                }
+            }
+        } else {
+            // New sentence - no previous data
+            newSentences.push(sentence);
+        }
+    });
+    
+    console.log('Sentence categorization:', {
+        newSentences: newSentences.length,
+        weakSentences: weakSentences.length,
+        strongSentences: strongSentences.length
+    });
+    
+    // Build sentence queue with adaptive distribution - ALWAYS 20 SENTENCES
+    const targetCount = 20; // Always show 20 sentences
+    
+    // Add weak sentences (highest priority - 50% of quiz)
+    const weakCount = Math.min(Math.ceil(targetCount * 0.5), weakSentences.length);
+    currentSentenceQueue.push(...weakSentences.slice(0, weakCount));
+    
+    // Add new sentences (medium priority - 30% of quiz)
+    const newCount = Math.min(Math.ceil(targetCount * 0.3), newSentences.length);
+    currentSentenceQueue.push(...newSentences.slice(0, newCount));
+    
+    // Add strong sentences (lowest priority - 20% of quiz)
+    const strongCount = Math.min(targetCount - currentSentenceQueue.length, strongSentences.length);
+    currentSentenceQueue.push(...strongSentences.slice(0, strongCount));
+    
+    // If we still need more sentences, add from review list
+    if (currentSentenceQueue.length < targetCount && reviewSentences.length > 0) {
+        const needed = targetCount - currentSentenceQueue.length;
+        const reviewToAdd = reviewSentences.slice(0, Math.min(needed, reviewSentences.length));
+        currentSentenceQueue.push(...reviewToAdd);
+        
+        // Remove added sentences from review list
+        reviewSentences = reviewSentences.slice(reviewToAdd.length);
+    }
+    
+    // If we STILL need more sentences (shouldn't happen with 20 from backend), use original sentences
+    if (currentSentenceQueue.length < targetCount) {
+        const needed = targetCount - currentSentenceQueue.length;
+        const originalToAdd = sentences.slice(0, Math.min(needed, sentences.length));
+        currentSentenceQueue.push(...originalToAdd);
+    }
+    
+    // Shuffle the queue to mix sentence difficulties
+    shuffleArray(currentSentenceQueue);
+    
+    console.log('Final sentence queue:', currentSentenceQueue.length, 'sentences');
+    return currentSentenceQueue;
+}
+
+// Update sentence mastery after each question
+function updateSentenceMastery(sentence, isCorrect) {
+    const sentenceKey = sentence.sentence;
+    
+    // Initialize sentence mastery if it doesn't exist
+    if (!sentenceMastery[sentenceKey]) {
+        sentenceMastery[sentenceKey] = {
+            correct: 0,
+            incorrect: 0,
+            lastSeen: new Date().toISOString(),
+            questionTypes: {},
+            streak: 0
         };
-        
-        // Force voices to load
-        setTimeout(() => {
-            speechSynthesis.getVoices();
-        }, 1000);
     }
-
-    // Auto-speak function for new questions
-    function autoSpeakQuestion(text) {
-        if (!speechEnabled || !autoSpeakEnabled) {
-            console.log('Auto-speak disabled');
-            return;
-        }
-        
-        // On mobile, only auto-speak after user has interacted
-        if (isMobile && !userInteractedWithSpeech) {
-            console.log('Waiting for user interaction before auto-speaking on mobile');
-            return;
-        }
-        
-        console.log('Auto-speaking sentence:', text);
-        speakText(text);
+    
+    const mastery = sentenceMastery[sentenceKey];
+    
+    // Update counts
+    if (isCorrect) {
+        mastery.correct++;
+        mastery.streak = Math.max(0, mastery.streak + 1); // Increment positive streak
+    } else {
+        mastery.incorrect++;
+        mastery.streak = Math.min(0, mastery.streak - 1); // Decrement streak (goes negative)
     }
+    
+    mastery.lastSeen = new Date().toISOString();
+    
+    // Track question type usage
+    const questionType = 'multiple-choice'; // Default, can be expanded
+    if (!mastery.questionTypes[questionType]) {
+        mastery.questionTypes[questionType] = { correct: 0, incorrect: 0 };
+    }
+    
+    if (isCorrect) {
+        mastery.questionTypes[questionType].correct++;
+    } else {
+        mastery.questionTypes[questionType].incorrect++;
+    }
+    
+    // Check if sentence should be added to review list
+    if (!isCorrect && !reviewSentences.some(s => s.sentence === sentenceKey)) {
+        reviewSentences.push(sentence);
+        console.log('Added to review sentences:', sentenceKey);
+    }
+    
+    // Check for mastery (3 consecutive correct answers)
+    if (mastery.streak >= 3) {
+        masteredSentences.add(sentenceKey);
+        console.log('Sentence mastered:', sentenceKey);
+        
+        // Remove from review list if it was there
+        reviewSentences = reviewSentences.filter(s => s.sentence !== sentenceKey);
+    }
+    
+    // Save updated data
+    saveAdaptiveLearningData();
+    
+    console.log('Updated mastery for', sentenceKey, ':', mastery);
+}
 
-    // Speak text using Web Speech API
-    function speakText(text, language = 'zh-CN') {
-        if (!speechEnabled) {
-            console.log('Speech is disabled');
-            return;
+// Calculate adaptive learning statistics
+function calculateAdaptiveLearningStats() {
+    const stats = {
+        masteredThisSession: 0,
+        weakSentencesCount: 0,
+        reviewSentencesCount: reviewSentences.length,
+        totalMastered: masteredSentences.size,
+        masteryProgress: 0
+    };
+    
+    // Count sentences mastered in this session
+    quizData.forEach(question => {
+        const sentenceKey = question.sentence;
+        if (masteredSentences.has(sentenceKey) && sentenceMastery[sentenceKey]) {
+            const mastery = sentenceMastery[sentenceKey];
+            // Check if mastered recently (in this session)
+            const lastSeen = new Date(mastery.lastSeen);
+            const sessionStart = new Date(startTime);
+            if (lastSeen > sessionStart && mastery.streak >= 3) {
+                stats.masteredThisSession++;
+            }
         }
-        
-        // Stop any ongoing speech
-        speechSynthesis.cancel();
-        
-        // Update button to show loading state
-        const speechButton = document.getElementById('speech-button');
-        if (speechButton) {
-            speechButton.disabled = true;
-            speechButton.classList.add('opacity-50', 'cursor-not-allowed', 'bg-secondary-cyan/20', 'text-secondary-cyan', 'border-secondary-cyan');
-            speechButton.classList.remove('cursor-pointer', 'hover:bg-card-bg/70', 'bg-card-bg', 'text-text-light', 'border-text-muted/30');
-            speechButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            speechButton.title = 'Loading...';
+    });
+    
+    // Count weak sentences (less than 60% accuracy)
+    Object.keys(sentenceMastery).forEach(sentenceKey => {
+        const mastery = sentenceMastery[sentenceKey];
+        const totalAttempts = mastery.correct + mastery.incorrect;
+        if (totalAttempts > 0) {
+            const accuracy = (mastery.correct / totalAttempts) * 100;
+            if (accuracy < 60) {
+                stats.weakSentencesCount++;
+            }
         }
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = language;
-        utterance.rate = isMobile ? 0.7 : 0.8;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-        
-        // Get available voices
+    });
+    
+    // Calculate overall mastery progress
+    const totalTrackedSentences = Object.keys(sentenceMastery).length;
+    if (totalTrackedSentences > 0) {
+        stats.masteryProgress = Math.round((masteredSentences.size / totalTrackedSentences) * 100);
+    }
+    
+    return stats;
+}
+
+// Utility function to shuffle array
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+// ============================
+// EXISTING QUIZ FUNCTIONALITY
+// ============================
+
+// Initialize Audio Context for sound effects
+function initializeAudioContext() {
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        console.log('AudioContext initialized for sound effects');
+    } catch (e) {
+        console.log('AudioContext not supported for sound effects');
+    }
+}
+
+// Setup user interaction listeners for mobile
+function setupUserInteractionListeners() {
+    // Listen for any user interaction to enable auto-speak
+    document.addEventListener('click', function() {
+        userInteractedWithSpeech = true;
+        console.log('User interaction detected - auto-speak enabled');
+    }, { once: true });
+    
+    // Also listen for touch events on mobile
+    if (isMobile) {
+        document.addEventListener('touchstart', function() {
+            userInteractedWithSpeech = true;
+            console.log('Touch interaction detected - auto-speak enabled');
+        }, { once: true });
+    }
+}
+
+// Initialize speech system
+function initializeSpeechSystem() {
+    if (!speechSynthesis) {
+        speechEnabled = false;
+        autoSpeakEnabled = false;
+        console.log('Speech synthesis not supported');
+        return;
+    }
+    
+    // Load voices when available
+    speechSynthesis.onvoiceschanged = function() {
         const voices = speechSynthesis.getVoices();
-        let selectedVoice = null;
-        
-        // Try to find Chinese voice
-        selectedVoice = voices.find(voice => 
+        const chineseVoices = voices.filter(voice => 
             voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
         );
-        
-        // If no Chinese voice found, use default
-        if (!selectedVoice) {
-            selectedVoice = voices.find(voice => voice.default) || voices[0];
-        }
-        
-        if (selectedVoice) {
-            utterance.voice = selectedVoice;
-            console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
-        }
-        
-        // Set up event handlers
-        utterance.onstart = function() {
-            console.log('Speech started successfully');
-            const speechButton = document.getElementById('speech-button');
-            if (speechButton) {
-                speechButton.innerHTML = '<i class="fas fa-volume-up animate-pulse"></i>';
-                speechButton.title = 'Speaking...';
-            }
-        };
-        
-        utterance.onend = function() {
-            console.log('Speech completed successfully');
-            resetSpeechButton();
-        };
-        
-        utterance.onerror = function(event) {
-            console.error('Speech error:', event.error);
-            resetSpeechButton();
-        };
-        
-        // Speak with timeout
-        speechSynthesis.speak(utterance);
-    }
+        console.log('Chinese voices available:', chineseVoices.length);
+    };
+    
+    // Force voices to load
+    setTimeout(() => {
+        speechSynthesis.getVoices();
+    }, 1000);
+}
 
-    // Reset speech button to normal state
-    function resetSpeechButton() {
+// Auto-speak function for new questions
+function autoSpeakQuestion(text) {
+    if (!speechEnabled || !autoSpeakEnabled) {
+        console.log('Auto-speak disabled');
+        return;
+    }
+    
+    // On mobile, only auto-speak after user has interacted
+    if (isMobile && !userInteractedWithSpeech) {
+        console.log('Waiting for user interaction before auto-speaking on mobile');
+        return;
+    }
+    
+    console.log('Auto-speaking sentence:', text);
+    speakText(text);
+}
+
+// Speak text using Web Speech API
+function speakText(text, language = 'zh-CN') {
+    if (!speechEnabled) {
+        console.log('Speech is disabled');
+        return;
+    }
+    
+    // Stop any ongoing speech
+    speechSynthesis.cancel();
+    
+    // Update button to show loading state
+    const speechButton = document.getElementById('speech-button');
+    if (speechButton) {
+        speechButton.disabled = true;
+        speechButton.classList.add('opacity-50', 'cursor-not-allowed', 'bg-secondary-cyan/20', 'text-secondary-cyan', 'border-secondary-cyan');
+        speechButton.classList.remove('cursor-pointer', 'hover:bg-card-bg/70', 'bg-card-bg', 'text-text-light', 'border-text-muted/30');
+        speechButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        speechButton.title = 'Loading...';
+    }
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language;
+    utterance.rate = isMobile ? 0.7 : 0.8;
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    
+    // Get available voices
+    const voices = speechSynthesis.getVoices();
+    let selectedVoice = null;
+    
+    // Try to find Chinese voice
+    selectedVoice = voices.find(voice => 
+        voice.lang.includes('zh') || voice.lang.includes('cn') || voice.lang.includes('zh-CN')
+    );
+    
+    // If no Chinese voice found, use default
+    if (!selectedVoice) {
+        selectedVoice = voices.find(voice => voice.default) || voices[0];
+    }
+    
+    if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
+    }
+    
+    // Set up event handlers
+    utterance.onstart = function() {
+        console.log('Speech started successfully');
         const speechButton = document.getElementById('speech-button');
         if (speechButton) {
-            speechButton.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-secondary-cyan/20', 'text-secondary-cyan', 'border-secondary-cyan');
-            speechButton.classList.add('cursor-pointer', 'hover:bg-card-bg/70', 'bg-card-bg', 'text-text-light', 'border-text-muted/30');
-            speechButton.innerHTML = '<i class="fas fa-volume-up"></i>';
-            speechButton.disabled = false;
-            speechButton.title = 'Click to hear pronunciation';
-            speechButton.setAttribute('aria-label', 'Click to hear pronunciation');
+            speechButton.innerHTML = '<i class="fas fa-volume-up animate-pulse"></i>';
+            speechButton.title = 'Speaking...';
         }
+    };
+    
+    utterance.onend = function() {
+        console.log('Speech completed successfully');
+        resetSpeechButton();
+    };
+    
+    utterance.onerror = function(event) {
+        console.error('Speech error:', event.error);
+        resetSpeechButton();
+    };
+    
+    // Speak with timeout
+    speechSynthesis.speak(utterance);
+}
+
+// Reset speech button to normal state
+function resetSpeechButton() {
+    const speechButton = document.getElementById('speech-button');
+    if (speechButton) {
+        speechButton.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-secondary-cyan/20', 'text-secondary-cyan', 'border-secondary-cyan');
+        speechButton.classList.add('cursor-pointer', 'hover:bg-card-bg/70', 'bg-card-bg', 'text-text-light', 'border-text-muted/30');
+        speechButton.innerHTML = '<i class="fas fa-volume-up"></i>';
+        speechButton.disabled = false;
+        speechButton.title = 'Click to hear pronunciation';
+        speechButton.setAttribute('aria-label', 'Click to hear pronunciation');
+    }
+}
+
+// Play correct answer sound
+function playCorrectSound() {
+    if (!audioContext) {
+        console.log('AudioContext not available for sound effects');
+        return;
     }
 
-    // Play correct answer sound
-    function playCorrectSound() {
-        if (!audioContext) {
-            console.log('AudioContext not available for sound effects');
-            return;
-        }
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Happy, ascending sound
+        oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+        oscillator.frequency.exponentialRampToValueAtTime(1046.50, audioContext.currentTime + 0.3); // C6
+        
+        oscillator.type = 'sine';
+        
+        // Smooth volume envelope
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+        
+        console.log('Played correct answer sound');
+    } catch (e) {
+        console.log('Correct sound failed:', e);
+    }
+}
 
-        try {
+// Play incorrect answer sound
+function playIncorrectSound() {
+    if (!audioContext) {
+        console.log('AudioContext not available for sound effects');
+        return;
+    }
+
+    try {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        // Sad, descending sound
+        oscillator.frequency.setValueAtTime(392.00, audioContext.currentTime); // G4
+        oscillator.frequency.exponentialRampToValueAtTime(261.63, audioContext.currentTime + 0.4); // C4
+        
+        oscillator.type = 'sawtooth';
+        
+        // Quick attack, slower release
+        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
+        
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.6);
+        
+        console.log('Played incorrect answer sound');
+    } catch (e) {
+        console.log('Incorrect sound failed:', e);
+    }
+}
+
+// Play level up sound for excellent scores
+function playLevelUpSound() {
+    if (!audioContext) return;
+
+    try {
+        const times = [0, 0.1, 0.2, 0.3, 0.4];
+        const frequencies = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
+        
+        times.forEach((time, index) => {
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
             
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
             
-            // Happy, ascending sound
-            oscillator.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
-            oscillator.frequency.exponentialRampToValueAtTime(1046.50, audioContext.currentTime + 0.3); // C6
-            
+            oscillator.frequency.setValueAtTime(frequencies[index], audioContext.currentTime + time);
             oscillator.type = 'sine';
             
-            // Smooth volume envelope
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime + time);
+            gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + time + 0.05);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.3);
             
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.5);
-            
-            console.log('Played correct answer sound');
-        } catch (e) {
-            console.log('Correct sound failed:', e);
-        }
+            oscillator.start(audioContext.currentTime + time);
+            oscillator.stop(audioContext.currentTime + time + 0.3);
+        });
+        
+        console.log('Played level up sound');
+    } catch (e) {
+        console.log('Level up sound failed:', e);
     }
+}
 
-    // Play incorrect answer sound
-    function playIncorrectSound() {
-        if (!audioContext) {
-            console.log('AudioContext not available for sound effects');
-            return;
-        }
-
-        try {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
+// Initialize Mobile Menu
+function initializeMobileMenu() {
+    // Toggle mobile menu
+    function toggleMobileMenu() {
+        isMenuOpen = !isMenuOpen;
+        
+        if (isMenuOpen) {
+            // Open menu
+            mobileDropdownMenu.classList.add('open');
+            mobileDropdownBackdrop.style.display = 'block';
+            document.body.style.overflow = 'hidden'; // Prevent scrolling
             
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            // Sad, descending sound
-            oscillator.frequency.setValueAtTime(392.00, audioContext.currentTime); // G4
-            oscillator.frequency.exponentialRampToValueAtTime(261.63, audioContext.currentTime + 0.4); // C4
-            
-            oscillator.type = 'sawtooth';
-            
-            // Quick attack, slower release
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.05);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.6);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.6);
-            
-            console.log('Played incorrect answer sound');
-        } catch (e) {
-            console.log('Incorrect sound failed:', e);
-        }
-    }
-
-    // Play level up sound for excellent scores
-    function playLevelUpSound() {
-        if (!audioContext) return;
-
-        try {
-            const times = [0, 0.1, 0.2, 0.3, 0.4];
-            const frequencies = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C5, E5, G5, C6, E6
-            
-            times.forEach((time, index) => {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.setValueAtTime(frequencies[index], audioContext.currentTime + time);
-                oscillator.type = 'sine';
-                
-                gainNode.gain.setValueAtTime(0, audioContext.currentTime + time);
-                gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + time + 0.05);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + time + 0.3);
-                
-                oscillator.start(audioContext.currentTime + time);
-                oscillator.stop(audioContext.currentTime + time + 0.3);
-            });
-            
-            console.log('Played level up sound');
-        } catch (e) {
-            console.log('Level up sound failed:', e);
-        }
-    }
-
-    // Initialize Mobile Menu
-    function initializeMobileMenu() {
-        // Toggle mobile menu
-        function toggleMobileMenu() {
-            isMenuOpen = !isMenuOpen;
-            
-            if (isMenuOpen) {
-                // Open menu
-                mobileDropdownMenu.classList.add('open');
-                mobileDropdownBackdrop.style.display = 'block';
-                document.body.style.overflow = 'hidden'; // Prevent scrolling
-                
-                // Change icon to X
-                mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
-                mobileMenuButton.classList.remove('text-text-muted');
-                mobileMenuButton.classList.add('text-secondary-cyan');
-            } else {
-                // Close menu
-                mobileDropdownMenu.classList.remove('open');
-                mobileDropdownBackdrop.style.display = 'none';
-                document.body.style.overflow = ''; // Re-enable scrolling
-                
-                // Change icon back to hamburger
-                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
-                mobileMenuButton.classList.remove('text-secondary-cyan');
-                mobileMenuButton.classList.add('text-text-muted');
-            }
-        }
-
-        // Close mobile menu
-        function closeMobileMenu() {
-            isMenuOpen = false;
+            // Change icon to X
+            mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+            mobileMenuButton.classList.remove('text-text-muted');
+            mobileMenuButton.classList.add('text-secondary-cyan');
+        } else {
+            // Close menu
             mobileDropdownMenu.classList.remove('open');
             mobileDropdownBackdrop.style.display = 'none';
             document.body.style.overflow = ''; // Re-enable scrolling
             
-            // Reset icon
+            // Change icon back to hamburger
             mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
             mobileMenuButton.classList.remove('text-secondary-cyan');
             mobileMenuButton.classList.add('text-text-muted');
         }
-
-        // Event Listeners
-        mobileMenuButton.addEventListener('click', function(e) {
-            e.stopPropagation();
-            toggleMobileMenu();
-        });
-
-        // Close menu when clicking on backdrop
-        mobileDropdownBackdrop.addEventListener('click', closeMobileMenu);
-
-        // Close menu when clicking on menu links
-        const menuLinks = mobileDropdownMenu.querySelectorAll('a');
-        menuLinks.forEach(link => {
-            link.addEventListener('click', closeMobileMenu);
-        });
-
-        // Close menu when clicking outside
-        document.addEventListener('click', function(e) {
-            if (isMenuOpen && 
-                !mobileDropdownMenu.contains(e.target) && 
-                !mobileMenuButton.contains(e.target)) {
-                closeMobileMenu();
-            }
-        });
-
-        // Close menu on escape key
-        document.addEventListener('keydown', function(e) {
-            if (isMenuOpen && e.key === 'Escape') {
-                closeMobileMenu();
-            }
-        });
-
-        // Close menu on window resize (if resizing to desktop)
-        window.addEventListener('resize', function() {
-            if (window.innerWidth >= 768 && isMenuOpen) {
-                closeMobileMenu();
-            }
-        });
     }
 
-    // Load quiz data from Flask backend
-    async function loadQuizData() {
-        try {
-            showLoading();
-            
-            console.log('Loading quiz data...');
-            const response = await fetch('/sentences/api/quiz-sentences?count=20');
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const data = await response.json();
-            console.log('API Response:', data);
-            
-            if (data.success && data.sentences && Array.isArray(data.sentences)) {
-                // USE DATA DIRECTLY FROM BACKEND - NO VALIDATION
-                quizData = data.sentences;
-                
-                // Log each question for debugging
-                quizData.forEach((question, index) => {
-                    console.log(`Question ${index + 1}:`, {
-                        sentence: question.sentence,
-                        correctAnswer: question.correctAnswer,
-                        correctAnswerType: typeof question.correctAnswer,
-                        correctOption: question.options[question.correctAnswer],
-                        allOptions: question.options
-                    });
-                });
-                
-                hideLoading();
-                showQuizContent();
-                initQuiz();
-            } else {
-                throw new Error(data.message || 'Invalid data structure received from API');
-            }
-        } catch (error) {
-            console.error('Error loading quiz data:', error);
-            showError(`Failed to load quiz: ${error.message}. Please check if the server is running.`);
+    // Close mobile menu
+    function closeMobileMenu() {
+        isMenuOpen = false;
+        mobileDropdownMenu.classList.remove('open');
+        mobileDropdownBackdrop.style.display = 'none';
+        document.body.style.overflow = ''; // Re-enable scrolling
+        
+        // Reset icon
+        mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+        mobileMenuButton.classList.remove('text-secondary-cyan');
+        mobileMenuButton.classList.add('text-text-muted');
+    }
+
+    // Event Listeners
+    mobileMenuButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleMobileMenu();
+    });
+
+    // Close menu when clicking on backdrop
+    mobileDropdownBackdrop.addEventListener('click', closeMobileMenu);
+
+    // Close menu when clicking on menu links
+    const menuLinks = mobileDropdownMenu.querySelectorAll('a');
+    menuLinks.forEach(link => {
+        link.addEventListener('click', closeMobileMenu);
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function(e) {
+        if (isMenuOpen && 
+            !mobileDropdownMenu.contains(e.target) && 
+            !mobileMenuButton.contains(e.target)) {
+            closeMobileMenu();
         }
-    }
+    });
 
-    // Initialize the quiz
-    function initQuiz() {
-        currentQuestion = 0;
-        score = 0;
-        correctAnswers = 0;
-        incorrectAnswers = 0;
-        userAnswers = new Array(quizData.length).fill(null);
-        startTime = new Date();
-        
-        // Reset speech interaction flag for new quiz
-        userInteractedWithSpeech = false;
-        
-        showQuestion();
-        updateProgress();
-        updateScore();
-        
-        // Add event listeners
-        nextButton.addEventListener('click', nextQuestion);
-        prevButton.addEventListener('click', prevQuestion);
-        
-        // Setup interaction listeners for this quiz session
-        setupQuizInteractionListeners();
-    }
-
-    // Setup interaction listeners specifically for the quiz
-    function setupQuizInteractionListeners() {
-        // Remove any existing listeners and add new ones
-        document.removeEventListener('click', handleQuizInteraction);
-        document.removeEventListener('touchstart', handleQuizInteraction);
-        
-        document.addEventListener('click', handleQuizInteraction);
-        if (isMobile) {
-            document.addEventListener('touchstart', handleQuizInteraction);
+    // Close menu on escape key
+    document.addEventListener('keydown', function(e) {
+        if (isMenuOpen && e.key === 'Escape') {
+            closeMobileMenu();
         }
-    }
+    });
 
-    function handleQuizInteraction() {
-        if (!userInteractedWithSpeech) {
-            userInteractedWithSpeech = true;
-            console.log('Quiz interaction detected - auto-speak now enabled');
-            
-            // Auto-speak the current question if this is the first interaction
-            if (speechEnabled && autoSpeakEnabled) {
-                const currentSentence = quizData[currentQuestion]?.sentence;
-                if (currentSentence) {
-                    setTimeout(() => {
-                        console.log('Auto-speaking after first interaction:', currentSentence);
-                        speakText(currentSentence);
-                    }, 300);
-                }
-            }
+    // Close menu on window resize (if resizing to desktop)
+    window.addEventListener('resize', function() {
+        if (window.innerWidth >= 768 && isMenuOpen) {
+            closeMobileMenu();
         }
-    }
+    });
+}
 
-    // Show current question
-    function showQuestion() {
-        const question = quizData[currentQuestion];
+// Enhanced loadQuizData function with adaptive learning
+async function loadQuizData() {
+    try {
+        showLoading();
         
-        if (!question || !question.sentence || !question.options || !Array.isArray(question.options)) {
-            console.error('Invalid question data:', question);
-            showError('Invalid question data. Please try restarting the quiz.');
-            return;
+        console.log('Loading quiz data with adaptive learning...');
+        const response = await fetch('/sentences/api/quiz-sentences?count=20');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
-        console.log(`Showing question ${currentQuestion + 1}:`, {
-            sentence: question.sentence,
-            correctAnswer: question.correctAnswer,
-            correctAnswerType: typeof question.correctAnswer,
-            correctOption: question.options[question.correctAnswer],
-            allOptions: question.options
-        });
+        const data = await response.json();
+        console.log('API Response:', data);
         
-        questionContainer.innerHTML = `
-            <div class="text-center mb-6">
-                <div class="flex items-center justify-center mb-4">
-                    <div class="sentence-character font-bold text-text-light mr-4">${question.sentence}</div>
-                    <button id="speech-button" class="speech-button p-3 rounded-full bg-card-bg text-text-light border border-text-muted/30 cursor-pointer hover:bg-card-bg/70 transition duration-300" title="Click to hear pronunciation" aria-label="Click to hear pronunciation">
-                        <i class="fas fa-volume-up"></i>
-                    </button>
-                </div>
-                <div class="text-xl text-secondary-cyan mb-2">${question.pinyin}</div>
-                <div class="text-lg text-text-muted">What is the English translation of this sentence?</div>
-            </div>
-        `;
-        
-        // Add event listener to speech button
-        const speechButton = document.getElementById('speech-button');
-        speechButton.addEventListener('click', function() {
-            userInteractedWithSpeech = true;
-            speakText(question.sentence);
-        });
-        
-        optionsContainer.innerHTML = '';
-        question.options.forEach((option, index) => {
-            const button = document.createElement('button');
-            button.className = 'option-button py-4 px-6 rounded-lg bg-card-bg text-text-light border border-text-muted/30 font-medium text-left';
-            button.innerHTML = `
-                <span class="font-bold mr-3">${String.fromCharCode(65 + index)}.</span> ${option}
-            `;
-            button.addEventListener('click', () => selectOption(index));
-            optionsContainer.appendChild(button);
-        });
-        
-        // Reset feedback
-        feedbackElement.classList.add('hidden');
-        feedbackElement.textContent = '';
-        
-        // Update navigation buttons
-        prevButton.disabled = currentQuestion === 0;
-        if (prevButton.disabled) {
-            prevButton.classList.add('opacity-50', 'cursor-not-allowed');
-        } else {
-            prevButton.classList.remove('opacity-50', 'cursor-not-allowed');
-        }
-        
-        if (currentQuestion === quizData.length - 1) {
-            nextButton.innerHTML = 'Finish <i class="fas fa-flag-checkered ml-2"></i>';
-        } else {
-            nextButton.innerHTML = 'Next <i class="fas fa-arrow-right ml-2"></i>';
-        }
-        
-        // If user already answered this question, show their answer
-        if (userAnswers[currentQuestion] !== null) {
-            highlightOption(userAnswers[currentQuestion], quizData[currentQuestion].correctAnswer);
-        }
-        
-        // Auto-speak the new question
-        setTimeout(() => {
-            autoSpeakQuestion(question.sentence);
-        }, 500);
-    }
-
-    // Select an option - USE BACKEND CORRECT ANSWER DIRECTLY
-    function selectOption(selectedIndex) {
-        if (userAnswers[currentQuestion] !== null) return; // Already answered
-        
-        const question = quizData[currentQuestion];
-        
-        // USE CORRECT ANSWER DIRECTLY FROM BACKEND - NO PROCESSING
-        const correctAnswerIndex = question.correctAnswer;
-        
-        // DEBUGGING - SHOW ALL DETAILS
-        console.log('=== ANSWER DEBUG INFO ===');
-        console.log('Question sentence:', question.sentence);
-        console.log('Selected index:', selectedIndex);
-        console.log('Selected option:', question.options[selectedIndex]);
-        console.log('Correct index (from backend):', correctAnswerIndex);
-        console.log('Correct option (from backend):', question.options[correctAnswerIndex]);
-        console.log('Is correct:', selectedIndex === correctAnswerIndex);
-        
-        // DIRECT COMPARISON - NO CONVERSION, NO VALIDATION
-        const isCorrect = selectedIndex === correctAnswerIndex;
-        
-        userAnswers[currentQuestion] = selectedIndex;
-        
-        // Play sound effect based on answer
-        if (isCorrect) {
-            playCorrectSound();
-            score += 10;
-            correctAnswers++;
-            feedbackElement.textContent = 'Correct! Well done.';
-            feedbackElement.className = 'mb-6 text-center text-lg font-medium text-green-400';
-        } else {
-            playIncorrectSound();
-            incorrectAnswers++;
-            feedbackElement.textContent = `Incorrect. The correct translation is: "${question.options[correctAnswerIndex]}"`;
-            feedbackElement.className = 'mb-6 text-center text-lg font-medium text-red-400';
-        }
-        
-        feedbackElement.classList.remove('hidden');
-        updateScore();
-        
-        // Highlight the selected option and correct answer
-        highlightOption(selectedIndex, correctAnswerIndex);
-    }
-
-    // Highlight selected option and correct answer
-    function highlightOption(selectedIndex, correctIndex) {
-        const optionButtons = optionsContainer.querySelectorAll('.option-button');
-        
-        optionButtons.forEach((button, index) => {
-            button.classList.remove('correct', 'incorrect');
+        if (data.success && data.sentences && Array.isArray(data.sentences)) {
+            // Process sentences with adaptive learning logic
+            quizData = processSentencesWithAdaptiveLearning(data.sentences);
             
-            if (index === correctIndex) {
-                button.classList.add('correct');
-            } else if (index === selectedIndex && index !== correctIndex) {
-                button.classList.add('incorrect');
-            }
-            
-            // Disable all buttons after selection
-            button.disabled = true;
-        });
-    }
-
-    // Next question
-    function nextQuestion() {
-        // Stop any ongoing speech
-        speechSynthesis.cancel();
-        
-        if (currentQuestion < quizData.length - 1) {
-            currentQuestion++;
-            showQuestion();
-            updateProgress();
-        } else {
-            // Quiz finished
-            finishQuiz();
-        }
-    }
-
-    // Previous question
-    function prevQuestion() {
-        // Stop any ongoing speech
-        speechSynthesis.cancel();
-        
-        if (currentQuestion > 0) {
-            currentQuestion--;
-            showQuestion();
-            updateProgress();
-        }
-    }
-
-    // Update progress bar
-    function updateProgress() {
-        const progress = ((currentQuestion + 1) / quizData.length) * 100;
-        progressText.textContent = `${currentQuestion + 1}/${quizData.length}`;
-        progressFill.style.width = `${progress}%`;
-    }
-
-    // Update score display
-    function updateScore() {
-        scoreElement.textContent = score;
-        correctCountElement.textContent = correctAnswers;
-        incorrectCountElement.textContent = incorrectAnswers;
-    }
-
-    // Save quiz results to localStorage for results page
-    function saveQuizResultsToLocalStorage() {
-        try {
-            // 1. Save to quiz history
-            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
-            
-            const quizResult = {
-                quiz_type: 'sentences', // Crucial for results page
-                correct_answers: correctAnswers,
-                total_questions: quizData.length,
-                percentage: Math.round((correctAnswers / quizData.length) * 100),
-                timestamp: new Date().toISOString(),
-                score: score
-            };
-            
-            quizHistory.unshift(quizResult); // Add to beginning
-            localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
-            
-            // 2. Save to performance data
-            let performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
-            if (!performanceData.sentences) performanceData.sentences = {};
-            
-            // Track performance for each sentence in this quiz
-            quizData.forEach((question, index) => {
-                const sentence = question.sentence;
-                
-                // USE CORRECT ANSWER DIRECTLY FROM BACKEND
-                const correctAnswerIndex = question.correctAnswer;
-                const isCorrect = userAnswers[index] === correctAnswerIndex;
-                
-                if (!performanceData.sentences[sentence]) {
-                    performanceData.sentences[sentence] = {
-                        pinyin: question.pinyin || '',
-                        meaning: question.options[correctAnswerIndex] || '',
-                        correct: 0,
-                        incorrect: 0
-                    };
-                }
-                
-                if (isCorrect) {
-                    performanceData.sentences[sentence].correct++;
-                } else {
-                    performanceData.sentences[sentence].incorrect++;
-                }
+            // Log adaptive learning info
+            console.log('Adaptive Learning Stats:', {
+                totalSentences: data.sentences.length,
+                masteredSentences: masteredSentences.size,
+                reviewSentences: reviewSentences.length,
+                sentenceQueueLength: currentSentenceQueue.length
             });
             
-            localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
-            
-            console.log('Sentences quiz results saved to localStorage!');
-            
-        } catch (error) {
-            console.error('Error saving sentences quiz results:', error);
+            hideLoading();
+            showQuizContent();
+            initQuiz();
+        } else {
+            throw new Error(data.message || 'Invalid data structure received from API');
+        }
+    } catch (error) {
+        console.error('Error loading quiz data:', error);
+        showError(`Failed to load quiz: ${error.message}. Please check if the server is running.`);
+    }
+}
+
+// Initialize the quiz
+function initQuiz() {
+    currentQuestion = 0;
+    score = 0;
+    correctAnswers = 0;
+    incorrectAnswers = 0;
+    userAnswers = new Array(quizData.length).fill(null);
+    startTime = new Date();
+    
+    // Reset speech interaction flag for new quiz
+    userInteractedWithSpeech = false;
+    
+    showQuestion();
+    updateProgress();
+    updateScore();
+    
+    // Add event listeners
+    nextButton.addEventListener('click', nextQuestion);
+    prevButton.addEventListener('click', prevQuestion);
+    
+    // Setup interaction listeners for this quiz session
+    setupQuizInteractionListeners();
+}
+
+// Setup interaction listeners specifically for the quiz
+function setupQuizInteractionListeners() {
+    // Remove any existing listeners and add new ones
+    document.removeEventListener('click', handleQuizInteraction);
+    document.removeEventListener('touchstart', handleQuizInteraction);
+    
+    document.addEventListener('click', handleQuizInteraction);
+    if (isMobile) {
+        document.addEventListener('touchstart', handleQuizInteraction);
+    }
+}
+
+function handleQuizInteraction() {
+    if (!userInteractedWithSpeech) {
+        userInteractedWithSpeech = true;
+        console.log('Quiz interaction detected - auto-speak now enabled');
+        
+        // Auto-speak the current question if this is the first interaction
+        if (speechEnabled && autoSpeakEnabled) {
+            const currentSentence = quizData[currentQuestion]?.sentence;
+            if (currentSentence) {
+                setTimeout(() => {
+                    console.log('Auto-speaking after first interaction:', currentSentence);
+                    speakText(currentSentence);
+                }, 300);
+            }
         }
     }
+}
 
-    // Finish quiz and show results
-    async function finishQuiz() {
-        // Stop any ongoing speech
-        speechSynthesis.cancel();
+// Show current question
+function showQuestion() {
+    const question = quizData[currentQuestion];
+    
+    if (!question || !question.sentence || !question.options || !Array.isArray(question.options)) {
+        console.error('Invalid question data:', question);
+        showError('Invalid question data. Please try restarting the quiz.');
+        return;
+    }
+    
+    console.log(`Showing question ${currentQuestion + 1}:`, {
+        sentence: question.sentence,
+        correctAnswer: question.correctAnswer,
+        correctAnswerType: typeof question.correctAnswer,
+        correctOption: question.options[question.correctAnswer],
+        allOptions: question.options
+    });
+    
+    questionContainer.innerHTML = `
+        <div class="text-center mb-6">
+            <div class="flex items-center justify-center mb-4">
+                <div class="sentence-character font-bold text-text-light mr-4">${question.sentence}</div>
+                <button id="speech-button" class="speech-button p-3 rounded-full bg-card-bg text-text-light border border-text-muted/30 cursor-pointer hover:bg-card-bg/70 transition duration-300" title="Click to hear pronunciation" aria-label="Click to hear pronunciation">
+                    <i class="fas fa-volume-up"></i>
+                </button>
+            </div>
+            <div class="text-xl text-secondary-cyan mb-2">${question.pinyin}</div>
+            <div class="text-lg text-text-muted">What is the English translation of this sentence?</div>
+        </div>
+    `;
+    
+    // Add event listener to speech button
+    const speechButton = document.getElementById('speech-button');
+    speechButton.addEventListener('click', function() {
+        userInteractedWithSpeech = true;
+        speakText(question.sentence);
+    });
+    
+    optionsContainer.innerHTML = '';
+    question.options.forEach((option, index) => {
+        const button = document.createElement('button');
+        button.className = 'option-button py-4 px-6 rounded-lg bg-card-bg text-text-light border border-text-muted/30 font-medium text-left';
+        button.innerHTML = `
+            <span class="font-bold mr-3">${String.fromCharCode(65 + index)}.</span> ${option}
+        `;
+        button.addEventListener('click', () => selectOption(index));
+        optionsContainer.appendChild(button);
+    });
+    
+    // Reset feedback
+    feedbackElement.classList.add('hidden');
+    feedbackElement.textContent = '';
+    
+    // Update navigation buttons
+    prevButton.disabled = currentQuestion === 0;
+    if (prevButton.disabled) {
+        prevButton.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+        prevButton.classList.remove('opacity-50', 'cursor-not-allowed');
+    }
+    
+    if (currentQuestion === quizData.length - 1) {
+        nextButton.innerHTML = 'Finish <i class="fas fa-flag-checkered ml-2"></i>';
+    } else {
+        nextButton.innerHTML = 'Next <i class="fas fa-arrow-right ml-2"></i>';
+    }
+    
+    // If user already answered this question, show their answer
+    if (userAnswers[currentQuestion] !== null) {
+        highlightOption(userAnswers[currentQuestion], quizData[currentQuestion].correctAnswer);
+    }
+    
+    // Auto-speak the new question
+    setTimeout(() => {
+        autoSpeakQuestion(question.sentence);
+    }, 500);
+}
+
+// Enhanced selectOption function with adaptive learning
+function selectOption(selectedIndex) {
+    if (userAnswers[currentQuestion] !== null) return; // Already answered
+    
+    const question = quizData[currentQuestion];
+    
+    // USE CORRECT ANSWER DIRECTLY FROM BACKEND - NO PROCESSING
+    const correctAnswerIndex = question.correctAnswer;
+    
+    // DEBUGGING - SHOW ALL DETAILS
+    console.log('=== ANSWER DEBUG INFO ===');
+    console.log('Question sentence:', question.sentence);
+    console.log('Selected index:', selectedIndex);
+    console.log('Selected option:', question.options[selectedIndex]);
+    console.log('Correct index (from backend):', correctAnswerIndex);
+    console.log('Correct option (from backend):', question.options[correctAnswerIndex]);
+    console.log('Is correct:', selectedIndex === correctAnswerIndex);
+    
+    // DIRECT COMPARISON - NO CONVERSION, NO VALIDATION
+    const isCorrect = selectedIndex === correctAnswerIndex;
+    
+    // Update adaptive learning system
+    updateSentenceMastery(question, isCorrect);
+    
+    userAnswers[currentQuestion] = selectedIndex;
+    
+    // Play sound effect based on answer
+    if (isCorrect) {
+        playCorrectSound();
+        score += 10;
+        correctAnswers++;
+        feedbackElement.textContent = 'Correct! Well done.';
+        feedbackElement.className = 'mb-6 text-center text-lg font-medium text-green-400';
+    } else {
+        playIncorrectSound();
+        incorrectAnswers++;
+        feedbackElement.textContent = `Incorrect. The correct translation is: "${question.options[correctAnswerIndex]}"`;
+        feedbackElement.className = 'mb-6 text-center text-lg font-medium text-red-400';
+    }
+    
+    feedbackElement.classList.remove('hidden');
+    updateScore();
+    
+    // Highlight the selected option and correct answer
+    highlightOption(selectedIndex, correctAnswerIndex);
+}
+
+// Highlight selected option and correct answer
+function highlightOption(selectedIndex, correctIndex) {
+    const optionButtons = optionsContainer.querySelectorAll('.option-button');
+    
+    optionButtons.forEach((button, index) => {
+        button.classList.remove('correct', 'incorrect');
         
-        // Calculate final results
-        const percentage = Math.round((correctAnswers / quizData.length) * 100);
-        const timeTaken = Math.round((new Date() - startTime) / 1000);
-        
-        // Play celebration sound for excellent scores
-        if (percentage >= 90) {
-            setTimeout(() => playLevelUpSound(), 500);
+        if (index === correctIndex) {
+            button.classList.add('correct');
+        } else if (index === selectedIndex && index !== correctIndex) {
+            button.classList.add('incorrect');
         }
         
-        // Update results section
-        finalScoreElement.textContent = score;
-        finalCorrectElement.textContent = correctAnswers;
-        finalIncorrectElement.textContent = incorrectAnswers;
-        finalPercentageElement.textContent = `${percentage}%`;
+        // Disable all buttons after selection
+        button.disabled = true;
+    });
+}
+
+// Next question
+function nextQuestion() {
+    // Stop any ongoing speech
+    speechSynthesis.cancel();
+    
+    if (currentQuestion < quizData.length - 1) {
+        currentQuestion++;
+        showQuestion();
+        updateProgress();
+    } else {
+        // Quiz finished
+        finishQuiz();
+    }
+}
+
+// Previous question
+function prevQuestion() {
+    // Stop any ongoing speech
+    speechSynthesis.cancel();
+    
+    if (currentQuestion > 0) {
+        currentQuestion--;
+        showQuestion();
+        updateProgress();
+    }
+}
+
+// Update progress bar
+function updateProgress() {
+    const progress = ((currentQuestion + 1) / quizData.length) * 100;
+    progressText.textContent = `${currentQuestion + 1}/${quizData.length}`;
+    progressFill.style.width = `${progress}%`;
+}
+
+// Update score display
+function updateScore() {
+    scoreElement.textContent = score;
+    correctCountElement.textContent = correctAnswers;
+    incorrectCountElement.textContent = incorrectAnswers;
+}
+
+// Save quiz results to localStorage for results page
+function saveQuizResultsToLocalStorage() {
+    try {
+        // 1. Save to quiz history
+        const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
         
-        // Set performance badge and message
-        let performanceMessage = '';
-        let badgeText = '';
-        let badgeClass = '';
-        
-        if (percentage >= 90) {
-            performanceMessage = 'Outstanding! You have mastered HSK1 sentences.';
-            badgeText = 'Excellent!';
-            badgeClass = 'excellent';
-        } else if (percentage >= 70) {
-            performanceMessage = 'Good job! You have a solid understanding of HSK1 sentences.';
-            badgeText = 'Good!';
-            badgeClass = 'good';
-        } else if (percentage >= 50) {
-            performanceMessage = 'Not bad! Review the sentences you missed.';
-            badgeText = 'Average';
-            badgeClass = 'average';
-        } else {
-            performanceMessage = 'Keep practicing! HSK1 sentence comprehension takes time to master.';
-            badgeText = 'Needs Practice';
-            badgeClass = 'poor';
-        }
-        
-        performanceMessageElement.textContent = performanceMessage;
-        resultsBadge.textContent = badgeText;
-        resultsBadge.className = `results-badge ${badgeClass} mb-4`;
-        
-        // Store results
-        quizResults = {
-            score: score,
+        const quizResult = {
+            quiz_type: 'sentences', // Crucial for results page
             correct_answers: correctAnswers,
-            incorrect_answers: incorrectAnswers,
-            percentage: percentage,
-            time_taken: timeTaken,
             total_questions: quizData.length,
-            user_answers: userAnswers,
-            quiz_data: quizData,
-            quiz_type: 'sentences'
+            percentage: Math.round((correctAnswers / quizData.length) * 100),
+            timestamp: new Date().toISOString(),
+            score: score
         };
         
-        // Save to localStorage for results page
-        saveQuizResultsToLocalStorage();
+        quizHistory.unshift(quizResult); // Add to beginning
+        localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
         
-        // Save results
-        await saveResults();
+        // 2. Save to performance data
+        let performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+        if (!performanceData.sentences) performanceData.sentences = {};
         
-        // Store for detailed results
-        sessionStorage.setItem('quizResults', JSON.stringify(quizResults));
-        
-        // Hide quiz and show results
-        quizContent.classList.add('hidden');
-        resultsSection.classList.remove('hidden');
-    }
-
-    // View detailed results
-    function viewDetailedResults() {
-        window.location.href = '/result';
-    }
-
-    // Save results to backend
-    async function saveResults() {
-        try {
-            const response = await fetch('/api/quiz-results', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(quizResults)
-            });
+        // Track performance for each sentence in this quiz
+        quizData.forEach((question, index) => {
+            const sentence = question.sentence;
             
-            const data = await response.json();
+            // USE CORRECT ANSWER DIRECTLY FROM BACKEND
+            const correctAnswerIndex = question.correctAnswer;
+            const isCorrect = userAnswers[index] === correctAnswerIndex;
             
-            if (!data.success) {
-                console.error('Failed to save results:', data.message);
+            if (!performanceData.sentences[sentence]) {
+                performanceData.sentences[sentence] = {
+                    pinyin: question.pinyin || '',
+                    meaning: question.options[correctAnswerIndex] || '',
+                    correct: 0,
+                    incorrect: 0
+                };
             }
-        } catch (error) {
-            console.error('Error saving results:', error);
+            
+            if (isCorrect) {
+                performanceData.sentences[sentence].correct++;
+            } else {
+                performanceData.sentences[sentence].incorrect++;
+            }
+        });
+        
+        localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
+        
+        console.log('Sentences quiz results saved to localStorage!');
+        
+    } catch (error) {
+        console.error('Error saving sentences quiz results:', error);
+    }
+}
+
+// Enhanced finishQuiz function with adaptive learning summary
+async function finishQuiz() {
+    // Stop any ongoing speech
+    speechSynthesis.cancel();
+    
+    // Calculate final results
+    const percentage = Math.round((correctAnswers / quizData.length) * 100);
+    const timeTaken = Math.round((new Date() - startTime) / 1000);
+    
+    // Calculate adaptive learning statistics
+    const adaptiveStats = calculateAdaptiveLearningStats();
+    
+    // Play celebration sound for excellent scores
+    if (percentage >= 90) {
+        setTimeout(() => playLevelUpSound(), 500);
+    }
+    
+    // Update results section
+    finalScoreElement.textContent = score;
+    finalCorrectElement.textContent = correctAnswers;
+    finalIncorrectElement.textContent = incorrectAnswers;
+    finalPercentageElement.textContent = `${percentage}%`;
+    
+    // Set performance badge and message
+    let performanceMessage = '';
+    let badgeText = '';
+    let badgeClass = '';
+    
+    if (percentage >= 90) {
+        performanceMessage = 'Outstanding! You have mastered HSK1 sentences.';
+        badgeText = 'Excellent!';
+        badgeClass = 'excellent';
+    } else if (percentage >= 70) {
+        performanceMessage = 'Good job! You have a solid understanding of HSK1 sentences.';
+        badgeText = 'Good!';
+        badgeClass = 'good';
+    } else if (percentage >= 50) {
+        performanceMessage = 'Not bad! Review the sentences you missed.';
+        badgeText = 'Average';
+        badgeClass = 'average';
+    } else {
+        performanceMessage = 'Keep practicing! HSK1 sentence comprehension takes time to master.';
+        badgeText = 'Needs Practice';
+        badgeClass = 'poor';
+    }
+    
+    // Add adaptive learning insights
+    performanceMessage += `\n\nAdaptive Learning Insights:\n`;
+    performanceMessage += `• ${adaptiveStats.masteredThisSession} sentences mastered this session\n`;
+    performanceMessage += `• ${adaptiveStats.weakSentencesCount} sentences need more practice\n`;
+    performanceMessage += `• ${adaptiveStats.reviewSentencesCount} sentences in your review list`;
+    
+    performanceMessageElement.textContent = performanceMessage;
+    resultsBadge.textContent = badgeText;
+    resultsBadge.className = `results-badge ${badgeClass} mb-4`;
+    
+    // Store results
+    quizResults = {
+        score: score,
+        correct_answers: correctAnswers,
+        incorrect_answers: incorrectAnswers,
+        percentage: percentage,
+        time_taken: timeTaken,
+        total_questions: quizData.length,
+        user_answers: userAnswers,
+        quiz_data: quizData,
+        quiz_type: 'sentences',
+        adaptive_stats: adaptiveStats
+    };
+    
+    // Save to localStorage for results page
+    saveQuizResultsToLocalStorage();
+    
+    // Save results
+    await saveResults();
+    
+    // Store for detailed results
+    sessionStorage.setItem('quizResults', JSON.stringify(quizResults));
+    
+    // Hide quiz and show results
+    quizContent.classList.add('hidden');
+    resultsSection.classList.remove('hidden');
+}
+
+// View detailed results
+function viewDetailedResults() {
+    window.location.href = '/result';
+}
+
+// Save results to backend
+async function saveResults() {
+    try {
+        const response = await fetch('/api/quiz-results', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(quizResults)
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            console.error('Failed to save results:', data.message);
         }
+    } catch (error) {
+        console.error('Error saving results:', error);
     }
+}
 
-    // Restart quiz
-    function restartQuiz() {
-        currentQuestion = 0;
-        score = 0;
-        correctAnswers = 0;
-        incorrectAnswers = 0;
-        userAnswers = [];
-        
-        // Reset speech interaction flag for new quiz
-        userInteractedWithSpeech = false;
-        
-        resultsSection.classList.add('hidden');
-        quizContent.classList.remove('hidden');
-        
-        showQuestion();
-        updateProgress();
-        updateScore();
-    }
+// Restart quiz
+function restartQuiz() {
+    currentQuestion = 0;
+    score = 0;
+    correctAnswers = 0;
+    incorrectAnswers = 0;
+    userAnswers = [];
+    
+    // Reset speech interaction flag for new quiz
+    userInteractedWithSpeech = false;
+    
+    resultsSection.classList.add('hidden');
+    quizContent.classList.remove('hidden');
+    
+    showQuestion();
+    updateProgress();
+    updateScore();
+}
 
-    // UI State Management
-    function showLoading() {
-        loadingState.classList.remove('hidden');
-        quizContent.classList.add('hidden');
-        errorState.classList.add('hidden');
-        resultsSection.classList.add('hidden');
-    }
+// UI State Management
+function showLoading() {
+    loadingState.classList.remove('hidden');
+    quizContent.classList.add('hidden');
+    errorState.classList.add('hidden');
+    resultsSection.classList.add('hidden');
+}
 
-    function hideLoading() {
-        loadingState.classList.add('hidden');
-    }
+function hideLoading() {
+    loadingState.classList.add('hidden');
+}
 
-    function showQuizContent() {
-        quizContent.classList.remove('hidden');
-    }
+function showQuizContent() {
+    quizContent.classList.remove('hidden');
+}
 
-    function showError(message) {
-        loadingState.classList.add('hidden');
-        quizContent.classList.add('hidden');
-        errorState.classList.remove('hidden');
-        errorMessage.textContent = message;
-    }
+function showError(message) {
+    loadingState.classList.add('hidden');
+    quizContent.classList.add('hidden');
+    errorState.classList.remove('hidden');
+    errorMessage.textContent = message;
+}
 </script>
 </body>
 </html>
