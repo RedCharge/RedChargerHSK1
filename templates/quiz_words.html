@@ -489,11 +489,13 @@ let audioContext = null;
 let preloadedAudio = {};
 let autoSpeakEnabled = true;
 
-// Adaptive Learning State
+// Enhanced Adaptive Learning State
 let wordMastery = {}; // Track mastery for each word
 let currentWordQueue = []; // Queue of words to be presented
 let masteredWords = new Set(); // Words the user has mastered
 let reviewWords = []; // Words that need review
+let recentlyUsedWords = new Set(); // Words used in recent quizzes to avoid repetition
+let sessionId = Date.now().toString(); // Unique ID for this quiz session
 
 // DOM elements
 const loadingState = document.getElementById('loading-state');
@@ -572,12 +574,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================
-// ADAPTIVE LEARNING ALGORITHM
+// ENHANCED ADAPTIVE LEARNING ALGORITHM
 // ============================
 
 // Initialize adaptive learning system
 function initializeAdaptiveLearning() {
-    console.log('Initializing adaptive learning system...');
+    console.log('Initializing enhanced adaptive learning system...');
     
     // Load mastery data from localStorage if available
     const savedMastery = localStorage.getItem('wordMastery');
@@ -599,6 +601,22 @@ function initializeAdaptiveLearning() {
         reviewWords = JSON.parse(savedReviewWords);
         console.log('Loaded', reviewWords.length, 'words for review');
     }
+    
+    // Load recently used words (to avoid repetition)
+    const savedRecentWords = localStorage.getItem('recentlyUsedWords');
+    if (savedRecentWords) {
+        const recentData = JSON.parse(savedRecentWords);
+        // Only keep words used in the last 3 sessions
+        const threeSessionsAgo = Date.now() - (3 * 24 * 60 * 60 * 1000); // 3 days ago
+        recentlyUsedWords = new Set(recentData.words.filter(word => 
+            recentData.timestamps[word] > threeSessionsAgo
+        ));
+        console.log('Loaded', recentlyUsedWords.size, 'recently used words');
+    }
+    
+    // Generate new session ID
+    sessionId = Date.now().toString();
+    console.log('New quiz session ID:', sessionId);
 }
 
 // Save adaptive learning data
@@ -606,24 +624,42 @@ function saveAdaptiveLearningData() {
     localStorage.setItem('wordMastery', JSON.stringify(wordMastery));
     localStorage.setItem('masteredWords', JSON.stringify([...masteredWords]));
     localStorage.setItem('reviewWords', JSON.stringify(reviewWords));
-    console.log('Adaptive learning data saved');
+    
+    // Save recently used words with timestamps
+    const recentData = {
+        words: [...recentlyUsedWords],
+        timestamps: {}
+    };
+    recentlyUsedWords.forEach(word => {
+        recentData.timestamps[word] = Date.now();
+    });
+    localStorage.setItem('recentlyUsedWords', JSON.stringify(recentData));
+    
+    console.log('Enhanced adaptive learning data saved');
 }
 
-// Process words with adaptive learning logic
+// Enhanced process words with adaptive learning logic
 function processWordsWithAdaptiveLearning(words) {
     // Reset current word queue
     currentWordQueue = [];
     
-    // Separate words into categories based on mastery
+    console.log('Processing words with enhanced adaptive learning...');
+    console.log('Total words available:', words.length);
+    console.log('Recently used words:', recentlyUsedWords.size);
+    console.log('Mastered words:', masteredWords.size);
+    console.log('Review words:', reviewWords.length);
+    
+    // Separate words into categories based on mastery and recent usage
     const newWords = [];
     const weakWords = [];
     const strongWords = [];
+    const unusedWords = [];
     
     words.forEach(word => {
-        const wordKey = word.word; // Use the word itself as the key
+        const wordKey = word.word;
         
-        // If word is already mastered, skip it (or include occasionally for reinforcement)
-        if (masteredWords.has(wordKey) && Math.random() > 0.1) { // 10% chance to include mastered words
+        // Skip if word was recently used (to ensure variety)
+        if (recentlyUsedWords.has(wordKey)) {
             return;
         }
         
@@ -654,53 +690,129 @@ function processWordsWithAdaptiveLearning(words) {
         }
     });
     
+    // Find completely unused words (not in any category)
+    words.forEach(word => {
+        const wordKey = word.word;
+        if (!recentlyUsedWords.has(wordKey) && 
+            !wordMastery[wordKey] && 
+            !newWords.includes(word) &&
+            !weakWords.includes(word) && 
+            !strongWords.includes(word)) {
+            unusedWords.push(word);
+        }
+    });
+    
     console.log('Word categorization:', {
         newWords: newWords.length,
         weakWords: weakWords.length,
-        strongWords: strongWords.length
+        strongWords: strongWords.length,
+        unusedWords: unusedWords.length
     });
     
-    // Build word queue with adaptive distribution - ALWAYS 20 WORDS
-    const targetCount = 20; // Always show 20 words
+    // Build word queue with enhanced adaptive distribution - ALWAYS 20 WORDS
+    const targetCount = 20;
+    let wordsAdded = 0;
     
-    // Add weak words (highest priority - 50% of quiz)
-    const weakCount = Math.min(Math.ceil(targetCount * 0.5), weakWords.length);
-    currentWordQueue.push(...weakWords.slice(0, weakCount));
-    
-    // Add new words (medium priority - 30% of quiz)
-    const newCount = Math.min(Math.ceil(targetCount * 0.3), newWords.length);
-    currentWordQueue.push(...newWords.slice(0, newCount));
-    
-    // Add strong words (lowest priority - 20% of quiz)
-    const strongCount = Math.min(targetCount - currentWordQueue.length, strongWords.length);
-    currentWordQueue.push(...strongWords.slice(0, strongCount));
-    
-    // If we still need more words, add from review list
-    if (currentWordQueue.length < targetCount && reviewWords.length > 0) {
-        const needed = targetCount - currentWordQueue.length;
-        const reviewToAdd = reviewWords.slice(0, Math.min(needed, reviewWords.length));
-        currentWordQueue.push(...reviewToAdd);
+    // STRATEGY 1: Add failed words from previous sessions (highest priority - 30%)
+    const failedCount = Math.min(Math.ceil(targetCount * 0.3), reviewWords.length);
+    if (failedCount > 0) {
+        const failedToAdd = reviewWords.slice(0, failedCount);
+        currentWordQueue.push(...failedToAdd);
+        wordsAdded += failedCount;
+        console.log(`Added ${failedCount} failed words from review`);
         
-        // Remove added words from review list
-        reviewWords = reviewWords.slice(reviewToAdd.length);
+        // Remove added words from review list temporarily (they'll be added back if failed again)
+        reviewWords = reviewWords.slice(failedCount);
     }
     
-    // If we STILL need more words (shouldn't happen with 20 from backend), use original words
-    if (currentWordQueue.length < targetCount) {
-        const needed = targetCount - currentWordQueue.length;
-        const originalToAdd = words.slice(0, Math.min(needed, words.length));
-        currentWordQueue.push(...originalToAdd);
+    // STRATEGY 2: Add weak words (25%)
+    const weakCount = Math.min(Math.ceil(targetCount * 0.25), weakWords.length);
+    if (weakCount > 0 && wordsAdded < targetCount) {
+        const availableSlots = targetCount - wordsAdded;
+        const actualWeakCount = Math.min(weakCount, availableSlots);
+        const weakToAdd = weakWords.slice(0, actualWeakCount);
+        currentWordQueue.push(...weakToAdd);
+        wordsAdded += actualWeakCount;
+        console.log(`Added ${actualWeakCount} weak words`);
     }
     
-    // Shuffle the queue to mix word difficulties
+    // STRATEGY 3: Add new words (20%)
+    const newCount = Math.min(Math.ceil(targetCount * 0.2), newWords.length);
+    if (newCount > 0 && wordsAdded < targetCount) {
+        const availableSlots = targetCount - wordsAdded;
+        const actualNewCount = Math.min(newCount, availableSlots);
+        const newToAdd = newWords.slice(0, actualNewCount);
+        currentWordQueue.push(...newToAdd);
+        wordsAdded += actualNewCount;
+        console.log(`Added ${actualNewCount} new words`);
+    }
+    
+    // STRATEGY 4: Add unused words (15%)
+    const unusedCount = Math.min(Math.ceil(targetCount * 0.15), unusedWords.length);
+    if (unusedCount > 0 && wordsAdded < targetCount) {
+        const availableSlots = targetCount - wordsAdded;
+        const actualUnusedCount = Math.min(unusedCount, availableSlots);
+        const unusedToAdd = unusedWords.slice(0, actualUnusedCount);
+        currentWordQueue.push(...unusedToAdd);
+        wordsAdded += actualUnusedCount;
+        console.log(`Added ${actualUnusedCount} unused words`);
+    }
+    
+    // STRATEGY 5: Add strong words (10%)
+    const strongCount = Math.min(Math.ceil(targetCount * 0.1), strongWords.length);
+    if (strongCount > 0 && wordsAdded < targetCount) {
+        const availableSlots = targetCount - wordsAdded;
+        const actualStrongCount = Math.min(strongCount, availableSlots);
+        const strongToAdd = strongWords.slice(0, actualStrongCount);
+        currentWordQueue.push(...strongToAdd);
+        wordsAdded += actualStrongCount;
+        console.log(`Added ${actualStrongCount} strong words`);
+    }
+    
+    // STRATEGY 6: If we still need more words, fill with random words not recently used
+    if (wordsAdded < targetCount) {
+        const needed = targetCount - wordsAdded;
+        const allAvailableWords = [
+            ...weakWords.slice(weakCount),
+            ...newWords.slice(newCount),
+            ...unusedWords.slice(unusedCount),
+            ...strongWords.slice(strongCount)
+        ].filter(word => !recentlyUsedWords.has(word.word));
+        
+        const randomToAdd = allAvailableWords.slice(0, Math.min(needed, allAvailableWords.length));
+        currentWordQueue.push(...randomToAdd);
+        wordsAdded += randomToAdd.length;
+        console.log(`Added ${randomToAdd.length} random words`);
+    }
+    
+    // STRATEGY 7: Final fallback - use any words (even recently used if necessary)
+    if (wordsAdded < targetCount) {
+        const needed = targetCount - wordsAdded;
+        const fallbackWords = words
+            .filter(word => !currentWordQueue.some(w => w.word === word.word))
+            .slice(0, needed);
+        
+        currentWordQueue.push(...fallbackWords);
+        wordsAdded += fallbackWords.length;
+        console.log(`Added ${fallbackWords.length} fallback words`);
+    }
+    
+    // Mark these words as recently used
+    currentWordQueue.forEach(word => {
+        recentlyUsedWords.add(word.word);
+    });
+    
+    // Shuffle the final queue to mix word difficulties
     shuffleArray(currentWordQueue);
     
     console.log('Final word queue:', currentWordQueue.length, 'words');
+    console.log('Words in queue:', currentWordQueue.map(w => w.word));
+    
     return currentWordQueue;
 }
 
-// Update word mastery after each question
-function updateWordMastery(word, isCorrect) {
+// Enhanced update word mastery after each question
+function updateWordMastery(word, isCorrect, selectedIndex, correctIndex) {
     const wordKey = word.word;
     
     // Initialize word mastery if it doesn't exist
@@ -710,7 +822,9 @@ function updateWordMastery(word, isCorrect) {
             incorrect: 0,
             lastSeen: new Date().toISOString(),
             questionTypes: {},
-            streak: 0
+            streak: 0,
+            sessionId: sessionId,
+            firstSeen: new Date().toISOString()
         };
     }
     
@@ -726,9 +840,10 @@ function updateWordMastery(word, isCorrect) {
     }
     
     mastery.lastSeen = new Date().toISOString();
+    mastery.sessionId = sessionId;
     
     // Track question type usage
-    const questionType = 'multiple-choice'; // Default, can be expanded
+    const questionType = 'multiple-choice';
     if (!mastery.questionTypes[questionType]) {
         mastery.questionTypes[questionType] = { correct: 0, incorrect: 0 };
     }
@@ -741,8 +856,24 @@ function updateWordMastery(word, isCorrect) {
     
     // Check if word should be added to review list
     if (!isCorrect && !reviewWords.some(w => w.word === wordKey)) {
-        reviewWords.push(word);
+        const reviewWord = {
+            word: wordKey,
+            pinyin: word.pinyin,
+            options: word.options,
+            correctAnswer: correctIndex,
+            addedDate: new Date().toISOString(),
+            failedCount: 1,
+            lastFailed: new Date().toISOString()
+        };
+        reviewWords.push(reviewWord);
         console.log('Added to review words:', wordKey);
+    } else if (!isCorrect) {
+        // Update existing review word
+        const reviewWord = reviewWords.find(w => w.word === wordKey);
+        if (reviewWord) {
+            reviewWord.failedCount++;
+            reviewWord.lastFailed = new Date().toISOString();
+        }
     }
     
     // Check for mastery (3 consecutive correct answers)
@@ -760,6 +891,175 @@ function updateWordMastery(word, isCorrect) {
     console.log('Updated mastery for', wordKey, ':', mastery);
 }
 
+// Enhanced selectOption function with adaptive learning
+function selectOption(selectedIndex) {
+    if (userAnswers[currentQuestion] !== null) return;
+    
+    const question = quizData[currentQuestion];
+    
+    // Get the correct answer directly from backend data
+    let correctAnswerIndex;
+    
+    if (typeof question.correctAnswer === 'string') {
+        correctAnswerIndex = parseInt(question.correctAnswer);
+    } else {
+        correctAnswerIndex = question.correctAnswer;
+    }
+    
+    // Validate the correct answer index
+    if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
+        console.error('Invalid correct answer index:', correctAnswerIndex);
+        // Fallback to first option if invalid
+        correctAnswerIndex = 0;
+    }
+    
+    const isCorrect = selectedIndex === correctAnswerIndex;
+    
+    // Update adaptive learning system with enhanced tracking
+    updateWordMastery(question, isCorrect, selectedIndex, correctAnswerIndex);
+    
+    // DEBUGGING
+    console.log('=== ANSWER DEBUG INFO ===');
+    console.log('Question word:', question.word);
+    console.log('Selected index:', selectedIndex);
+    console.log('Selected option:', question.options[selectedIndex]);
+    console.log('Correct index:', correctAnswerIndex);
+    console.log('Correct option:', question.options[correctAnswerIndex]);
+    console.log('Is correct:', isCorrect);
+    
+    userAnswers[currentQuestion] = selectedIndex;
+    
+    // Play sound effect based on answer
+    if (isCorrect) {
+        playCorrectSound();
+        score += 10;
+        correctAnswers++;
+        feedbackElement.textContent = 'Correct! Well done.';
+        feedbackElement.className = 'mb-6 text-center text-lg font-medium text-green-400';
+    } else {
+        playIncorrectSound();
+        incorrectAnswers++;
+        feedbackElement.textContent = `Incorrect. The correct answer is: "${question.options[correctAnswerIndex]}"`;
+        feedbackElement.className = 'mb-6 text-center text-lg font-medium text-red-400';
+    }
+    
+    feedbackElement.classList.remove('hidden');
+    updateScore();
+    highlightOption(selectedIndex, correctAnswerIndex);
+}
+
+// Enhanced finishQuiz function without failed words retry option
+function finishQuiz() {
+    speechSynthesis.cancel();
+    
+    const percentage = Math.round((correctAnswers / quizData.length) * 100);
+    const timeTaken = Math.round((new Date() - startTime) / 1000);
+    
+    // Calculate adaptive learning statistics
+    const adaptiveStats = calculateAdaptiveLearningStats();
+    
+    // Play celebration sound for excellent scores
+    if (percentage >= 90) {
+        setTimeout(() => playLevelUpSound(), 500);
+    }
+    
+    finalScoreElement.textContent = score;
+    finalCorrectElement.textContent = correctAnswers;
+    finalIncorrectElement.textContent = incorrectAnswers;
+    finalPercentageElement.textContent = `${percentage}%`;
+    
+    let performanceMessage = '';
+    if (percentage >= 90) {
+        performanceMessage = 'Outstanding! You have mastered HSK1 vocabulary. You are ready for the next level!';
+    } else if (percentage >= 70) {
+        performanceMessage = 'Good job! You have a solid understanding of HSK1 vocabulary. Keep practicing to improve further.';
+    } else if (percentage >= 50) {
+        performanceMessage = 'Not bad! You know some HSK1 vocabulary, but there is room for improvement. Review the words you missed.';
+    } else {
+        performanceMessage = 'Keep practicing! HSK1 vocabulary takes time to master. Try reviewing the words and taking the quiz again.';
+    }
+    
+    // Add adaptive learning insights
+    performanceMessage += `\n\nAdaptive Learning Insights:\n`;
+    performanceMessage += `• ${adaptiveStats.masteredThisSession} words mastered this session\n`;
+    performanceMessage += `• ${adaptiveStats.weakWordsCount} words need more practice\n`;
+    performanceMessage += `• ${adaptiveStats.reviewWordsCount} words in your review list`;
+    
+    performanceMessageElement.textContent = performanceMessage;
+    
+    // Keep regular restart button
+    restartButton.innerHTML = '<i class="fas fa-redo mr-2"></i> Take Quiz Again';
+    
+    quizContent.classList.add('hidden');
+    resultsSection.classList.remove('hidden');
+    
+    // Save quiz results to localStorage for results page
+    saveQuizResultsToLocalStorage();
+    
+    // Also save to sessionStorage for immediate results
+    const quizResult = {
+        quiz_type: 'words',
+        correct_answers: correctAnswers,
+        total_questions: quizData.length,
+        percentage: percentage,
+        timestamp: new Date().toISOString(),
+        adaptive_stats: adaptiveStats,
+        session_id: sessionId
+    };
+    sessionStorage.setItem('quizResults', JSON.stringify(quizResult));
+    
+    console.log('Quiz completed with enhanced adaptive learning stats:', adaptiveStats);
+}
+
+// Enhanced loadQuizData function with adaptive learning
+async function loadQuizData() {
+    try {
+        console.log('Loading quiz data with enhanced adaptive learning...');
+        
+        const response = await fetch('/words/api/quiz-words?count=50'); // Request more words for variety
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('API Response:', data);
+        
+        if (data.success && data.words && Array.isArray(data.words)) {
+            // Process words with enhanced adaptive learning logic
+            quizData = processWordsWithAdaptiveLearning(data.words);
+            console.log(`Successfully loaded ${quizData.length} questions with enhanced adaptive learning`);
+            
+            // Log enhanced adaptive learning info
+            console.log('Enhanced Adaptive Learning Stats:', {
+                totalWords: data.words.length,
+                masteredWords: masteredWords.size,
+                reviewWords: reviewWords.length,
+                recentlyUsedWords: recentlyUsedWords.size,
+                wordQueueLength: currentWordQueue.length,
+                sessionId: sessionId
+            });
+            
+            initQuiz();
+        } else {
+            throw new Error(data.message || 'Invalid data structure received from API');
+        }
+        
+    } catch (error) {
+        console.error('Quiz loading error:', error);
+        showError(`Failed to load quiz: ${error.message}. Please check if the server is running.`);
+    }
+}
+
+// Utility function to shuffle array
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
 // Calculate adaptive learning statistics
 function calculateAdaptiveLearningStats() {
     const stats = {
@@ -767,7 +1067,8 @@ function calculateAdaptiveLearningStats() {
         weakWordsCount: 0,
         reviewWordsCount: reviewWords.length,
         totalMastered: masteredWords.size,
-        masteryProgress: 0
+        masteryProgress: 0,
+        recentlyUsedCount: recentlyUsedWords.size
     };
     
     // Count words mastered in this session
@@ -803,15 +1104,6 @@ function calculateAdaptiveLearningStats() {
     }
     
     return stats;
-}
-
-// Utility function to shuffle array
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
 }
 
 // ============================
@@ -1313,44 +1605,6 @@ function startQuiz() {
     loadQuizData();
 }
 
-// Enhanced loadQuizData function with adaptive learning
-async function loadQuizData() {
-    try {
-        console.log('Loading quiz data with adaptive learning...');
-        
-        const response = await fetch('/words/api/quiz-words?count=20');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log('API Response:', data);
-        
-        if (data.success && data.words && Array.isArray(data.words)) {
-            // Process words with adaptive learning logic
-            quizData = processWordsWithAdaptiveLearning(data.words);
-            console.log(`Successfully loaded ${quizData.length} questions with adaptive learning`);
-            
-            // Log adaptive learning info
-            console.log('Adaptive Learning Stats:', {
-                totalWords: data.words.length,
-                masteredWords: masteredWords.size,
-                reviewWords: reviewWords.length,
-                wordQueueLength: currentWordQueue.length
-            });
-            
-            initQuiz();
-        } else {
-            throw new Error(data.message || 'Invalid data structure received from API');
-        }
-        
-    } catch (error) {
-        console.error('Quiz loading error:', error);
-        showError(`Failed to load quiz: ${error.message}. Please check if the server is running.`);
-    }
-}
-
 // Initialize the quiz
 function initQuiz() {
     if (!quizData || quizData.length === 0) {
@@ -1483,63 +1737,6 @@ function showQuestion() {
     }, 500);
 }
 
-// Enhanced selectOption function with adaptive learning
-function selectOption(selectedIndex) {
-    if (userAnswers[currentQuestion] !== null) return;
-    
-    const question = quizData[currentQuestion];
-    
-    // Get the correct answer directly from backend data
-    let correctAnswerIndex;
-    
-    if (typeof question.correctAnswer === 'string') {
-        correctAnswerIndex = parseInt(question.correctAnswer);
-    } else {
-        correctAnswerIndex = question.correctAnswer;
-    }
-    
-    // Validate the correct answer index
-    if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
-        console.error('Invalid correct answer index:', correctAnswerIndex);
-        // Fallback to first option if invalid
-        correctAnswerIndex = 0;
-    }
-    
-    const isCorrect = selectedIndex === correctAnswerIndex;
-    
-    // Update adaptive learning system
-    updateWordMastery(question, isCorrect);
-    
-    // DEBUGGING
-    console.log('=== ANSWER DEBUG INFO ===');
-    console.log('Question word:', question.word);
-    console.log('Selected index:', selectedIndex);
-    console.log('Selected option:', question.options[selectedIndex]);
-    console.log('Correct index:', correctAnswerIndex);
-    console.log('Correct option:', question.options[correctAnswerIndex]);
-    console.log('Is correct:', isCorrect);
-    
-    userAnswers[currentQuestion] = selectedIndex;
-    
-    // Play sound effect based on answer
-    if (isCorrect) {
-        playCorrectSound();
-        score += 10;
-        correctAnswers++;
-        feedbackElement.textContent = 'Correct! Well done.';
-        feedbackElement.className = 'mb-6 text-center text-lg font-medium text-green-400';
-    } else {
-        playIncorrectSound();
-        incorrectAnswers++;
-        feedbackElement.textContent = `Incorrect. The correct answer is: "${question.options[correctAnswerIndex]}"`;
-        feedbackElement.className = 'mb-6 text-center text-lg font-medium text-red-400';
-    }
-    
-    feedbackElement.classList.remove('hidden');
-    updateScore();
-    highlightOption(selectedIndex, correctAnswerIndex);
-}
-
 // Highlight selected option and correct answer
 function highlightOption(selectedIndex, correctIndex) {
     const optionButtons = optionsContainer.querySelectorAll('.option-button');
@@ -1650,65 +1847,6 @@ function saveQuizResultsToLocalStorage() {
     } catch (error) {
         console.error('Error saving words quiz results:', error);
     }
-}
-
-// Enhanced finishQuiz function with adaptive learning summary
-function finishQuiz() {
-    speechSynthesis.cancel();
-    
-    const percentage = Math.round((correctAnswers / quizData.length) * 100);
-    const timeTaken = Math.round((new Date() - startTime) / 1000);
-    
-    // Calculate adaptive learning statistics
-    const adaptiveStats = calculateAdaptiveLearningStats();
-    
-    // Play celebration sound for excellent scores
-    if (percentage >= 90) {
-        setTimeout(() => playLevelUpSound(), 500);
-    }
-    
-    finalScoreElement.textContent = score;
-    finalCorrectElement.textContent = correctAnswers;
-    finalIncorrectElement.textContent = incorrectAnswers;
-    finalPercentageElement.textContent = `${percentage}%`;
-    
-    let performanceMessage = '';
-    if (percentage >= 90) {
-        performanceMessage = 'Outstanding! You have mastered HSK1 vocabulary. You are ready for the next level!';
-    } else if (percentage >= 70) {
-        performanceMessage = 'Good job! You have a solid understanding of HSK1 vocabulary. Keep practicing to improve further.';
-    } else if (percentage >= 50) {
-        performanceMessage = 'Not bad! You know some HSK1 vocabulary, but there is room for improvement. Review the words you missed.';
-    } else {
-        performanceMessage = 'Keep practicing! HSK1 vocabulary takes time to master. Try reviewing the words and taking the quiz again.';
-    }
-    
-    // Add adaptive learning insights
-    performanceMessage += `\n\nAdaptive Learning Insights:\n`;
-    performanceMessage += `• ${adaptiveStats.masteredThisSession} words mastered this session\n`;
-    performanceMessage += `• ${adaptiveStats.weakWordsCount} words need more practice\n`;
-    performanceMessage += `• ${adaptiveStats.reviewWordsCount} words in your review list`;
-    
-    performanceMessageElement.textContent = performanceMessage;
-    
-    quizContent.classList.add('hidden');
-    resultsSection.classList.remove('hidden');
-    
-    // Save quiz results to localStorage for results page
-    saveQuizResultsToLocalStorage();
-    
-    // Also save to sessionStorage for immediate results
-    const quizResult = {
-        quiz_type: 'words',
-        correct_answers: correctAnswers,
-        total_questions: quizData.length,
-        percentage: percentage,
-        timestamp: new Date().toISOString(),
-        adaptive_stats: adaptiveStats
-    };
-    sessionStorage.setItem('quizResults', JSON.stringify(quizResult));
-    
-    console.log('Quiz completed with adaptive learning stats:', adaptiveStats);
 }
 
 // UI State Management
