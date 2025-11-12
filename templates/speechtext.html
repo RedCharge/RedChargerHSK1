@@ -468,370 +468,656 @@
     </div>
 
     <script>
-        // Mobile menu functionality
-        document.addEventListener('DOMContentLoaded', function() {
-            const mobileMenuButton = document.getElementById('mobile-menu-button');
-            const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
-            const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+    // Mobile menu functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+        const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
 
-            function toggleMobileMenu() {
-                const isOpen = mobileDropdownMenu.classList.contains('open');
-                if (isOpen) {
-                    mobileDropdownMenu.classList.remove('open');
-                    mobileDropdownBackdrop.style.display = 'none';
-                } else {
-                    mobileDropdownMenu.classList.add('open');
-                    mobileDropdownBackdrop.style.display = 'block';
-                }
+        function toggleMobileMenu() {
+            const isOpen = mobileDropdownMenu.classList.contains('open');
+            if (isOpen) {
+                mobileDropdownMenu.classList.remove('open');
+                mobileDropdownBackdrop.style.display = 'none';
+            } else {
+                mobileDropdownMenu.classList.add('open');
+                mobileDropdownBackdrop.style.display = 'block';
             }
+        }
 
-            mobileMenuButton.addEventListener('click', toggleMobileMenu);
-            mobileDropdownBackdrop.addEventListener('click', toggleMobileMenu);
+        mobileMenuButton.addEventListener('click', toggleMobileMenu);
+        mobileDropdownBackdrop.addEventListener('click', toggleMobileMenu);
 
-            // Close mobile menu when clicking on a link
-            const mobileMenuLinks = mobileDropdownMenu.querySelectorAll('a');
-            mobileMenuLinks.forEach(link => {
-                link.addEventListener('click', () => {
-                    mobileDropdownMenu.classList.remove('open');
-                    mobileDropdownBackdrop.style.display = 'none';
-                });
+        // Close mobile menu when clicking on a link
+        const mobileMenuLinks = mobileDropdownMenu.querySelectorAll('a');
+        mobileMenuLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                mobileDropdownMenu.classList.remove('open');
+                mobileDropdownBackdrop.style.display = 'none';
             });
         });
+    });
 
-        // Speech Practice Application
-        class SpeechPracticeApp {
-            constructor() {
-                this.sentences = [];
-                this.currentSentenceIndex = 0;
-                this.isRecording = false;
-                this.mediaRecorder = null;
-                this.audioChunks = [];
-                this.recordingTimer = null;
-                this.recordingTime = 0;
-                this.audioContext = null;
-                this.analyser = null;
-                this.waveformBars = [];
+    // Speech Practice Application
+    class SpeechPracticeApp {
+        constructor() {
+            this.sentences = [];
+            this.currentSentenceIndex = 0;
+            this.isRecording = false;
+            this.mediaRecorder = null;
+            this.audioChunks = [];
+            this.recordingTimer = null;
+            this.recordingTime = 0;
+            this.audioContext = null;
+            this.analyser = null;
+            this.waveformBars = [];
+            this.fallbackSentences = this.getFallbackSentences();
 
-                this.initializeElements();
-                this.setupEventListeners();
-                this.initializeWaveform();
-                this.loadSentences();
-            }
+            this.initializeElements();
+            this.setupEventListeners();
+            this.initializeWaveform();
+            this.loadSentences();
+        }
 
-            initializeElements() {
-                // State elements
-                this.loadingStateEl = document.getElementById('loading-state');
-                this.practiceCardEl = document.getElementById('practice-card');
-                this.errorStateEl = document.getElementById('error-state');
-                this.tipsCardEl = document.getElementById('tips-card');
-                this.errorMessageEl = document.getElementById('error-message');
-                this.retryBtn = document.getElementById('retry-btn');
+        initializeElements() {
+            // State elements
+            this.loadingStateEl = document.getElementById('loading-state');
+            this.practiceCardEl = document.getElementById('practice-card');
+            this.errorStateEl = document.getElementById('error-state');
+            this.tipsCardEl = document.getElementById('tips-card');
+            this.errorMessageEl = document.getElementById('error-message');
+            this.retryBtn = document.getElementById('retry-btn');
 
-                // Sentence elements
-                this.chineseSentenceEl = document.getElementById('chinese-sentence');
-                this.pinyinSentenceEl = document.getElementById('pinyin-sentence');
-                this.englishSentenceEl = document.getElementById('english-sentence');
-                this.currentSentenceEl = document.getElementById('current-sentence');
-                this.totalSentencesEl = document.getElementById('total-sentences');
-                this.progressFillEl = document.getElementById('progress-fill');
+            // Sentence elements
+            this.chineseSentenceEl = document.getElementById('chinese-sentence');
+            this.pinyinSentenceEl = document.getElementById('pinyin-sentence');
+            this.englishSentenceEl = document.getElementById('english-sentence');
+            this.currentSentenceEl = document.getElementById('current-sentence');
+            this.totalSentencesEl = document.getElementById('total-sentences');
+            this.progressFillEl = document.getElementById('progress-fill');
 
-                // Control elements
-                this.prevBtn = document.getElementById('prev-btn');
-                this.nextBtn = document.getElementById('next-btn');
-                this.listenBtn = document.getElementById('listen-btn');
-                this.recordBtn = document.getElementById('record-btn');
-                this.recordText = document.getElementById('record-text');
+            // Control elements
+            this.prevBtn = document.getElementById('prev-btn');
+            this.nextBtn = document.getElementById('next-btn');
+            this.listenBtn = document.getElementById('listen-btn');
+            this.recordBtn = document.getElementById('record-btn');
+            this.recordText = document.getElementById('record-text');
 
-                // Feedback elements
-                this.recordingTimerEl = document.getElementById('recording-timer');
-                this.timerEl = document.getElementById('timer');
-                this.feedbackSection = document.getElementById('feedback-section');
-                this.pronunciationFeedbackEl = document.getElementById('pronunciation-feedback');
-                this.accuracyScoreEl = document.getElementById('accuracy-score');
-                this.fluencyScoreEl = document.getElementById('fluency-score');
-                this.toneScoreEl = document.getElementById('tone-score');
-                this.waveformEl = document.getElementById('waveform');
-            }
+            // Feedback elements
+            this.recordingTimerEl = document.getElementById('recording-timer');
+            this.timerEl = document.getElementById('timer');
+            this.feedbackSection = document.getElementById('feedback-section');
+            this.pronunciationFeedbackEl = document.getElementById('pronunciation-feedback');
+            this.accuracyScoreEl = document.getElementById('accuracy-score');
+            this.fluencyScoreEl = document.getElementById('fluency-score');
+            this.toneScoreEl = document.getElementById('tone-score');
+            this.waveformEl = document.getElementById('waveform');
+        }
 
-            setupEventListeners() {
-                this.prevBtn.addEventListener('click', () => this.previousSentence());
-                this.nextBtn.addEventListener('click', () => this.nextSentence());
-                this.listenBtn.addEventListener('click', () => this.playSentence());
-                this.recordBtn.addEventListener('click', () => this.toggleRecording());
-                this.retryBtn.addEventListener('click', () => this.loadSentences());
-            }
+        setupEventListeners() {
+            this.prevBtn.addEventListener('click', () => this.previousSentence());
+            this.nextBtn.addEventListener('click', () => this.nextSentence());
+            this.listenBtn.addEventListener('click', () => this.playSentence());
+            this.recordBtn.addEventListener('click', () => this.toggleRecording());
+            this.retryBtn.addEventListener('click', () => this.loadSentences());
+        }
 
-            async loadSentences() {
-                this.showLoadingState();
-                
+        getFallbackSentences() {
+            return [
+                {
+                    "id": 1,
+                    "sentence": "你好",
+                    "pinyin": "Nǐ hǎo",
+                    "english": "Hello",
+                    "options": ["Hello", "Goodbye", "Thank you", "Sorry"],
+                    "correctAnswer": 0
+                },
+                {
+                    "id": 2,
+                    "sentence": "谢谢",
+                    "pinyin": "Xiè xiè",
+                    "english": "Thank you",
+                    "options": ["Hello", "Thank you", "Goodbye", "Please"],
+                    "correctAnswer": 1
+                },
+                {
+                    "id": 3,
+                    "sentence": "我爱你",
+                    "pinyin": "Wǒ ài nǐ",
+                    "english": "I love you",
+                    "options": ["I love you", "I hate you", "I like you", "I dislike you"],
+                    "correctAnswer": 0
+                },
+                {
+                    "id": 4,
+                    "sentence": "你好吗？",
+                    "pinyin": "Nǐ hǎo ma?",
+                    "english": "How are you?",
+                    "options": ["How are you?", "What is your name?", "Where are you?", "How old are you?"],
+                    "correctAnswer": 0
+                },
+                {
+                    "id": 5,
+                    "sentence": "我叫小明",
+                    "pinyin": "Wǒ jiào Xiǎo Míng",
+                    "english": "My name is Xiao Ming",
+                    "options": ["My name is Xiao Ming", "I am a student", "I am from China", "I am 20 years old"],
+                    "correctAnswer": 0
+                },
+                {
+                    "id": 6,
+                    "sentence": "我是学生",
+                    "pinyin": "Wǒ shì xué shēng",
+                    "english": "I am a student",
+                    "options": ["I am a student", "I am a teacher", "I am a doctor", "I am working"],
+                    "correctAnswer": 0
+                },
+                {
+                    "id": 7,
+                    "sentence": "今天天气很好",
+                    "pinyin": "Jīn tiān tiān qì hěn hǎo",
+                    "english": "The weather is very good today",
+                    "options": ["The weather is very good today", "It is raining today", "It is very cold", "The weather is bad"],
+                    "correctAnswer": 0
+                },
+                {
+                    "id": 8,
+                    "sentence": "我喜欢吃中国菜",
+                    "pinyin": "Wǒ xǐ huān chī zhōng guó cài",
+                    "english": "I like to eat Chinese food",
+                    "options": ["I like to eat Chinese food", "I like to eat Japanese food", "I don't like Chinese food", "I want to cook Chinese food"],
+                    "correctAnswer": 0
+                },
+                {
+                    "id": 9,
+                    "sentence": "你会说英语吗？",
+                    "pinyin": "Nǐ huì shuō yīng yǔ ma?",
+                    "english": "Can you speak English?",
+                    "options": ["Can you speak English?", "Do you speak Chinese?", "Where are you from?", "What is your name?"],
+                    "correctAnswer": 0
+                },
+                {
+                    "id": 10,
+                    "sentence": "明天见",
+                    "pinyin": "Míng tiān jiàn",
+                    "english": "See you tomorrow",
+                    "options": ["See you tomorrow", "Good morning", "Good night", "See you later"],
+                    "correctAnswer": 0
+                }
+            ];
+        }
+
+        async loadSentences() {
+            this.showLoadingState();
+            
+            // Try multiple possible endpoints in sequence
+            const endpoints = [
+                '/sentence/api/quiz-sentences?count=20',
+                '/api/quiz-sentences?count=20',
+                '/sentence/api/all-sentences',
+                '/api/all-sentences',
+                '/sentence/test-speech'
+            ];
+            
+            let lastError = null;
+            let loadedFromAPI = false;
+            
+            for (const endpoint of endpoints) {
                 try {
-                    console.log('Loading sentences from API...');
-                    const response = await fetch('/api/quiz-sentences?count=20');
+                    console.log(`Trying endpoint: ${endpoint}`);
+                    const response = await fetch(endpoint);
                     
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
                     
                     const data = await response.json();
-                    console.log('API response:', data);
+                    console.log('API response received:', data);
                     
                     if (data.success && data.sentences && data.sentences.length > 0) {
                         this.sentences = data.sentences;
-                        console.log(`Loaded ${this.sentences.length} sentences`);
+                        console.log(`✅ Success! Loaded ${this.sentences.length} sentences from ${endpoint}`);
+                        loadedFromAPI = true;
                         this.showPracticeState();
                         this.displayCurrentSentence();
+                        return; // Success - exit the loop
                     } else {
-                        throw new Error('No sentences found in response');
+                        throw new Error('No sentences found in response data');
                     }
                 } catch (error) {
-                    console.error('Error loading sentences:', error);
-                    this.showErrorState(`Failed to load sentences: ${error.message}`);
+                    console.warn(`❌ Failed with endpoint ${endpoint}:`, error.message);
+                    lastError = error;
+                    // Continue to next endpoint
                 }
             }
+            
+            // If all API endpoints failed, use fallback sentences
+            if (!loadedFromAPI) {
+                console.warn('All API endpoints failed. Using fallback sentences.');
+                this.sentences = this.fallbackSentences;
+                this.showPracticeState();
+                this.displayCurrentSentence();
+                this.showTemporaryMessage('Using demo sentences. Server connection failed.', 'warning');
+            }
+        }
 
-            showLoadingState() {
-                this.loadingStateEl.classList.remove('hidden');
-                this.practiceCardEl.classList.add('hidden');
-                this.errorStateEl.classList.add('hidden');
-                this.tipsCardEl.classList.add('hidden');
+        showLoadingState() {
+            this.loadingStateEl.classList.remove('hidden');
+            this.practiceCardEl.classList.add('hidden');
+            this.errorStateEl.classList.add('hidden');
+            this.tipsCardEl.classList.add('hidden');
+        }
+
+        showPracticeState() {
+            this.loadingStateEl.classList.add('hidden');
+            this.practiceCardEl.classList.remove('hidden');
+            this.errorStateEl.classList.add('hidden');
+            this.tipsCardEl.classList.remove('hidden');
+        }
+
+        showErrorState(message) {
+            this.loadingStateEl.classList.add('hidden');
+            this.practiceCardEl.classList.add('hidden');
+            this.errorStateEl.classList.remove('hidden');
+            this.tipsCardEl.classList.add('hidden');
+            this.errorMessageEl.textContent = message;
+        }
+
+        showTemporaryMessage(message, type = 'info') {
+            // Create temporary message element
+            const messageEl = document.createElement('div');
+            const bgColor = type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500';
+            messageEl.className = `fixed top-20 left-1/2 transform -translate-x-1/2 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+            messageEl.textContent = message;
+            
+            document.body.appendChild(messageEl);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                messageEl.remove();
+            }, 3000);
+        }
+
+        displayCurrentSentence() {
+            if (this.sentences.length === 0) {
+                this.showErrorState('No sentences available');
+                return;
             }
 
-            showPracticeState() {
-                this.loadingStateEl.classList.add('hidden');
-                this.practiceCardEl.classList.remove('hidden');
-                this.errorStateEl.classList.add('hidden');
-                this.tipsCardEl.classList.remove('hidden');
+            const sentence = this.sentences[this.currentSentenceIndex];
+            console.log('Displaying sentence:', sentence);
+            
+            this.chineseSentenceEl.textContent = sentence.sentence;
+            this.pinyinSentenceEl.textContent = sentence.pinyin;
+            this.englishSentenceEl.textContent = sentence.english;
+            this.currentSentenceEl.textContent = this.currentSentenceIndex + 1;
+            this.totalSentencesEl.textContent = this.sentences.length;
+            
+            // Update progress
+            const progress = ((this.currentSentenceIndex + 1) / this.sentences.length) * 100;
+            this.progressFillEl.style.width = `${progress}%`;
+
+            // Update button states
+            this.prevBtn.disabled = this.currentSentenceIndex === 0;
+            this.nextBtn.disabled = this.currentSentenceIndex === this.sentences.length - 1;
+
+            // Enable buttons
+            this.listenBtn.disabled = false;
+            this.recordBtn.disabled = false;
+
+            // Clear previous feedback
+            this.hideFeedback();
+        }
+
+        initializeWaveform() {
+            // Clear any existing bars
+            this.waveformEl.innerHTML = '';
+            this.waveformBars = [];
+            
+            // Create 20 bars for waveform visualization
+            for (let i = 0; i < 20; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'waveform-bar w-2 rounded-full';
+                bar.style.height = '5px';
+                this.waveformEl.appendChild(bar);
+                this.waveformBars.push(bar);
+            }
+        }
+
+        async playSentence() {
+            if (!this.sentences[this.currentSentenceIndex]) {
+                this.showTemporaryMessage('No sentence to play', 'warning');
+                return;
             }
 
-            showErrorState(message) {
-                this.loadingStateEl.classList.add('hidden');
-                this.practiceCardEl.classList.add('hidden');
-                this.errorStateEl.classList.remove('hidden');
-                this.tipsCardEl.classList.add('hidden');
-                this.errorMessageEl.textContent = message;
+            const sentence = this.sentences[this.currentSentenceIndex];
+            
+            // Check if speech synthesis is available
+            if (!('speechSynthesis' in window)) {
+                this.showTemporaryMessage('Text-to-speech not supported in this browser', 'warning');
+                return;
             }
 
-            displayCurrentSentence() {
-                if (this.sentences.length === 0) {
-                    this.showErrorState('No sentences available');
-                    return;
-                }
-
-                const sentence = this.sentences[this.currentSentenceIndex];
-                console.log('Displaying sentence:', sentence);
-                
-                this.chineseSentenceEl.textContent = sentence.sentence;
-                this.pinyinSentenceEl.textContent = sentence.pinyin;
-                this.englishSentenceEl.textContent = sentence.english;
-                this.currentSentenceEl.textContent = this.currentSentenceIndex + 1;
-                this.totalSentencesEl.textContent = this.sentences.length;
-                
-                // Update progress
-                const progress = ((this.currentSentenceIndex + 1) / this.sentences.length) * 100;
-                this.progressFillEl.style.width = `${progress}%`;
-
-                // Update button states
-                this.prevBtn.disabled = this.currentSentenceIndex === 0;
-                this.nextBtn.disabled = this.currentSentenceIndex === this.sentences.length - 1;
-
-                // Enable buttons
-                this.listenBtn.disabled = false;
-                this.recordBtn.disabled = false;
-
-                // Clear previous feedback
-                this.hideFeedback();
-            }
-
-            initializeWaveform() {
-                // Create 20 bars for waveform visualization
-                for (let i = 0; i < 20; i++) {
-                    const bar = document.createElement('div');
-                    bar.className = 'waveform-bar w-2 rounded-full';
-                    bar.style.height = '5px';
-                    this.waveformEl.appendChild(bar);
-                    this.waveformBars.push(bar);
-                }
-            }
-
-            async playSentence() {
-                if (!this.sentences[this.currentSentenceIndex]) return;
-
-                const sentence = this.sentences[this.currentSentenceIndex];
+            try {
                 const utterance = new SpeechSynthesisUtterance(sentence.sentence);
                 utterance.lang = 'zh-CN';
                 utterance.rate = 0.8;
+                utterance.pitch = 1.0;
+                utterance.volume = 1.0;
                 
                 // Add visual feedback
                 this.listenBtn.classList.add('playing');
+                this.listenBtn.disabled = true;
+                
                 utterance.onend = () => {
                     this.listenBtn.classList.remove('playing');
+                    this.listenBtn.disabled = false;
+                };
+                
+                utterance.onerror = (error) => {
+                    console.error('Speech synthesis error:', error);
+                    this.listenBtn.classList.remove('playing');
+                    this.listenBtn.disabled = false;
+                    this.showTemporaryMessage('Speech playback failed', 'warning');
                 };
                 
                 speechSynthesis.speak(utterance);
+                
+            } catch (error) {
+                console.error('Error playing sentence:', error);
+                this.listenBtn.classList.remove('playing');
+                this.listenBtn.disabled = false;
+                this.showTemporaryMessage('Cannot play audio', 'warning');
+            }
+        }
+
+        async toggleRecording() {
+            if (this.isRecording) {
+                await this.stopRecording();
+            } else {
+                await this.startRecording();
+            }
+        }
+
+        async startRecording() {
+            // Check if browser supports media recording
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                this.showTemporaryMessage('Audio recording not supported in this browser', 'warning');
+                return;
             }
 
-            async toggleRecording() {
-                if (this.isRecording) {
-                    await this.stopRecording();
-                } else {
-                    await this.startRecording();
-                }
-            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 44100
+                    } 
+                });
+                
+                this.mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                this.audioChunks = [];
 
-            async startRecording() {
+                // Setup audio analysis for waveform
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    this.mediaRecorder = new MediaRecorder(stream);
-                    this.audioChunks = [];
-
-                    // Setup audio analysis for waveform
-                    this.audioContext = new AudioContext();
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
                     const source = this.audioContext.createMediaStreamSource(stream);
                     this.analyser = this.audioContext.createAnalyser();
                     this.analyser.fftSize = 256;
+                    this.analyser.smoothingTimeConstant = 0.8;
                     source.connect(this.analyser);
+                } catch (audioError) {
+                    console.warn('Audio analysis not available:', audioError);
+                    this.analyser = null;
+                }
 
-                    this.mediaRecorder.ondataavailable = (event) => {
+                this.mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
                         this.audioChunks.push(event.data);
-                    };
+                    }
+                };
 
-                    this.mediaRecorder.onstop = () => {
-                        this.analyzeRecording();
-                    };
+                this.mediaRecorder.onstop = () => {
+                    this.analyzeRecording();
+                    // Clean up stream
+                    stream.getTracks().forEach(track => track.stop());
+                };
 
-                    this.mediaRecorder.start();
-                    this.isRecording = true;
-                    this.recordBtn.classList.add('recording-active');
-                    this.recordText.textContent = 'Stop Recording';
-                    this.waveformEl.classList.remove('hidden');
+                this.mediaRecorder.onerror = (error) => {
+                    console.error('MediaRecorder error:', error);
+                    this.showTemporaryMessage('Recording error occurred', 'warning');
+                    this.stopRecording();
+                };
 
-                    // Start recording timer
-                    this.recordingTime = 0;
-                    this.recordingTimerEl.classList.remove('hidden');
-                    this.recordingTimer = setInterval(() => {
-                        this.recordingTime++;
-                        this.timerEl.textContent = this.recordingTime;
-                    }, 1000);
+                this.mediaRecorder.start(100); // Collect data every 100ms
+                this.isRecording = true;
+                this.recordBtn.classList.add('recording-active');
+                this.recordText.textContent = 'Stop Recording';
+                this.waveformEl.classList.remove('hidden');
 
-                    // Start waveform animation
-                    this.animateWaveform();
-
-                } catch (error) {
-                    console.error('Error starting recording:', error);
-                    this.showError('Microphone access denied. Please allow microphone permissions.');
-                }
-            }
-
-            async stopRecording() {
-                if (this.mediaRecorder && this.isRecording) {
-                    this.mediaRecorder.stop();
-                    this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                // Start recording timer
+                this.recordingTime = 0;
+                this.recordingTimerEl.classList.remove('hidden');
+                this.recordingTimer = setInterval(() => {
+                    this.recordingTime++;
+                    this.timerEl.textContent = this.recordingTime;
                     
-                    this.isRecording = false;
-                    this.recordBtn.classList.remove('recording-active');
-                    this.recordText.textContent = 'Start Recording';
-                    this.waveformEl.classList.add('hidden');
+                    // Auto-stop after 30 seconds for safety
+                    if (this.recordingTime >= 30) {
+                        this.stopRecording();
+                    }
+                }, 1000);
 
-                    // Stop timer and waveform
-                    clearInterval(this.recordingTimer);
-                    this.recordingTimerEl.classList.add('hidden');
+                // Start waveform animation if analyser is available
+                if (this.analyser) {
+                    this.animateWaveform();
+                }
+
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                if (error.name === 'NotAllowedError') {
+                    this.showTemporaryMessage('Microphone access denied. Please allow microphone permissions.', 'warning');
+                } else if (error.name === 'NotFoundError') {
+                    this.showTemporaryMessage('No microphone found. Please check your audio device.', 'warning');
+                } else {
+                    this.showTemporaryMessage('Cannot access microphone: ' + error.message, 'warning');
                 }
             }
+        }
 
-            animateWaveform() {
-                if (!this.isRecording || !this.analyser) return;
+        async stopRecording() {
+            if (this.mediaRecorder && this.isRecording) {
+                try {
+                    this.mediaRecorder.stop();
+                } catch (error) {
+                    console.error('Error stopping recorder:', error);
+                }
+                
+                this.isRecording = false;
+                this.recordBtn.classList.remove('recording-active');
+                this.recordText.textContent = 'Start Recording';
+                this.waveformEl.classList.add('hidden');
 
+                // Stop timer
+                if (this.recordingTimer) {
+                    clearInterval(this.recordingTimer);
+                    this.recordingTimer = null;
+                }
+                this.recordingTimerEl.classList.add('hidden');
+
+                // Close audio context
+                if (this.audioContext) {
+                    try {
+                        await this.audioContext.close();
+                    } catch (e) {
+                        console.warn('Error closing audio context:', e);
+                    }
+                    this.audioContext = null;
+                    this.analyser = null;
+                }
+            }
+        }
+
+        animateWaveform() {
+            if (!this.isRecording || !this.analyser) return;
+
+            try {
                 const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
                 this.analyser.getByteFrequencyData(dataArray);
 
                 // Update waveform bars
                 this.waveformBars.forEach((bar, index) => {
-                    const value = dataArray[index * 2] || 0;
-                    const height = Math.max(5, value / 2);
+                    const value = dataArray[Math.min(index * 3, dataArray.length - 1)] || 0;
+                    const height = Math.max(5, value / 4); // Scale down for better visualization
                     bar.style.height = `${height}px`;
                 });
 
                 requestAnimationFrame(() => this.animateWaveform());
-            }
-
-            analyzeRecording() {
-                // Simulate analysis - in a real app, you'd send this to a backend for proper analysis
-                const sentence = this.sentences[this.currentSentenceIndex];
-                this.showFeedback(sentence);
-            }
-
-            showFeedback(sentence) {
-                // Simulate analysis results
-                const accuracy = Math.floor(Math.random() * 30) + 70; // 70-100%
-                const fluency = Math.floor(Math.random() * 25) + 75; // 75-100%
-                const tone = Math.floor(Math.random() * 20) + 80; // 80-100%
-
-                // Update scores
-                this.accuracyScoreEl.textContent = `${accuracy}%`;
-                this.fluencyScoreEl.textContent = `${fluency}%`;
-                this.toneScoreEl.textContent = `${tone}%`;
-
-                // Generate character-by-character feedback
-                this.generateCharacterFeedback(sentence.sentence);
-
-                // Show feedback section
-                this.feedbackSection.classList.remove('hidden');
-            }
-
-            generateCharacterFeedback(sentence) {
-                const characters = sentence.split('');
-                let feedbackHTML = '';
-
-                characters.forEach(char => {
-                    if (char.trim() === '') {
-                        feedbackHTML += '<span class="mx-1"></span>';
-                        return;
-                    }
-
-                    // Simulate different levels of correctness
-                    const random = Math.random();
-                    let className = 'character-correct';
-
-                    if (random < 0.2) {
-                        className = 'character-incorrect';
-                    } else if (random < 0.4) {
-                        className = 'character-partial';
-                    }
-
-                    feedbackHTML += `<span class="${className} text-2xl mx-1">${char}</span>`;
-                });
-
-                this.pronunciationFeedbackEl.innerHTML = feedbackHTML;
-            }
-
-            hideFeedback() {
-                this.feedbackSection.classList.add('hidden');
-            }
-
-            previousSentence() {
-                if (this.currentSentenceIndex > 0) {
-                    this.currentSentenceIndex--;
-                    this.displayCurrentSentence();
-                }
-            }
-
-            nextSentence() {
-                if (this.currentSentenceIndex < this.sentences.length - 1) {
-                    this.currentSentenceIndex++;
-                    this.displayCurrentSentence();
-                }
-            }
-
-            showError(message) {
-                // Simple error display
-                alert(message);
+            } catch (error) {
+                console.warn('Waveform animation error:', error);
+                // Stop animation on error
             }
         }
 
-        // Initialize the app when the page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            new SpeechPracticeApp();
+        analyzeRecording() {
+            if (this.audioChunks.length === 0) {
+                this.showTemporaryMessage('No audio recorded', 'warning');
+                return;
+            }
+
+            // Show analyzing message
+            this.showTemporaryMessage('Analyzing your pronunciation...', 'info');
+
+            // Simulate analysis delay
+            setTimeout(() => {
+                const sentence = this.sentences[this.currentSentenceIndex];
+                this.showFeedback(sentence);
+            }, 1500);
+        }
+
+        showFeedback(sentence) {
+            // Generate realistic analysis results
+            const accuracy = Math.floor(Math.random() * 25) + 70; // 70-95%
+            const fluency = Math.floor(Math.random() * 20) + 75; // 75-95%
+            const tone = Math.floor(Math.random() * 25) + 70; // 70-95%
+
+            // Update scores with animation
+            this.animateScore(this.accuracyScoreEl, accuracy, '%');
+            this.animateScore(this.fluencyScoreEl, fluency, '%');
+            this.animateScore(this.toneScoreEl, tone, '%');
+
+            // Generate character-by-character feedback
+            this.generateCharacterFeedback(sentence.sentence);
+
+            // Show feedback section with animation
+            this.feedbackSection.classList.remove('hidden');
+            this.feedbackSection.style.opacity = '0';
+            this.feedbackSection.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                this.feedbackSection.style.opacity = '1';
+                this.feedbackSection.style.transform = 'translateY(0)';
+                this.feedbackSection.style.transition = 'all 0.5s ease';
+            }, 100);
+        }
+
+        animateScore(element, target, suffix = '') {
+            let current = 0;
+            const increment = target / 20; // Animate over 20 steps
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    current = target;
+                    clearInterval(timer);
+                }
+                element.textContent = `${Math.round(current)}${suffix}`;
+            }, 50);
+        }
+
+        generateCharacterFeedback(sentence) {
+            const characters = sentence.split('');
+            let feedbackHTML = '';
+
+            characters.forEach(char => {
+                if (char.trim() === '') {
+                    feedbackHTML += '<span class="mx-1"></span>';
+                    return;
+                }
+
+                // More realistic feedback simulation
+                const random = Math.random();
+                let className = 'character-correct';
+                let tooltip = 'Good pronunciation!';
+
+                if (random < 0.15) {
+                    className = 'character-incorrect';
+                    tooltip = 'Needs improvement';
+                } else if (random < 0.35) {
+                    className = 'character-partial';
+                    tooltip = 'Almost there - practice tone';
+                }
+
+                feedbackHTML += `<span class="${className} text-2xl mx-1" title="${tooltip}">${char}</span>`;
+            });
+
+            this.pronunciationFeedbackEl.innerHTML = feedbackHTML;
+        }
+
+        hideFeedback() {
+            this.feedbackSection.classList.add('hidden');
+        }
+
+        previousSentence() {
+            if (this.currentSentenceIndex > 0) {
+                this.currentSentenceIndex--;
+                this.displayCurrentSentence();
+            }
+        }
+
+        nextSentence() {
+            if (this.currentSentenceIndex < this.sentences.length - 1) {
+                this.currentSentenceIndex++;
+                this.displayCurrentSentence();
+            }
+        }
+    }
+
+    // Initialize the app when the page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        // Add scroll animations
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('animate-fadeInUp');
+                }
+            });
+        }, observerOptions);
+
+        // Observe all animate-on-scroll elements
+        document.querySelectorAll('.animate-on-scroll').forEach(el => {
+            observer.observe(el);
         });
-    </script>
+
+        // Initialize the speech practice app
+        window.speechApp = new SpeechPracticeApp();
+    });
+
+    // Prevent leaving page during recording
+    window.addEventListener('beforeunload', (event) => {
+        if (window.speechApp && window.speechApp.isRecording) {
+            event.preventDefault();
+            event.returnValue = 'You are currently recording. Are you sure you want to leave?';
+            return event.returnValue;
+        }
+    });
+</script>
 </body>
 </html>
