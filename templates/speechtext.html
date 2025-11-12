@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSK1 Speech Practice - Master Chinese Pronunciation</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Georgia', 'serif'],
+                    },
+                    colors: {
+                        'primary-blue': '#5c7cfa',
+                        'secondary-cyan': '#33f0e8',
+                        'main-bg': '#1e293b',
+                        'card-bg': '#2a3a50',
+                        'text-light': '#e2e8f0',
+                        'text-muted': '#94a3b8',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        gradientShift: {
+                            '0%': { backgroundPosition: '0% 50%' },
+                            '100%': { backgroundPosition: '100% 50%' },
+                        },
+                        pulseCorrect: {
+                            '0%': { boxShadow: '0 0 0 0 rgba(34, 197, 94, 0.7)' },
+                            '70%': { boxShadow: '0 0 0 10px rgba(34, 197, 94, 0)' },
+                            '100%': { boxShadow: '0 0 0 0 rgba(34, 197, 94, 0)' },
+                        },
+                        pulseIncorrect: {
+                            '0%': { boxShadow: '0 0 0 0 rgba(239, 68, 68, 0.7)' },
+                            '70%': { boxShadow: '0 0 0 10px rgba(239, 68, 68, 0)' },
+                            '100%': { boxShadow: '0 0 0 0 rgba(239, 68, 68, 0)' },
+                        },
+                        fadeInDown: {
+                            '0%': { transform: 'translateY(-10px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        recordingPulse: {
+                            '0%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(239, 68, 68, 0.7)' },
+                            '70%': { transform: 'scale(1.1)', boxShadow: '0 0 0 15px rgba(239, 68, 68, 0)' },
+                            '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(239, 68, 68, 0)' },
+                        }
+                    },
+                    animation: {
+                        fadeInUp: 'fadeInUp 0.6s ease-out forwards',
+                        gradientShift: 'gradientShift 3s ease infinite alternate',
+                        pulseCorrect: 'pulseCorrect 1s ease',
+                        pulseIncorrect: 'pulseIncorrect 1s ease',
+                        fadeInDown: 'fadeInDown 0.3s ease-out forwards',
+                        recordingPulse: 'recordingPulse 1.5s ease infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1e293b;
+            min-height: 100vh;
+            color: #e2e8f0;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .nav-card {
+            background-color: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sophisticated-card {
+            background-color: #2a3a50;
+            border-radius: 0.75rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .sophisticated-card:hover {
+             transform: translateY(-5px) scale(1.01);
+             box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(92, 124, 250, 0.3);
+        }
+
+        .cta-button-primary, .cta-button-secondary {
+            border: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cta-button-primary {
+            background: linear-gradient(135deg, #5c7cfa, #3d5ad8);
+            color: white;
+            box-shadow: 0 5px 20px rgba(92, 124, 250, 0.5);
+            background-size: 200% auto;
+            animation: gradientShift 3s ease infinite alternate;
+        }
+        
+        .cta-button-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(92, 124, 250, 0.7);
+        }
+
+        .cta-button-secondary {
+            background: linear-gradient(135deg, #33f0e8, #25c0b8);
+            color: #1e293b;
+            box-shadow: 0 5px 20px rgba(51, 240, 232, 0.4);
+        }
+
+        .cta-button-secondary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(51, 240, 232, 0.6);
+        }
+
+        .animate-on-scroll {
+            opacity: 0;
+            transition-property: opacity, transform;
+            transition-duration: 0.7s;
+            transition-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+            transform: translateY(20px);
+        }
+
+        .animate-on-scroll.animate-fadeInUp {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background-color: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #5c7cfa, #33f0e8);
+            transition: width 0.5s ease;
+        }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #5c7cfa;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile dropdown menu styles - Full Width */
+        .mobile-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background-color: rgba(42, 58, 80, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 50;
+            opacity: 0;
+            transform: translateY(-10px);
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-dropdown-menu.open {
+            opacity: 1;
+            transform: translateY(0);
+            visibility: visible;
+        }
+
+        .mobile-dropdown-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 45;
+            background-color: transparent;
+            display: none;
+        }
+
+        /* Speech button styles */
+        .speech-button {
+            transition: all 0.3s ease;
+        }
+        
+        .speech-button:hover {
+            transform: scale(1.1);
+        }
+        
+        .speech-button.playing {
+            color: #33f0e8;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* Recording animation */
+        .recording-active {
+            animation: recordingPulse 1.5s ease infinite;
+            background-color: #ef4444 !important;
+        }
+
+        /* Pronunciation feedback styles */
+        .character-correct {
+            color: #10b981;
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        .character-incorrect {
+            color: #ef4444;
+            text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+
+        .character-partial {
+            color: #f59e0b;
+            text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+        }
+
+        /* Waveform visualization */
+        .waveform-bar {
+            background: linear-gradient(to top, #5c7cfa, #33f0e8);
+            transition: height 0.1s ease;
+        }
+    </style>
+</head>
+<body class="selection:bg-primary-blue selection:text-white">
+
+    <!-- Navigation Bar with Full-Width Dropdown Menu -->
+    <nav class="fixed top-0 left-0 right-0 z-50 p-4 lg:p-6 nav-card">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-2xl font-black tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-text-light to-secondary-cyan">
+                RedCharger
+            </div>
+            
+            <!-- Desktop Menu -->
+            <div class="space-x-8 hidden md:flex font-medium">
+                <a href="/" class="text-text-muted hover:text-secondary-cyan transition duration-300">Home</a>
+                <a href="/words/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Words Quiz</a>
+                <a href="/sentences/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Sentences Quiz</a>
+                <a href="/speech" class="text-secondary-cyan transition duration-300">Speech Practice</a>
+                <a href="/learn" class="text-text-muted hover:text-secondary-cyan transition duration-300">Learn</a>
+                <a href="/chat" class="text-text-muted hover:text-secondary-cyan transition duration-300">Community Chat</a>
+            </div>
+
+            <!-- Desktop View Results Button -->
+            <a href="/result" class="hidden md:flex py-2 px-5 rounded-full cta-button-secondary font-extrabold text-base shadow-xl hover:shadow-2xl transition duration-300">
+                View Results
+            </a>
+
+            <!-- Mobile Menu Container -->
+            <div class="md:hidden flex items-center space-x-3">
+                <!-- Mobile View Results Button -->
+                <a href="/result" class="py-1 px-3 rounded-full text-sm cta-button-secondary font-bold shadow-xl transition duration-300">
+                    Results
+                </a>
+
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-button" class="text-text-muted hover:text-secondary-cyan transition duration-300 relative z-50">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Dropdown Menu - Full Width -->
+        <div id="mobile-dropdown-menu" class="mobile-dropdown-menu md:hidden w-full left-0">
+            <div class="p-4 space-y-3">
+                <a href="/" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-home mr-3 w-5 text-center"></i>
+                    <span>Home</span>
+                </a>
+                <a href="/words/quiz" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-book mr-3 w-5 text-center"></i>
+                    <span>Words Quiz</span>
+                </a>
+                <a href="/sentences/quiz" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-comments mr-3 w-5 text-center"></i>
+                    <span>Sentences Quiz</span>
+                </a>
+                <a href="/speech" class="flex items-center text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-microphone mr-3 w-5 text-center"></i>
+                    <span>Speech Practice</span>
+                </a>
+                <a href="/learn" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-graduation-cap mr-3 w-5 text-center"></i>
+                    <span>Learn</span>
+                </a>
+                <a href="/chat" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-users mr-3 w-5 text-center"></i>
+                    <span>Community Chat</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Dropdown Backdrop -->
+    <div id="mobile-dropdown-backdrop" class="mobile-dropdown-backdrop md:hidden"></div>
+
+    <!-- Main Content -->
+    <div class="pt-24 pb-12 px-4 min-h-screen">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header Section -->
+            <div class="text-center mb-12 animate-on-scroll">
+                <h1 class="text-4xl md:text-5xl font-black mb-4 bg-clip-text text-transparent bg-gradient-to-r from-text-light to-secondary-cyan">
+                    HSK1 Speech Practice
+                </h1>
+                <p class="text-xl text-text-muted max-w-2xl mx-auto">
+                    Practice your Chinese pronunciation with real-time feedback. Speak the sentences and get instant verification!
+                </p>
+            </div>
+
+            <!-- Main Practice Card -->
+            <div class="sophisticated-card p-6 md:p-8 mb-8 animate-on-scroll">
+                <!-- Progress and Controls -->
+                <div class="flex justify-between items-center mb-6">
+                    <div class="text-text-muted">
+                        Sentence <span id="current-sentence">1</span> of <span id="total-sentences">-</span>
+                    </div>
+                    <div class="flex space-x-4">
+                        <button id="prev-btn" class="p-2 rounded-lg bg-card-bg hover:bg-primary-blue/20 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button id="next-btn" class="p-2 rounded-lg bg-card-bg hover:bg-primary-blue/20 transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="progress-bar mb-8">
+                    <div id="progress-fill" class="progress-fill w-0"></div>
+                </div>
+
+                <!-- Current Sentence Display -->
+                <div class="text-center mb-8">
+                    <div class="mb-6">
+                        <div id="chinese-sentence" class="text-3xl md:text-4xl font-bold mb-2 text-text-light"></div>
+                        <div id="pinyin-sentence" class="text-xl text-text-muted mb-4"></div>
+                        <div id="english-sentence" class="text-lg text-text-muted italic"></div>
+                    </div>
+
+                    <!-- Listen Button -->
+                    <button id="listen-btn" class="speech-button p-4 rounded-full bg-primary-blue text-white mb-6 hover:bg-primary-blue/80 transition duration-300">
+                        <i class="fas fa-volume-up text-2xl"></i>
+                    </button>
+                </div>
+
+                <!-- Recording Section -->
+                <div class="text-center">
+                    <!-- Waveform Visualization -->
+                    <div id="waveform" class="flex justify-center items-end h-20 mb-6 space-x-1 hidden">
+                        <!-- Waveform bars will be generated dynamically -->
+                    </div>
+
+                    <!-- Record Button -->
+                    <button id="record-btn" class="cta-button-primary py-4 px-8 rounded-full text-lg font-bold mb-4">
+                        <i class="fas fa-microphone mr-2"></i>
+                        <span id="record-text">Start Recording</span>
+                    </button>
+
+                    <!-- Recording Timer -->
+                    <div id="recording-timer" class="text-text-muted text-sm mb-4 hidden">
+                        Recording: <span id="timer">0</span>s
+                    </div>
+
+                    <!-- Feedback Section -->
+                    <div id="feedback-section" class="hidden">
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold mb-2">Pronunciation Analysis:</h3>
+                            <div id="pronunciation-feedback" class="text-center"></div>
+                        </div>
+                        
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div class="p-3 rounded-lg bg-card-bg">
+                                <div class="text-2xl font-bold text-green-400" id="accuracy-score">-</div>
+                                <div class="text-sm text-text-muted">Accuracy</div>
+                            </div>
+                            <div class="p-3 rounded-lg bg-card-bg">
+                                <div class="text-2xl font-bold text-blue-400" id="fluency-score">-</div>
+                                <div class="text-sm text-text-muted">Fluency</div>
+                            </div>
+                            <div class="p-3 rounded-lg bg-card-bg">
+                                <div class="text-2xl font-bold text-yellow-400" id="tone-score">-</div>
+                                <div class="text-sm text-text-muted">Tone</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="sophisticated-card p-6 md:p-8 animate-on-scroll">
+                <h3 class="text-xl font-bold mb-4 text-secondary-cyan">Pronunciation Tips</h3>
+                <div class="grid md:grid-cols-2 gap-4 text-text-muted">
+                    <div class="flex items-start">
+                        <i class="fas fa-volume-up text-primary-blue mt-1 mr-3"></i>
+                        <span>Listen to the native pronunciation first</span>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-microphone text-primary-blue mt-1 mr-3"></i>
+                        <span>Speak clearly and at a natural pace</span>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-chart-line text-primary-blue mt-1 mr-3"></i>
+                        <span>Focus on tone accuracy for better scores</span>
+                    </div>
+                    <div class="flex items-start">
+                        <i class="fas fa-redo text-primary-blue mt-1 mr-3"></i>
+                        <span>Practice difficult sentences multiple times</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile menu functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+            const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+
+            function toggleMobileMenu() {
+                const isOpen = mobileDropdownMenu.classList.contains('open');
+                if (isOpen) {
+                    mobileDropdownMenu.classList.remove('open');
+                    mobileDropdownBackdrop.style.display = 'none';
+                } else {
+                    mobileDropdownMenu.classList.add('open');
+                    mobileDropdownBackdrop.style.display = 'block';
+                }
+            }
+
+            mobileMenuButton.addEventListener('click', toggleMobileMenu);
+            mobileDropdownBackdrop.addEventListener('click', toggleMobileMenu);
+
+            // Close mobile menu when clicking on a link
+            const mobileMenuLinks = mobileDropdownMenu.querySelectorAll('a');
+            mobileMenuLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    mobileDropdownMenu.classList.remove('open');
+                    mobileDropdownBackdrop.style.display = 'none';
+                });
+            });
+        });
+
+        // Speech Practice Application
+        class SpeechPracticeApp {
+            constructor() {
+                this.sentences = [];
+                this.currentSentenceIndex = 0;
+                this.isRecording = false;
+                this.mediaRecorder = null;
+                this.audioChunks = [];
+                this.recordingTimer = null;
+                this.recordingTime = 0;
+                this.audioContext = null;
+                this.analyser = null;
+                this.waveformBars = [];
+
+                this.initializeElements();
+                this.loadSentences();
+                this.setupEventListeners();
+                this.initializeWaveform();
+            }
+
+            initializeElements() {
+                // Sentence elements
+                this.chineseSentenceEl = document.getElementById('chinese-sentence');
+                this.pinyinSentenceEl = document.getElementById('pinyin-sentence');
+                this.englishSentenceEl = document.getElementById('english-sentence');
+                this.currentSentenceEl = document.getElementById('current-sentence');
+                this.totalSentencesEl = document.getElementById('total-sentences');
+                this.progressFillEl = document.getElementById('progress-fill');
+
+                // Control elements
+                this.prevBtn = document.getElementById('prev-btn');
+                this.nextBtn = document.getElementById('next-btn');
+                this.listenBtn = document.getElementById('listen-btn');
+                this.recordBtn = document.getElementById('record-btn');
+                this.recordText = document.getElementById('record-text');
+
+                // Feedback elements
+                this.recordingTimerEl = document.getElementById('recording-timer');
+                this.timerEl = document.getElementById('timer');
+                this.feedbackSection = document.getElementById('feedback-section');
+                this.pronunciationFeedbackEl = document.getElementById('pronunciation-feedback');
+                this.accuracyScoreEl = document.getElementById('accuracy-score');
+                this.fluencyScoreEl = document.getElementById('fluency-score');
+                this.toneScoreEl = document.getElementById('tone-score');
+                this.waveformEl = document.getElementById('waveform');
+            }
+
+            async loadSentences() {
+                try {
+                    const response = await fetch('/api/quiz-sentences?count=50');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.sentences = data.sentences;
+                        this.totalSentencesEl.textContent = this.sentences.length;
+                        this.displayCurrentSentence();
+                    } else {
+                        throw new Error('Failed to load sentences');
+                    }
+                } catch (error) {
+                    console.error('Error loading sentences:', error);
+                    this.showError('Failed to load sentences. Please try again.');
+                }
+            }
+
+            displayCurrentSentence() {
+                if (this.sentences.length === 0) return;
+
+                const sentence = this.sentences[this.currentSentenceIndex];
+                
+                this.chineseSentenceEl.textContent = sentence.sentence;
+                this.pinyinSentenceEl.textContent = sentence.pinyin;
+                this.englishSentenceEl.textContent = sentence.english;
+                this.currentSentenceEl.textContent = this.currentSentenceIndex + 1;
+                
+                // Update progress
+                const progress = ((this.currentSentenceIndex + 1) / this.sentences.length) * 100;
+                this.progressFillEl.style.width = `${progress}%`;
+
+                // Update button states
+                this.prevBtn.disabled = this.currentSentenceIndex === 0;
+                this.nextBtn.disabled = this.currentSentenceIndex === this.sentences.length - 1;
+
+                // Clear previous feedback
+                this.hideFeedback();
+            }
+
+            setupEventListeners() {
+                this.prevBtn.addEventListener('click', () => this.previousSentence());
+                this.nextBtn.addEventListener('click', () => this.nextSentence());
+                this.listenBtn.addEventListener('click', () => this.playSentence());
+                this.recordBtn.addEventListener('click', () => this.toggleRecording());
+            }
+
+            initializeWaveform() {
+                // Create 20 bars for waveform visualization
+                for (let i = 0; i < 20; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'waveform-bar w-2 rounded-full';
+                    bar.style.height = '5px';
+                    this.waveformEl.appendChild(bar);
+                    this.waveformBars.push(bar);
+                }
+            }
+
+            async playSentence() {
+                const sentence = this.sentences[this.currentSentenceIndex];
+                const utterance = new SpeechSynthesisUtterance(sentence.sentence);
+                utterance.lang = 'zh-CN';
+                utterance.rate = 0.8;
+                
+                // Add visual feedback
+                this.listenBtn.classList.add('playing');
+                utterance.onend = () => {
+                    this.listenBtn.classList.remove('playing');
+                };
+                
+                speechSynthesis.speak(utterance);
+            }
+
+            async toggleRecording() {
+                if (this.isRecording) {
+                    await this.stopRecording();
+                } else {
+                    await this.startRecording();
+                }
+            }
+
+            async startRecording() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    this.mediaRecorder = new MediaRecorder(stream);
+                    this.audioChunks = [];
+
+                    // Setup audio analysis for waveform
+                    this.audioContext = new AudioContext();
+                    const source = this.audioContext.createMediaStreamSource(stream);
+                    this.analyser = this.audioContext.createAnalyser();
+                    this.analyser.fftSize = 256;
+                    source.connect(this.analyser);
+
+                    this.mediaRecorder.ondataavailable = (event) => {
+                        this.audioChunks.push(event.data);
+                    };
+
+                    this.mediaRecorder.onstop = () => {
+                        this.analyzeRecording();
+                    };
+
+                    this.mediaRecorder.start();
+                    this.isRecording = true;
+                    this.recordBtn.classList.add('recording-active');
+                    this.recordText.textContent = 'Stop Recording';
+                    this.waveformEl.classList.remove('hidden');
+
+                    // Start recording timer
+                    this.recordingTime = 0;
+                    this.recordingTimerEl.classList.remove('hidden');
+                    this.recordingTimer = setInterval(() => {
+                        this.recordingTime++;
+                        this.timerEl.textContent = this.recordingTime;
+                    }, 1000);
+
+                    // Start waveform animation
+                    this.animateWaveform();
+
+                } catch (error) {
+                    console.error('Error starting recording:', error);
+                    this.showError('Microphone access denied. Please allow microphone permissions.');
+                }
+            }
+
+            async stopRecording() {
+                if (this.mediaRecorder && this.isRecording) {
+                    this.mediaRecorder.stop();
+                    this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
+                    
+                    this.isRecording = false;
+                    this.recordBtn.classList.remove('recording-active');
+                    this.recordText.textContent = 'Start Recording';
+                    this.waveformEl.classList.add('hidden');
+
+                    // Stop timer and waveform
+                    clearInterval(this.recordingTimer);
+                    this.recordingTimerEl.classList.add('hidden');
+                }
+            }
+
+            animateWaveform() {
+                if (!this.isRecording || !this.analyser) return;
+
+                const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                this.analyser.getByteFrequencyData(dataArray);
+
+                // Update waveform bars
+                this.waveformBars.forEach((bar, index) => {
+                    const value = dataArray[index * 2] || 0;
+                    const height = Math.max(5, value / 2);
+                    bar.style.height = `${height}px`;
+                });
+
+                requestAnimationFrame(() => this.animateWaveform());
+            }
+
+            analyzeRecording() {
+                // Simulate analysis - in a real app, you'd send this to a backend for proper analysis
+                const sentence = this.sentences[this.currentSentenceIndex];
+                this.showFeedback(sentence);
+            }
+
+            showFeedback(sentence) {
+                // Simulate analysis results
+                const accuracy = Math.floor(Math.random() * 30) + 70; // 70-100%
+                const fluency = Math.floor(Math.random() * 25) + 75; // 75-100%
+                const tone = Math.floor(Math.random() * 20) + 80; // 80-100%
+
+                // Update scores
+                this.accuracyScoreEl.textContent = `${accuracy}%`;
+                this.fluencyScoreEl.textContent = `${fluency}%`;
+                this.toneScoreEl.textContent = `${tone}%`;
+
+                // Generate character-by-character feedback
+                this.generateCharacterFeedback(sentence.sentence);
+
+                // Show feedback section
+                this.feedbackSection.classList.remove('hidden');
+            }
+
+            generateCharacterFeedback(sentence) {
+                const characters = sentence.split('');
+                let feedbackHTML = '';
+
+                characters.forEach(char => {
+                    if (char.trim() === '') {
+                        feedbackHTML += '<span class="mx-1"></span>';
+                        return;
+                    }
+
+                    // Simulate different levels of correctness
+                    const random = Math.random();
+                    let className = 'character-correct';
+
+                    if (random < 0.2) {
+                        className = 'character-incorrect';
+                    } else if (random < 0.4) {
+                        className = 'character-partial';
+                    }
+
+                    feedbackHTML += `<span class="${className} text-2xl mx-1">${char}</span>`;
+                });
+
+                this.pronunciationFeedbackEl.innerHTML = feedbackHTML;
+            }
+
+            hideFeedback() {
+                this.feedbackSection.classList.add('hidden');
+            }
+
+            previousSentence() {
+                if (this.currentSentenceIndex > 0) {
+                    this.currentSentenceIndex--;
+                    this.displayCurrentSentence();
+                }
+            }
+
+            nextSentence() {
+                if (this.currentSentenceIndex < this.sentences.length - 1) {
+                    this.currentSentenceIndex++;
+                    this.displayCurrentSentence();
+                }
+            }
+
+            showError(message) {
+                // Simple error display - you might want to use a more sophisticated notification system
+                alert(message);
+            }
+        }
+
+        // Initialize the app when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new SpeechPracticeApp();
+        });
+    </script>
+</body>
+</html>
