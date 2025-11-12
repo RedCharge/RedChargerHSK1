@@ -253,6 +253,12 @@
             background: linear-gradient(to top, #5c7cfa, #33f0e8);
             transition: height 0.1s ease;
         }
+
+        /* Loading states */
+        .sentence-loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body class="selection:bg-primary-blue selection:text-white">
@@ -340,8 +346,14 @@
                 </p>
             </div>
 
+            <!-- Loading State -->
+            <div id="loading-state" class="sophisticated-card p-8 text-center">
+                <div class="loading-spinner mx-auto mb-4"></div>
+                <p class="text-text-muted">Loading sentences...</p>
+            </div>
+
             <!-- Main Practice Card -->
-            <div class="sophisticated-card p-6 md:p-8 mb-8 animate-on-scroll">
+            <div id="practice-card" class="sophisticated-card p-6 md:p-8 mb-8 animate-on-scroll hidden">
                 <!-- Progress and Controls -->
                 <div class="flex justify-between items-center mb-6">
                     <div class="text-text-muted">
@@ -365,13 +377,13 @@
                 <!-- Current Sentence Display -->
                 <div class="text-center mb-8">
                     <div class="mb-6">
-                        <div id="chinese-sentence" class="text-3xl md:text-4xl font-bold mb-2 text-text-light"></div>
-                        <div id="pinyin-sentence" class="text-xl text-text-muted mb-4"></div>
-                        <div id="english-sentence" class="text-lg text-text-muted italic"></div>
+                        <div id="chinese-sentence" class="text-3xl md:text-4xl font-bold mb-2 text-text-light">Loading...</div>
+                        <div id="pinyin-sentence" class="text-xl text-text-muted mb-4">Please wait...</div>
+                        <div id="english-sentence" class="text-lg text-text-muted italic">Loading sentences from database</div>
                     </div>
 
                     <!-- Listen Button -->
-                    <button id="listen-btn" class="speech-button p-4 rounded-full bg-primary-blue text-white mb-6 hover:bg-primary-blue/80 transition duration-300">
+                    <button id="listen-btn" class="speech-button p-4 rounded-full bg-primary-blue text-white mb-6 hover:bg-primary-blue/80 transition duration-300 disabled:opacity-50">
                         <i class="fas fa-volume-up text-2xl"></i>
                     </button>
                 </div>
@@ -384,7 +396,7 @@
                     </div>
 
                     <!-- Record Button -->
-                    <button id="record-btn" class="cta-button-primary py-4 px-8 rounded-full text-lg font-bold mb-4">
+                    <button id="record-btn" class="cta-button-primary py-4 px-8 rounded-full text-lg font-bold mb-4 disabled:opacity-50">
                         <i class="fas fa-microphone mr-2"></i>
                         <span id="record-text">Start Recording</span>
                     </button>
@@ -419,8 +431,19 @@
                 </div>
             </div>
 
+            <!-- Error State -->
+            <div id="error-state" class="sophisticated-card p-8 text-center hidden">
+                <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
+                <h3 class="text-xl font-bold mb-2">Failed to Load Sentences</h3>
+                <p class="text-text-muted mb-4" id="error-message">There was an error loading the sentences.</p>
+                <button id="retry-btn" class="cta-button-primary py-2 px-6 rounded-full">
+                    <i class="fas fa-redo mr-2"></i>
+                    Try Again
+                </button>
+            </div>
+
             <!-- Tips Card -->
-            <div class="sophisticated-card p-6 md:p-8 animate-on-scroll">
+            <div id="tips-card" class="sophisticated-card p-6 md:p-8 animate-on-scroll hidden">
                 <h3 class="text-xl font-bold mb-4 text-secondary-cyan">Pronunciation Tips</h3>
                 <div class="grid md:grid-cols-2 gap-4 text-text-muted">
                     <div class="flex items-start">
@@ -490,12 +513,20 @@
                 this.waveformBars = [];
 
                 this.initializeElements();
-                this.loadSentences();
                 this.setupEventListeners();
                 this.initializeWaveform();
+                this.loadSentences();
             }
 
             initializeElements() {
+                // State elements
+                this.loadingStateEl = document.getElementById('loading-state');
+                this.practiceCardEl = document.getElementById('practice-card');
+                this.errorStateEl = document.getElementById('error-state');
+                this.tipsCardEl = document.getElementById('tips-card');
+                this.errorMessageEl = document.getElementById('error-message');
+                this.retryBtn = document.getElementById('retry-btn');
+
                 // Sentence elements
                 this.chineseSentenceEl = document.getElementById('chinese-sentence');
                 this.pinyinSentenceEl = document.getElementById('pinyin-sentence');
@@ -522,33 +553,78 @@
                 this.waveformEl = document.getElementById('waveform');
             }
 
+            setupEventListeners() {
+                this.prevBtn.addEventListener('click', () => this.previousSentence());
+                this.nextBtn.addEventListener('click', () => this.nextSentence());
+                this.listenBtn.addEventListener('click', () => this.playSentence());
+                this.recordBtn.addEventListener('click', () => this.toggleRecording());
+                this.retryBtn.addEventListener('click', () => this.loadSentences());
+            }
+
             async loadSentences() {
+                this.showLoadingState();
+                
                 try {
-                    const response = await fetch('/api/quiz-sentences?count=50');
-                    const data = await response.json();
+                    console.log('Loading sentences from API...');
+                    const response = await fetch('/api/quiz-sentences?count=20');
                     
-                    if (data.success) {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('API response:', data);
+                    
+                    if (data.success && data.sentences && data.sentences.length > 0) {
                         this.sentences = data.sentences;
-                        this.totalSentencesEl.textContent = this.sentences.length;
+                        console.log(`Loaded ${this.sentences.length} sentences`);
+                        this.showPracticeState();
                         this.displayCurrentSentence();
                     } else {
-                        throw new Error('Failed to load sentences');
+                        throw new Error('No sentences found in response');
                     }
                 } catch (error) {
                     console.error('Error loading sentences:', error);
-                    this.showError('Failed to load sentences. Please try again.');
+                    this.showErrorState(`Failed to load sentences: ${error.message}`);
                 }
             }
 
+            showLoadingState() {
+                this.loadingStateEl.classList.remove('hidden');
+                this.practiceCardEl.classList.add('hidden');
+                this.errorStateEl.classList.add('hidden');
+                this.tipsCardEl.classList.add('hidden');
+            }
+
+            showPracticeState() {
+                this.loadingStateEl.classList.add('hidden');
+                this.practiceCardEl.classList.remove('hidden');
+                this.errorStateEl.classList.add('hidden');
+                this.tipsCardEl.classList.remove('hidden');
+            }
+
+            showErrorState(message) {
+                this.loadingStateEl.classList.add('hidden');
+                this.practiceCardEl.classList.add('hidden');
+                this.errorStateEl.classList.remove('hidden');
+                this.tipsCardEl.classList.add('hidden');
+                this.errorMessageEl.textContent = message;
+            }
+
             displayCurrentSentence() {
-                if (this.sentences.length === 0) return;
+                if (this.sentences.length === 0) {
+                    this.showErrorState('No sentences available');
+                    return;
+                }
 
                 const sentence = this.sentences[this.currentSentenceIndex];
+                console.log('Displaying sentence:', sentence);
                 
                 this.chineseSentenceEl.textContent = sentence.sentence;
                 this.pinyinSentenceEl.textContent = sentence.pinyin;
                 this.englishSentenceEl.textContent = sentence.english;
                 this.currentSentenceEl.textContent = this.currentSentenceIndex + 1;
+                this.totalSentencesEl.textContent = this.sentences.length;
                 
                 // Update progress
                 const progress = ((this.currentSentenceIndex + 1) / this.sentences.length) * 100;
@@ -558,15 +634,12 @@
                 this.prevBtn.disabled = this.currentSentenceIndex === 0;
                 this.nextBtn.disabled = this.currentSentenceIndex === this.sentences.length - 1;
 
+                // Enable buttons
+                this.listenBtn.disabled = false;
+                this.recordBtn.disabled = false;
+
                 // Clear previous feedback
                 this.hideFeedback();
-            }
-
-            setupEventListeners() {
-                this.prevBtn.addEventListener('click', () => this.previousSentence());
-                this.nextBtn.addEventListener('click', () => this.nextSentence());
-                this.listenBtn.addEventListener('click', () => this.playSentence());
-                this.recordBtn.addEventListener('click', () => this.toggleRecording());
             }
 
             initializeWaveform() {
@@ -581,6 +654,8 @@
             }
 
             async playSentence() {
+                if (!this.sentences[this.currentSentenceIndex]) return;
+
                 const sentence = this.sentences[this.currentSentenceIndex];
                 const utterance = new SpeechSynthesisUtterance(sentence.sentence);
                 utterance.lang = 'zh-CN';
@@ -748,7 +823,7 @@
             }
 
             showError(message) {
-                // Simple error display - you might want to use a more sophisticated notification system
+                // Simple error display
                 alert(message);
             }
         }
