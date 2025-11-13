@@ -492,6 +492,7 @@ let sentenceMastery = {}; // Track mastery for each sentence
 let currentSentenceQueue = []; // Queue of sentences to be presented
 let masteredSentences = new Set(); // Sentences the user has mastered
 let reviewSentences = []; // Sentences that need review
+let usedSentenceIds = new Set(); // Track used sentences to prevent duplicates
 
 // DOM elements
 const loadingState = document.getElementById('loading-state');
@@ -585,6 +586,9 @@ function initializeAdaptiveLearning() {
         reviewSentences = JSON.parse(savedReviewSentences);
         console.log('Loaded', reviewSentences.length, 'sentences for review');
     }
+    
+    // Reset used sentence IDs for new session
+    usedSentenceIds.clear();
 }
 
 // Save adaptive learning data
@@ -595,17 +599,26 @@ function saveAdaptiveLearningData() {
     console.log('Adaptive learning data saved');
 }
 
-// Process sentences with adaptive learning logic
+// Process sentences with adaptive learning logic - NO DUPLICATES
 function processSentencesWithAdaptiveLearning(sentences) {
     // Reset current sentence queue
     currentSentenceQueue = [];
     
-    // Separate sentences into categories based on mastery
+    // Filter out sentences that have already been used in this session
+    const availableSentences = sentences.filter(sentence => !usedSentenceIds.has(sentence.id));
+    
+    if (availableSentences.length === 0) {
+        console.log('No new sentences available, resetting used sentences');
+        usedSentenceIds.clear();
+        return sentences.slice(0, 20); // Start fresh with first 20 sentences
+    }
+    
+    // Separate available sentences into categories based on mastery
     const newSentences = [];
     const weakSentences = [];
     const strongSentences = [];
     
-    sentences.forEach(sentence => {
+    availableSentences.forEach(sentence => {
         const sentenceKey = sentence.sentence; // Use the sentence itself as the key
         
         // If sentence is already mastered, skip it (or include occasionally for reinforcement)
@@ -641,47 +654,61 @@ function processSentencesWithAdaptiveLearning(sentences) {
     });
     
     console.log('Sentence categorization:', {
+        available: availableSentences.length,
         newSentences: newSentences.length,
         weakSentences: weakSentences.length,
         strongSentences: strongSentences.length
     });
     
     // Build sentence queue with adaptive distribution - ALWAYS 20 SENTENCES
-    const targetCount = 20; // Always show 20 sentences
+    const targetCount = 20;
     
     // Add weak sentences (highest priority - 50% of quiz)
     const weakCount = Math.min(Math.ceil(targetCount * 0.5), weakSentences.length);
-    currentSentenceQueue.push(...weakSentences.slice(0, weakCount));
+    const selectedWeak = weakSentences.slice(0, weakCount);
+    currentSentenceQueue.push(...selectedWeak);
     
     // Add new sentences (medium priority - 30% of quiz)
     const newCount = Math.min(Math.ceil(targetCount * 0.3), newSentences.length);
-    currentSentenceQueue.push(...newSentences.slice(0, newCount));
+    const selectedNew = newSentences.slice(0, newCount);
+    currentSentenceQueue.push(...selectedNew);
     
     // Add strong sentences (lowest priority - 20% of quiz)
     const strongCount = Math.min(targetCount - currentSentenceQueue.length, strongSentences.length);
-    currentSentenceQueue.push(...strongSentences.slice(0, strongCount));
+    const selectedStrong = strongSentences.slice(0, strongCount);
+    currentSentenceQueue.push(...selectedStrong);
     
     // If we still need more sentences, add from review list
     if (currentSentenceQueue.length < targetCount && reviewSentences.length > 0) {
         const needed = targetCount - currentSentenceQueue.length;
-        const reviewToAdd = reviewSentences.slice(0, Math.min(needed, reviewSentences.length));
+        const reviewToAdd = reviewSentences
+            .filter(s => !usedSentenceIds.has(s.id))
+            .slice(0, Math.min(needed, reviewSentences.length));
         currentSentenceQueue.push(...reviewToAdd);
         
         // Remove added sentences from review list
-        reviewSentences = reviewSentences.slice(reviewToAdd.length);
+        reviewSentences = reviewSentences.filter(s => !reviewToAdd.includes(s));
     }
     
-    // If we STILL need more sentences (shouldn't happen with 20 from backend), use original sentences
+    // If we STILL need more sentences, use remaining available sentences
     if (currentSentenceQueue.length < targetCount) {
         const needed = targetCount - currentSentenceQueue.length;
-        const originalToAdd = sentences.slice(0, Math.min(needed, sentences.length));
-        currentSentenceQueue.push(...originalToAdd);
+        const remainingSentences = availableSentences
+            .filter(s => !currentSentenceQueue.includes(s))
+            .slice(0, Math.min(needed, availableSentences.length));
+        currentSentenceQueue.push(...remainingSentences);
     }
+    
+    // Mark these sentences as used
+    currentSentenceQueue.forEach(sentence => {
+        usedSentenceIds.add(sentence.id);
+    });
     
     // Shuffle the queue to mix sentence difficulties
     shuffleArray(currentSentenceQueue);
     
     console.log('Final sentence queue:', currentSentenceQueue.length, 'sentences');
+    console.log('Used sentence IDs:', Array.from(usedSentenceIds));
     return currentSentenceQueue;
 }
 
@@ -714,7 +741,7 @@ function updateSentenceMastery(sentence, isCorrect) {
     mastery.lastSeen = new Date().toISOString();
     
     // Track question type usage
-    const questionType = 'multiple-choice'; // Default, can be expanded
+    const questionType = 'multiple-choice';
     if (!mastery.questionTypes[questionType]) {
         mastery.questionTypes[questionType] = { correct: 0, incorrect: 0 };
     }
@@ -1239,6 +1266,7 @@ function showQuestion() {
     }
     
     console.log(`Showing question ${currentQuestion + 1}:`, {
+        id: question.id,
         sentence: question.sentence,
         correctAnswer: question.correctAnswer,
         correctAnswerType: typeof question.correctAnswer,
@@ -1306,22 +1334,40 @@ function showQuestion() {
     }, 500);
 }
 
-// FIXED: Enhanced selectOption function - directly uses correct answer from backend
+// COMPLETELY FIXED: selectOption function - directly uses correct answer from backend
 function selectOption(selectedIndex) {
     if (userAnswers[currentQuestion] !== null) return; // Already answered
     
     const question = quizData[currentQuestion];
     
-    // USE CORRECT ANSWER DIRECTLY FROM BACKEND - NO PROCESSING
-    const correctAnswerIndex = question.correctAnswer;
+    // VALIDATE AND USE CORRECT ANSWER DIRECTLY FROM BACKEND
+    let correctAnswerIndex = question.correctAnswer;
+    
+    // Ensure correctAnswerIndex is a number and within bounds
+    if (typeof correctAnswerIndex !== 'number') {
+        console.warn('Correct answer is not a number, converting:', correctAnswerIndex);
+        correctAnswerIndex = parseInt(correctAnswerIndex);
+    }
+    
+    if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
+        console.error('Invalid correct answer index:', correctAnswerIndex);
+        console.error('Available options:', question.options);
+        // Fallback: find the correct answer by matching with english field
+        const correctEnglish = question.english || question.options[0];
+        correctAnswerIndex = question.options.findIndex(opt => opt === correctEnglish);
+        if (correctAnswerIndex === -1) correctAnswerIndex = 0;
+        console.warn('Using fallback correct answer index:', correctAnswerIndex);
+    }
     
     // DEBUGGING - SHOW ALL DETAILS
     console.log('=== ANSWER DEBUG INFO ===');
+    console.log('Question ID:', question.id);
     console.log('Question sentence:', question.sentence);
     console.log('Selected index:', selectedIndex);
     console.log('Selected option:', question.options[selectedIndex]);
-    console.log('Correct index (from backend):', correctAnswerIndex);
-    console.log('Correct option (from backend):', question.options[correctAnswerIndex]);
+    console.log('Correct index (from backend):', question.correctAnswer);
+    console.log('Correct index (validated):', correctAnswerIndex);
+    console.log('Correct option (validated):', question.options[correctAnswerIndex]);
     console.log('Is correct:', selectedIndex === correctAnswerIndex);
     
     // DIRECT COMPARISON - NO CONVERSION, NO VALIDATION
@@ -1439,7 +1485,16 @@ function saveQuizResultsToLocalStorage() {
             const sentence = question.sentence;
             
             // USE CORRECT ANSWER DIRECTLY FROM BACKEND
-            const correctAnswerIndex = question.correctAnswer;
+            let correctAnswerIndex = question.correctAnswer;
+            if (typeof correctAnswerIndex !== 'number') {
+                correctAnswerIndex = parseInt(correctAnswerIndex);
+            }
+            if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
+                const correctEnglish = question.english || question.options[0];
+                correctAnswerIndex = question.options.findIndex(opt => opt === correctEnglish);
+                if (correctAnswerIndex === -1) correctAnswerIndex = 0;
+            }
+            
             const isCorrect = userAnswers[index] === correctAnswerIndex;
             
             if (!performanceData.sentences[sentence]) {
