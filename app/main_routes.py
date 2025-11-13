@@ -19,11 +19,6 @@ def result():
     """Render the result page"""
     return render_template('result.html')
 
-@main_bp.route('/speech')
-def speech():
-    """Render the result page"""
-    return render_template('speechtext.html')
-
 
 
 

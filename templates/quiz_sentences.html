@@ -468,7 +468,7 @@
 
     <!-- Quiz Logic -->
     <script>
-                   // Quiz state
+    // Quiz state
 let currentQuestion = 0;
 let score = 0;
 let correctAnswers = 0;
@@ -1306,7 +1306,7 @@ function showQuestion() {
     }, 500);
 }
 
-// Enhanced selectOption function with adaptive learning
+// FIXED: Enhanced selectOption function - directly uses correct answer from backend
 function selectOption(selectedIndex) {
     if (userAnswers[currentQuestion] !== null) return; // Already answered
     
