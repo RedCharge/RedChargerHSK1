@@ -716,6 +716,26 @@ def search_sentences():
             'success': False,
             'message': f'Error searching sentences: {str(e)}'
         }), 500
+        
+        
+
+
+@sentence_bp.route('/api/speech-sentences')
+def get_speech_sentences():
+    """API endpoint specifically for speech practice - returns all sentences"""
+    try:
+        # Return all sentences for speech practice
+        return jsonify({
+            'success': True,
+            'sentences': HSK1_SENTENCES,
+            'total_count': len(HSK1_SENTENCES)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error retrieving sentences: {str(e)}'
+        }), 500        
 
 @sentence_bp.route('/api/sentence-stats')
 def get_sentence_stats():
