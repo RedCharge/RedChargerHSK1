@@ -477,22 +477,20 @@ let userAnswers = [];
 let quizData = [];
 let quizStarted = false;
 let startTime = null;
-let quizResults = null;
-let audioContext = null;
-
-// Speech functionality
 let speechEnabled = true;
 let speechSynthesis = window.speechSynthesis;
 let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 let userInteractedWithSpeech = false;
+let audioContext = null;
 let autoSpeakEnabled = true;
 
-// Adaptive Learning State
+// Enhanced Adaptive Learning State (using same logic as words quiz)
 let sentenceMastery = {}; // Track mastery for each sentence
 let currentSentenceQueue = []; // Queue of sentences to be presented
 let masteredSentences = new Set(); // Sentences the user has mastered
 let reviewSentences = []; // Sentences that need review
-let usedSentenceIds = new Set(); // Track used sentences to prevent duplicates
+let recentlyUsedSentences = new Set(); // Sentences used in recent quizzes to avoid repetition
+let sessionId = Date.now().toString(); // Unique ID for this quiz session
 
 // DOM elements
 const loadingState = document.getElementById('loading-state');
@@ -559,12 +557,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================
-// ADAPTIVE LEARNING ALGORITHM
+// ENHANCED ADAPTIVE LEARNING ALGORITHM (SAME AS WORDS QUIZ)
 // ============================
 
 // Initialize adaptive learning system
 function initializeAdaptiveLearning() {
-    console.log('Initializing adaptive learning system for sentences...');
+    console.log('Initializing enhanced adaptive learning system for sentences...');
     
     // Load mastery data from localStorage if available
     const savedMastery = localStorage.getItem('sentenceMastery');
@@ -587,8 +585,21 @@ function initializeAdaptiveLearning() {
         console.log('Loaded', reviewSentences.length, 'sentences for review');
     }
     
-    // Reset used sentence IDs for new session
-    usedSentenceIds.clear();
+    // Load recently used sentences (to avoid repetition)
+    const savedRecentSentences = localStorage.getItem('recentlyUsedSentences');
+    if (savedRecentSentences) {
+        const recentData = JSON.parse(savedRecentSentences);
+        // Only keep sentences used in the last 3 sessions
+        const threeSessionsAgo = Date.now() - (3 * 24 * 60 * 60 * 1000); // 3 days ago
+        recentlyUsedSentences = new Set(recentData.sentences.filter(sentence => 
+            recentData.timestamps[sentence] > threeSessionsAgo
+        ));
+        console.log('Loaded', recentlyUsedSentences.size, 'recently used sentences');
+    }
+    
+    // Generate new session ID
+    sessionId = Date.now().toString();
+    console.log('New quiz session ID:', sessionId);
 }
 
 // Save adaptive learning data
@@ -596,33 +607,42 @@ function saveAdaptiveLearningData() {
     localStorage.setItem('sentenceMastery', JSON.stringify(sentenceMastery));
     localStorage.setItem('masteredSentences', JSON.stringify([...masteredSentences]));
     localStorage.setItem('reviewSentences', JSON.stringify(reviewSentences));
-    console.log('Adaptive learning data saved');
+    
+    // Save recently used sentences with timestamps
+    const recentData = {
+        sentences: [...recentlyUsedSentences],
+        timestamps: {}
+    };
+    recentlyUsedSentences.forEach(sentence => {
+        recentData.timestamps[sentence] = Date.now();
+    });
+    localStorage.setItem('recentlyUsedSentences', JSON.stringify(recentData));
+    
+    console.log('Enhanced adaptive learning data saved');
 }
 
-// Process sentences with adaptive learning logic - NO DUPLICATES
+// Enhanced process sentences with adaptive learning logic (SAME LOGIC AS WORDS)
 function processSentencesWithAdaptiveLearning(sentences) {
     // Reset current sentence queue
     currentSentenceQueue = [];
     
-    // Filter out sentences that have already been used in this session
-    const availableSentences = sentences.filter(sentence => !usedSentenceIds.has(sentence.id));
+    console.log('Processing sentences with enhanced adaptive learning...');
+    console.log('Total sentences available:', sentences.length);
+    console.log('Recently used sentences:', recentlyUsedSentences.size);
+    console.log('Mastered sentences:', masteredSentences.size);
+    console.log('Review sentences:', reviewSentences.length);
     
-    if (availableSentences.length === 0) {
-        console.log('No new sentences available, resetting used sentences');
-        usedSentenceIds.clear();
-        return sentences.slice(0, 20); // Start fresh with first 20 sentences
-    }
-    
-    // Separate available sentences into categories based on mastery
+    // Separate sentences into categories based on mastery and recent usage
     const newSentences = [];
     const weakSentences = [];
     const strongSentences = [];
+    const unusedSentences = [];
     
-    availableSentences.forEach(sentence => {
-        const sentenceKey = sentence.sentence; // Use the sentence itself as the key
+    sentences.forEach(sentence => {
+        const sentenceKey = sentence.sentence;
         
-        // If sentence is already mastered, skip it (or include occasionally for reinforcement)
-        if (masteredSentences.has(sentenceKey) && Math.random() > 0.1) { // 10% chance to include mastered sentences
+        // Skip if sentence was recently used (to ensure variety)
+        if (recentlyUsedSentences.has(sentenceKey)) {
             return;
         }
         
@@ -653,67 +673,129 @@ function processSentencesWithAdaptiveLearning(sentences) {
         }
     });
     
+    // Find completely unused sentences (not in any category)
+    sentences.forEach(sentence => {
+        const sentenceKey = sentence.sentence;
+        if (!recentlyUsedSentences.has(sentenceKey) && 
+            !sentenceMastery[sentenceKey] && 
+            !newSentences.includes(sentence) &&
+            !weakSentences.includes(sentence) && 
+            !strongSentences.includes(sentence)) {
+            unusedSentences.push(sentence);
+        }
+    });
+    
     console.log('Sentence categorization:', {
-        available: availableSentences.length,
         newSentences: newSentences.length,
         weakSentences: weakSentences.length,
-        strongSentences: strongSentences.length
+        strongSentences: strongSentences.length,
+        unusedSentences: unusedSentences.length
     });
     
-    // Build sentence queue with adaptive distribution - ALWAYS 20 SENTENCES
+    // Build sentence queue with enhanced adaptive distribution - ALWAYS 20 SENTENCES
     const targetCount = 20;
+    let sentencesAdded = 0;
     
-    // Add weak sentences (highest priority - 50% of quiz)
-    const weakCount = Math.min(Math.ceil(targetCount * 0.5), weakSentences.length);
-    const selectedWeak = weakSentences.slice(0, weakCount);
-    currentSentenceQueue.push(...selectedWeak);
-    
-    // Add new sentences (medium priority - 30% of quiz)
-    const newCount = Math.min(Math.ceil(targetCount * 0.3), newSentences.length);
-    const selectedNew = newSentences.slice(0, newCount);
-    currentSentenceQueue.push(...selectedNew);
-    
-    // Add strong sentences (lowest priority - 20% of quiz)
-    const strongCount = Math.min(targetCount - currentSentenceQueue.length, strongSentences.length);
-    const selectedStrong = strongSentences.slice(0, strongCount);
-    currentSentenceQueue.push(...selectedStrong);
-    
-    // If we still need more sentences, add from review list
-    if (currentSentenceQueue.length < targetCount && reviewSentences.length > 0) {
-        const needed = targetCount - currentSentenceQueue.length;
-        const reviewToAdd = reviewSentences
-            .filter(s => !usedSentenceIds.has(s.id))
-            .slice(0, Math.min(needed, reviewSentences.length));
-        currentSentenceQueue.push(...reviewToAdd);
+    // STRATEGY 1: Add failed sentences from previous sessions (highest priority - 30%)
+    const failedCount = Math.min(Math.ceil(targetCount * 0.3), reviewSentences.length);
+    if (failedCount > 0) {
+        const failedToAdd = reviewSentences.slice(0, failedCount);
+        currentSentenceQueue.push(...failedToAdd);
+        sentencesAdded += failedCount;
+        console.log(`Added ${failedCount} failed sentences from review`);
         
-        // Remove added sentences from review list
-        reviewSentences = reviewSentences.filter(s => !reviewToAdd.includes(s));
+        // Remove added sentences from review list temporarily (they'll be added back if failed again)
+        reviewSentences = reviewSentences.slice(failedCount);
     }
     
-    // If we STILL need more sentences, use remaining available sentences
-    if (currentSentenceQueue.length < targetCount) {
-        const needed = targetCount - currentSentenceQueue.length;
-        const remainingSentences = availableSentences
-            .filter(s => !currentSentenceQueue.includes(s))
-            .slice(0, Math.min(needed, availableSentences.length));
-        currentSentenceQueue.push(...remainingSentences);
+    // STRATEGY 2: Add weak sentences (25%)
+    const weakCount = Math.min(Math.ceil(targetCount * 0.25), weakSentences.length);
+    if (weakCount > 0 && sentencesAdded < targetCount) {
+        const availableSlots = targetCount - sentencesAdded;
+        const actualWeakCount = Math.min(weakCount, availableSlots);
+        const weakToAdd = weakSentences.slice(0, actualWeakCount);
+        currentSentenceQueue.push(...weakToAdd);
+        sentencesAdded += actualWeakCount;
+        console.log(`Added ${actualWeakCount} weak sentences`);
     }
     
-    // Mark these sentences as used
+    // STRATEGY 3: Add new sentences (20%)
+    const newCount = Math.min(Math.ceil(targetCount * 0.2), newSentences.length);
+    if (newCount > 0 && sentencesAdded < targetCount) {
+        const availableSlots = targetCount - sentencesAdded;
+        const actualNewCount = Math.min(newCount, availableSlots);
+        const newToAdd = newSentences.slice(0, actualNewCount);
+        currentSentenceQueue.push(...newToAdd);
+        sentencesAdded += actualNewCount;
+        console.log(`Added ${actualNewCount} new sentences`);
+    }
+    
+    // STRATEGY 4: Add unused sentences (15%)
+    const unusedCount = Math.min(Math.ceil(targetCount * 0.15), unusedSentences.length);
+    if (unusedCount > 0 && sentencesAdded < targetCount) {
+        const availableSlots = targetCount - sentencesAdded;
+        const actualUnusedCount = Math.min(unusedCount, availableSlots);
+        const unusedToAdd = unusedSentences.slice(0, actualUnusedCount);
+        currentSentenceQueue.push(...unusedToAdd);
+        sentencesAdded += actualUnusedCount;
+        console.log(`Added ${actualUnusedCount} unused sentences`);
+    }
+    
+    // STRATEGY 5: Add strong sentences (10%)
+    const strongCount = Math.min(Math.ceil(targetCount * 0.1), strongSentences.length);
+    if (strongCount > 0 && sentencesAdded < targetCount) {
+        const availableSlots = targetCount - sentencesAdded;
+        const actualStrongCount = Math.min(strongCount, availableSlots);
+        const strongToAdd = strongSentences.slice(0, actualStrongCount);
+        currentSentenceQueue.push(...strongToAdd);
+        sentencesAdded += actualStrongCount;
+        console.log(`Added ${actualStrongCount} strong sentences`);
+    }
+    
+    // STRATEGY 6: If we still need more sentences, fill with random sentences not recently used
+    if (sentencesAdded < targetCount) {
+        const needed = targetCount - sentencesAdded;
+        const allAvailableSentences = [
+            ...weakSentences.slice(weakCount),
+            ...newSentences.slice(newCount),
+            ...unusedSentences.slice(unusedCount),
+            ...strongSentences.slice(strongCount)
+        ].filter(sentence => !recentlyUsedSentences.has(sentence.sentence));
+        
+        const randomToAdd = allAvailableSentences.slice(0, Math.min(needed, allAvailableSentences.length));
+        currentSentenceQueue.push(...randomToAdd);
+        sentencesAdded += randomToAdd.length;
+        console.log(`Added ${randomToAdd.length} random sentences`);
+    }
+    
+    // STRATEGY 7: Final fallback - use any sentences (even recently used if necessary)
+    if (sentencesAdded < targetCount) {
+        const needed = targetCount - sentencesAdded;
+        const fallbackSentences = sentences
+            .filter(sentence => !currentSentenceQueue.some(s => s.sentence === sentence.sentence))
+            .slice(0, needed);
+        
+        currentSentenceQueue.push(...fallbackSentences);
+        sentencesAdded += fallbackSentences.length;
+        console.log(`Added ${fallbackSentences.length} fallback sentences`);
+    }
+    
+    // Mark these sentences as recently used
     currentSentenceQueue.forEach(sentence => {
-        usedSentenceIds.add(sentence.id);
+        recentlyUsedSentences.add(sentence.sentence);
     });
     
-    // Shuffle the queue to mix sentence difficulties
+    // Shuffle the final queue to mix sentence difficulties
     shuffleArray(currentSentenceQueue);
     
     console.log('Final sentence queue:', currentSentenceQueue.length, 'sentences');
-    console.log('Used sentence IDs:', Array.from(usedSentenceIds));
+    console.log('Sentences in queue:', currentSentenceQueue.map(s => s.sentence));
+    
     return currentSentenceQueue;
 }
 
-// Update sentence mastery after each question
-function updateSentenceMastery(sentence, isCorrect) {
+// Enhanced update sentence mastery after each question
+function updateSentenceMastery(sentence, isCorrect, selectedIndex, correctIndex) {
     const sentenceKey = sentence.sentence;
     
     // Initialize sentence mastery if it doesn't exist
@@ -723,7 +805,9 @@ function updateSentenceMastery(sentence, isCorrect) {
             incorrect: 0,
             lastSeen: new Date().toISOString(),
             questionTypes: {},
-            streak: 0
+            streak: 0,
+            sessionId: sessionId,
+            firstSeen: new Date().toISOString()
         };
     }
     
@@ -739,6 +823,7 @@ function updateSentenceMastery(sentence, isCorrect) {
     }
     
     mastery.lastSeen = new Date().toISOString();
+    mastery.sessionId = sessionId;
     
     // Track question type usage
     const questionType = 'multiple-choice';
@@ -754,8 +839,24 @@ function updateSentenceMastery(sentence, isCorrect) {
     
     // Check if sentence should be added to review list
     if (!isCorrect && !reviewSentences.some(s => s.sentence === sentenceKey)) {
-        reviewSentences.push(sentence);
+        const reviewSentence = {
+            sentence: sentenceKey,
+            pinyin: sentence.pinyin,
+            options: sentence.options,
+            correctAnswer: correctIndex,
+            addedDate: new Date().toISOString(),
+            failedCount: 1,
+            lastFailed: new Date().toISOString()
+        };
+        reviewSentences.push(reviewSentence);
         console.log('Added to review sentences:', sentenceKey);
+    } else if (!isCorrect) {
+        // Update existing review sentence
+        const reviewSentence = reviewSentences.find(s => s.sentence === sentenceKey);
+        if (reviewSentence) {
+            reviewSentence.failedCount++;
+            reviewSentence.lastFailed = new Date().toISOString();
+        }
     }
     
     // Check for mastery (3 consecutive correct answers)
@@ -773,62 +874,8 @@ function updateSentenceMastery(sentence, isCorrect) {
     console.log('Updated mastery for', sentenceKey, ':', mastery);
 }
 
-// Calculate adaptive learning statistics
-function calculateAdaptiveLearningStats() {
-    const stats = {
-        masteredThisSession: 0,
-        weakSentencesCount: 0,
-        reviewSentencesCount: reviewSentences.length,
-        totalMastered: masteredSentences.size,
-        masteryProgress: 0
-    };
-    
-    // Count sentences mastered in this session
-    quizData.forEach(question => {
-        const sentenceKey = question.sentence;
-        if (masteredSentences.has(sentenceKey) && sentenceMastery[sentenceKey]) {
-            const mastery = sentenceMastery[sentenceKey];
-            // Check if mastered recently (in this session)
-            const lastSeen = new Date(mastery.lastSeen);
-            const sessionStart = new Date(startTime);
-            if (lastSeen > sessionStart && mastery.streak >= 3) {
-                stats.masteredThisSession++;
-            }
-        }
-    });
-    
-    // Count weak sentences (less than 60% accuracy)
-    Object.keys(sentenceMastery).forEach(sentenceKey => {
-        const mastery = sentenceMastery[sentenceKey];
-        const totalAttempts = mastery.correct + mastery.incorrect;
-        if (totalAttempts > 0) {
-            const accuracy = (mastery.correct / totalAttempts) * 100;
-            if (accuracy < 60) {
-                stats.weakSentencesCount++;
-            }
-        }
-    });
-    
-    // Calculate overall mastery progress
-    const totalTrackedSentences = Object.keys(sentenceMastery).length;
-    if (totalTrackedSentences > 0) {
-        stats.masteryProgress = Math.round((masteredSentences.size / totalTrackedSentences) * 100);
-    }
-    
-    return stats;
-}
-
-// Utility function to shuffle array
-function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-}
-
 // ============================
-// EXISTING QUIZ FUNCTIONALITY
+// FIXED QUIZ FUNCTIONALITY (USING WORDS QUIZ LOGIC)
 // ============================
 
 // Initialize Audio Context for sound effects
@@ -1162,13 +1209,14 @@ function initializeMobileMenu() {
     });
 }
 
-// Enhanced loadQuizData function with adaptive learning
+// Enhanced loadQuizData function with adaptive learning (SAME AS WORDS)
 async function loadQuizData() {
     try {
         showLoading();
         
-        console.log('Loading quiz data with adaptive learning...');
-        const response = await fetch('/sentences/api/quiz-sentences?count=20');
+        console.log('Loading quiz data with enhanced adaptive learning...');
+        
+        const response = await fetch('/sentences/api/quiz-sentences?count=50'); // Request more sentences for variety
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1178,15 +1226,18 @@ async function loadQuizData() {
         console.log('API Response:', data);
         
         if (data.success && data.sentences && Array.isArray(data.sentences)) {
-            // Process sentences with adaptive learning logic
+            // Process sentences with enhanced adaptive learning logic
             quizData = processSentencesWithAdaptiveLearning(data.sentences);
+            console.log(`Successfully loaded ${quizData.length} questions with enhanced adaptive learning`);
             
-            // Log adaptive learning info
-            console.log('Adaptive Learning Stats:', {
+            // Log enhanced adaptive learning info
+            console.log('Enhanced Adaptive Learning Stats:', {
                 totalSentences: data.sentences.length,
                 masteredSentences: masteredSentences.size,
                 reviewSentences: reviewSentences.length,
-                sentenceQueueLength: currentSentenceQueue.length
+                recentlyUsedSentences: recentlyUsedSentences.size,
+                sentenceQueueLength: currentSentenceQueue.length,
+                sessionId: sessionId
             });
             
             hideLoading();
@@ -1195,8 +1246,9 @@ async function loadQuizData() {
         } else {
             throw new Error(data.message || 'Invalid data structure received from API');
         }
+        
     } catch (error) {
-        console.error('Error loading quiz data:', error);
+        console.error('Quiz loading error:', error);
         showError(`Failed to load quiz: ${error.message}. Please check if the server is running.`);
     }
 }
@@ -1266,12 +1318,10 @@ function showQuestion() {
     }
     
     console.log(`Showing question ${currentQuestion + 1}:`, {
-        id: question.id,
         sentence: question.sentence,
         correctAnswer: question.correctAnswer,
         correctAnswerType: typeof question.correctAnswer,
-        correctOption: question.options[question.correctAnswer],
-        allOptions: question.options
+        options: question.options
     });
     
     questionContainer.innerHTML = `
@@ -1334,47 +1384,41 @@ function showQuestion() {
     }, 500);
 }
 
-// COMPLETELY FIXED: selectOption function - directly uses correct answer from backend
+// FIXED: Enhanced selectOption function - USING SAME LOGIC AS WORDS QUIZ
 function selectOption(selectedIndex) {
     if (userAnswers[currentQuestion] !== null) return; // Already answered
     
     const question = quizData[currentQuestion];
     
-    // VALIDATE AND USE CORRECT ANSWER DIRECTLY FROM BACKEND
-    let correctAnswerIndex = question.correctAnswer;
+    // Get the correct answer directly from backend data - SAME LOGIC AS WORDS
+    let correctAnswerIndex;
     
-    // Ensure correctAnswerIndex is a number and within bounds
-    if (typeof correctAnswerIndex !== 'number') {
-        console.warn('Correct answer is not a number, converting:', correctAnswerIndex);
-        correctAnswerIndex = parseInt(correctAnswerIndex);
+    if (typeof question.correctAnswer === 'string') {
+        correctAnswerIndex = parseInt(question.correctAnswer);
+    } else {
+        correctAnswerIndex = question.correctAnswer;
     }
     
+    // Validate the correct answer index - SAME LOGIC AS WORDS
     if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
         console.error('Invalid correct answer index:', correctAnswerIndex);
-        console.error('Available options:', question.options);
-        // Fallback: find the correct answer by matching with english field
-        const correctEnglish = question.english || question.options[0];
-        correctAnswerIndex = question.options.findIndex(opt => opt === correctEnglish);
-        if (correctAnswerIndex === -1) correctAnswerIndex = 0;
-        console.warn('Using fallback correct answer index:', correctAnswerIndex);
+        // Fallback to first option if invalid
+        correctAnswerIndex = 0;
     }
     
-    // DEBUGGING - SHOW ALL DETAILS
+    const isCorrect = selectedIndex === correctAnswerIndex;
+    
+    // Update adaptive learning system with enhanced tracking
+    updateSentenceMastery(question, isCorrect, selectedIndex, correctAnswerIndex);
+    
+    // DEBUGGING
     console.log('=== ANSWER DEBUG INFO ===');
-    console.log('Question ID:', question.id);
     console.log('Question sentence:', question.sentence);
     console.log('Selected index:', selectedIndex);
     console.log('Selected option:', question.options[selectedIndex]);
-    console.log('Correct index (from backend):', question.correctAnswer);
-    console.log('Correct index (validated):', correctAnswerIndex);
-    console.log('Correct option (validated):', question.options[correctAnswerIndex]);
-    console.log('Is correct:', selectedIndex === correctAnswerIndex);
-    
-    // DIRECT COMPARISON - NO CONVERSION, NO VALIDATION
-    const isCorrect = selectedIndex === correctAnswerIndex;
-    
-    // Update adaptive learning system
-    updateSentenceMastery(question, isCorrect);
+    console.log('Correct index:', correctAnswerIndex);
+    console.log('Correct option:', question.options[correctAnswerIndex]);
+    console.log('Is correct:', isCorrect);
     
     userAnswers[currentQuestion] = selectedIndex;
     
@@ -1458,68 +1502,50 @@ function updateScore() {
     incorrectCountElement.textContent = incorrectAnswers;
 }
 
-// Save quiz results to localStorage for results page
-function saveQuizResultsToLocalStorage() {
-    try {
-        // 1. Save to quiz history
-        const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
-        
-        const quizResult = {
-            quiz_type: 'sentences', // Crucial for results page
-            correct_answers: correctAnswers,
-            total_questions: quizData.length,
-            percentage: Math.round((correctAnswers / quizData.length) * 100),
-            timestamp: new Date().toISOString(),
-            score: score
-        };
-        
-        quizHistory.unshift(quizResult); // Add to beginning
-        localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
-        
-        // 2. Save to performance data
-        let performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
-        if (!performanceData.sentences) performanceData.sentences = {};
-        
-        // Track performance for each sentence in this quiz
-        quizData.forEach((question, index) => {
-            const sentence = question.sentence;
-            
-            // USE CORRECT ANSWER DIRECTLY FROM BACKEND
-            let correctAnswerIndex = question.correctAnswer;
-            if (typeof correctAnswerIndex !== 'number') {
-                correctAnswerIndex = parseInt(correctAnswerIndex);
+// Calculate adaptive learning statistics
+function calculateAdaptiveLearningStats() {
+    const stats = {
+        masteredThisSession: 0,
+        weakSentencesCount: 0,
+        reviewSentencesCount: reviewSentences.length,
+        totalMastered: masteredSentences.size,
+        masteryProgress: 0,
+        recentlyUsedCount: recentlyUsedSentences.size
+    };
+    
+    // Count sentences mastered in this session
+    quizData.forEach(question => {
+        const sentenceKey = question.sentence;
+        if (masteredSentences.has(sentenceKey) && sentenceMastery[sentenceKey]) {
+            const mastery = sentenceMastery[sentenceKey];
+            // Check if mastered recently (in this session)
+            const lastSeen = new Date(mastery.lastSeen);
+            const sessionStart = new Date(startTime);
+            if (lastSeen > sessionStart && mastery.streak >= 3) {
+                stats.masteredThisSession++;
             }
-            if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
-                const correctEnglish = question.english || question.options[0];
-                correctAnswerIndex = question.options.findIndex(opt => opt === correctEnglish);
-                if (correctAnswerIndex === -1) correctAnswerIndex = 0;
+        }
+    });
+    
+    // Count weak sentences (less than 60% accuracy)
+    Object.keys(sentenceMastery).forEach(sentenceKey => {
+        const mastery = sentenceMastery[sentenceKey];
+        const totalAttempts = mastery.correct + mastery.incorrect;
+        if (totalAttempts > 0) {
+            const accuracy = (mastery.correct / totalAttempts) * 100;
+            if (accuracy < 60) {
+                stats.weakSentencesCount++;
             }
-            
-            const isCorrect = userAnswers[index] === correctAnswerIndex;
-            
-            if (!performanceData.sentences[sentence]) {
-                performanceData.sentences[sentence] = {
-                    pinyin: question.pinyin || '',
-                    meaning: question.options[correctAnswerIndex] || '',
-                    correct: 0,
-                    incorrect: 0
-                };
-            }
-            
-            if (isCorrect) {
-                performanceData.sentences[sentence].correct++;
-            } else {
-                performanceData.sentences[sentence].incorrect++;
-            }
-        });
-        
-        localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
-        
-        console.log('Sentences quiz results saved to localStorage!');
-        
-    } catch (error) {
-        console.error('Error saving sentences quiz results:', error);
+        }
+    });
+    
+    // Calculate overall mastery progress
+    const totalTrackedSentences = Object.keys(sentenceMastery).length;
+    if (totalTrackedSentences > 0) {
+        stats.masteryProgress = Math.round((masteredSentences.size / totalTrackedSentences) * 100);
     }
+    
+    return stats;
 }
 
 // Enhanced finishQuiz function with adaptive learning summary
@@ -1579,7 +1605,7 @@ async function finishQuiz() {
     resultsBadge.className = `results-badge ${badgeClass} mb-4`;
     
     // Store results
-    quizResults = {
+    const quizResults = {
         score: score,
         correct_answers: correctAnswers,
         incorrect_answers: incorrectAnswers,
@@ -1595,9 +1621,6 @@ async function finishQuiz() {
     // Save to localStorage for results page
     saveQuizResultsToLocalStorage();
     
-    // Save results
-    await saveResults();
-    
     // Store for detailed results
     sessionStorage.setItem('quizResults', JSON.stringify(quizResults));
     
@@ -1611,24 +1634,64 @@ function viewDetailedResults() {
     window.location.href = '/result';
 }
 
-// Save results to backend
-async function saveResults() {
+// Save quiz results to localStorage for results page
+function saveQuizResultsToLocalStorage() {
     try {
-        const response = await fetch('/api/quiz-results', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(quizResults)
+        // 1. Save to quiz history
+        const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
+        
+        const quizResult = {
+            quiz_type: 'sentences', // Crucial for results page
+            correct_answers: correctAnswers,
+            total_questions: quizData.length,
+            percentage: Math.round((correctAnswers / quizData.length) * 100),
+            timestamp: new Date().toISOString(),
+            score: score
+        };
+        
+        quizHistory.unshift(quizResult); // Add to beginning
+        localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
+        
+        // 2. Save to performance data
+        let performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+        if (!performanceData.sentences) performanceData.sentences = {};
+        
+        // Track performance for each sentence in this quiz
+        quizData.forEach((question, index) => {
+            const sentence = question.sentence;
+            
+            // Get correct answer index properly - SAME LOGIC AS WORDS
+            let correctAnswerIndex;
+            if (typeof question.correctAnswer === 'string') {
+                correctAnswerIndex = parseInt(question.correctAnswer);
+            } else {
+                correctAnswerIndex = question.correctAnswer;
+            }
+            
+            const isCorrect = userAnswers[index] === correctAnswerIndex;
+            
+            if (!performanceData.sentences[sentence]) {
+                performanceData.sentences[sentence] = {
+                    pinyin: question.pinyin || '',
+                    meaning: question.options[correctAnswerIndex] || '',
+                    correct: 0,
+                    incorrect: 0
+                };
+            }
+            
+            if (isCorrect) {
+                performanceData.sentences[sentence].correct++;
+            } else {
+                performanceData.sentences[sentence].incorrect++;
+            }
         });
         
-        const data = await response.json();
+        localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
         
-        if (!data.success) {
-            console.error('Failed to save results:', data.message);
-        }
+        console.log('Sentences quiz results saved to localStorage!');
+        
     } catch (error) {
-        console.error('Error saving results:', error);
+        console.error('Error saving sentences quiz results:', error);
     }
 }
 
@@ -1649,6 +1712,15 @@ function restartQuiz() {
     showQuestion();
     updateProgress();
     updateScore();
+}
+
+// Utility function to shuffle array
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
 }
 
 // UI State Management
