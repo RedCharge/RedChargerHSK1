@@ -527,22 +527,287 @@ HSK1_SENTENCES = [
 
 ]
 
-@sentence_bp.route('/api/debug-sentences')
-def debug_sentences():
-    """Debug endpoint to check sentence data"""
+@sentence_bp.route('/quiz')
+def sentence_quiz():
+    """Render the sentence quiz page"""
+    return render_template('quiz_sentences.html')
+
+@sentence_bp.route('/api/quiz-sentences')
+def get_quiz_sentences():
+    """API endpoint to get sentences for the quiz - SIMPLIFIED WORKING VERSION"""
     try:
-        if not HSK1_SENTENCES:
-            return jsonify({'success': False, 'message': 'HSK1_SENTENCES is empty'})
+        # Get number of questions from request (default 20)
+        num_questions = int(request.args.get('count', 20))
         
-        sample = HSK1_SENTENCES[0] if HSK1_SENTENCES else {}
+        # Select random sentences for the quiz
+        quiz_sentences = random.sample(HSK1_SENTENCES, min(num_questions, len(HSK1_SENTENCES)))
+        
+        # Create a deep copy and randomize the position of correct answers
+        randomized_sentences = []
+        for sentence in quiz_sentences:
+            # Create a deep copy to avoid modifying the original data
+            sentence_copy = sentence.copy()
+            sentence_copy['options'] = sentence['options'].copy()
+            
+            # METHOD 1: Use the original correctAnswer index if it exists and is valid
+            original_correct_index = sentence.get('correctAnswer')
+            if original_correct_index is not None and isinstance(original_correct_index, int):
+                if 0 <= original_correct_index < len(sentence['options']):
+                    correct_english = sentence['options'][original_correct_index]
+                else:
+                    # If index is out of bounds, use first option
+                    correct_english = sentence['options'][0]
+            # METHOD 2: Fallback to 'english' field
+            elif 'english' in sentence:
+                correct_english = sentence['english']
+            # METHOD 3: Ultimate fallback - use first option
+            else:
+                correct_english = sentence['options'][0]
+            
+            # Store the correct English text
+            final_correct_english = correct_english
+            
+            # Randomize options
+            random.shuffle(sentence_copy['options'])
+            shuffled_options = sentence_copy['options']
+            
+            # Find the new position of the correct answer
+            correct_index = None
+            
+            # Method 1: Exact match
+            try:
+                correct_index = shuffled_options.index(final_correct_english)
+            except ValueError:
+                # Method 2: Case-insensitive match
+                for i, option in enumerate(shuffled_options):
+                    if option.lower().strip() == final_correct_english.lower().strip():
+                        correct_index = i
+                        break
+            
+            # Method 3: Remove punctuation and compare
+            if correct_index is None:
+                for i, option in enumerate(shuffled_options):
+                    # Remove common punctuation
+                    option_clean = option.replace('.', '').replace('?', '').replace('!', '').replace('"', '').strip()
+                    correct_clean = final_correct_english.replace('.', '').replace('?', '').replace('!', '').replace('"', '').strip()
+                    if option_clean.lower() == correct_clean.lower():
+                        correct_index = i
+                        break
+            
+            # Final fallback: Use the first option
+            if correct_index is None:
+                correct_index = 0
+            
+            sentence_copy['correctAnswer'] = correct_index
+            randomized_sentences.append(sentence_copy)
+        
         return jsonify({
             'success': True,
+            'sentences': randomized_sentences,
             'total_sentences': len(HSK1_SENTENCES),
-            'sample_sentence': sample,
-            'keys': list(sample.keys()) if sample else []
+            'quiz_count': num_questions
         })
+        
+    except Exception as e:
+        import traceback
+        print(f"ERROR in get_quiz_sentences: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'message': f'Error retrieving quiz sentences: {str(e)}'
+        }), 500
+
+@sentence_bp.route('/api/all-sentences')
+def get_all_sentences():
+    """API endpoint to get all HSK1 sentences"""
+    try:
+        return jsonify({
+            'success': True,
+            'sentences': HSK1_SENTENCES
+        })
+        
     except Exception as e:
         return jsonify({
             'success': False,
-            'message': f'Debug error: {str(e)}'
+            'message': f'Error retrieving sentences: {str(e)}'
+        }), 500
+
+@sentence_bp.route('/api/next-quiz')
+def get_next_quiz():
+    """API endpoint to get a new quiz with different sentences"""
+    try:
+        # Get previously used sentence IDs from session
+        used_ids = session.get('used_sentence_ids', [])
+        
+        # Get available sentences (not used before)
+        available_sentences = [sentence for sentence in HSK1_SENTENCES if sentence['id'] not in used_ids]
+        
+        # If we don't have enough new sentences, reset and use all sentences
+        num_questions = int(request.args.get('count', 20))
+        if len(available_sentences) < num_questions:
+            available_sentences = HSK1_SENTENCES.copy()
+            used_ids = []
+        
+        # Select new sentences
+        quiz_sentences = random.sample(available_sentences, min(num_questions, len(available_sentences)))
+        
+        # Update used sentence IDs in session
+        new_used_ids = used_ids + [sentence['id'] for sentence in quiz_sentences]
+        session['used_sentence_ids'] = new_used_ids
+        
+        # Create randomized versions using the same logic as get_quiz_sentences
+        randomized_sentences = []
+        for sentence in quiz_sentences:
+            # Create a deep copy
+            sentence_copy = sentence.copy()
+            sentence_copy['options'] = sentence['options'].copy()
+            
+            # Use the same logic as get_quiz_sentences to determine correct answer
+            original_correct_index = sentence.get('correctAnswer')
+            if original_correct_index is not None and isinstance(original_correct_index, int):
+                if 0 <= original_correct_index < len(sentence['options']):
+                    correct_english = sentence['options'][original_correct_index]
+                else:
+                    correct_english = sentence['options'][0]
+            elif 'english' in sentence:
+                correct_english = sentence['english']
+            else:
+                correct_english = sentence['options'][0]
+            
+            final_correct_english = correct_english
+            
+            # Randomize options
+            random.shuffle(sentence_copy['options'])
+            shuffled_options = sentence_copy['options']
+            
+            # Find the new position of the correct answer
+            correct_index = None
+            
+            # Method 1: Exact match
+            try:
+                correct_index = shuffled_options.index(final_correct_english)
+            except ValueError:
+                # Method 2: Case-insensitive match
+                for i, option in enumerate(shuffled_options):
+                    if option.lower().strip() == final_correct_english.lower().strip():
+                        correct_index = i
+                        break
+            
+            # Method 3: Remove punctuation and compare
+            if correct_index is None:
+                for i, option in enumerate(shuffled_options):
+                    option_clean = option.replace('.', '').replace('?', '').replace('!', '').replace('"', '').strip()
+                    correct_clean = final_correct_english.replace('.', '').replace('?', '').replace('!', '').replace('"', '').strip()
+                    if option_clean.lower() == correct_clean.lower():
+                        correct_index = i
+                        break
+            
+            # Final fallback: Use the first option
+            if correct_index is None:
+                correct_index = 0
+            
+            sentence_copy['correctAnswer'] = correct_index
+            randomized_sentences.append(sentence_copy)
+        
+        return jsonify({
+            'success': True,
+            'sentences': randomized_sentences,
+            'total_sentences': len(HSK1_SENTENCES),
+            'new_sentences_count': len(quiz_sentences)
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"ERROR in get_next_quiz: {str(e)}")
+        print(f"Traceback: {traceback.format_exc()}")
+        return jsonify({
+            'success': False,
+            'message': f'Error retrieving next quiz: {str(e)}'
+        }), 500
+
+@sentence_bp.route('/api/sentence/<int:sentence_id>')
+def get_sentence_detail(sentence_id):
+    """API endpoint to get detailed information about a specific sentence"""
+    try:
+        sentence = next((s for s in HSK1_SENTENCES if s['id'] == sentence_id), None)
+        
+        if sentence:
+            return jsonify({
+                'success': True,
+                'sentence': sentence
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Sentence not found'
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error retrieving sentence: {str(e)}'
+        }), 500
+
+@sentence_bp.route('/api/sentence-search')
+def search_sentences():
+    """API endpoint to search sentences by English or Chinese"""
+    try:
+        query = request.args.get('q', '').lower()
+        
+        if not query:
+            return jsonify({
+                'success': True,
+                'sentences': []
+            })
+        
+        # Search in both English and Chinese
+        results = [
+            sentence for sentence in HSK1_SENTENCES 
+            if query in sentence['english'].lower() or query in sentence['sentence'].lower()
+        ]
+        
+        return jsonify({
+            'success': True,
+            'sentences': results[:20]  # Limit to 20 results
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error searching sentences: {str(e)}'
+        }), 500
+
+@sentence_bp.route('/api/sentence-stats')
+def get_sentence_stats():
+    """API endpoint to get sentence statistics"""
+    try:
+        total_sentences = len(HSK1_SENTENCES)
+        
+        # Count sentences by type (question, statement, etc.)
+        sentence_types = {}
+        for sentence in HSK1_SENTENCES:
+            # Simple classification based on punctuation
+            if '?' in sentence['sentence']:
+                sentence_type = 'question'
+            elif '!' in sentence['sentence']:
+                sentence_type = 'exclamation'
+            else:
+                sentence_type = 'statement'
+            
+            if sentence_type not in sentence_types:
+                sentence_types[sentence_type] = 0
+            sentence_types[sentence_type] += 1
+        
+        return jsonify({
+            'success': True,
+            'stats': {
+                'total_sentences': total_sentences,
+                'sentence_types': sentence_types
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error retrieving sentence stats: {str(e)}'
         }), 500
