@@ -543,7 +543,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     retryButton.addEventListener('click', startQuiz);
     
-    // Start the quiz immediately (like words quiz does)
+    // Start the quiz immediately
     startQuiz();
 });
 
@@ -790,7 +790,7 @@ function updateSentenceMastery(sentence, isCorrect, selectedIndex, correctIndex)
 }
 
 // ============================
-// QUIZ FUNCTIONALITY - FIXED
+// QUIZ FUNCTIONALITY
 // ============================
 
 function initializeAudioContext() {
@@ -1435,17 +1435,16 @@ function finishQuiz() {
     resultsBadge.textContent = badgeText;
     resultsBadge.className = `results-badge ${badgeClass} mb-4`;
     
+    // CRITICAL: Save quiz results in the format expected by results.html
     const quizResults = {
-        score: score,
-        correct_answers: correctAnswers,
-        incorrect_answers: incorrectAnswers,
-        percentage: percentage,
-        time_taken: timeTaken,
-        total_questions: quizData.length,
-        user_answers: userAnswers,
-        quiz_data: quizData,
         quiz_type: 'sentences',
-        adaptive_stats: adaptiveStats
+        correct_answers: correctAnswers,
+        total_questions: quizData.length,
+        percentage: percentage,
+        timestamp: new Date().toISOString(),
+        score: score,
+        adaptive_stats: adaptiveStats,
+        session_id: sessionId
     };
     
     saveQuizResultsToLocalStorage();
@@ -1501,28 +1500,12 @@ function saveQuizResultsToLocalStorage() {
         
         localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
         
+        console.log('Sentences quiz results saved to localStorage!');
+        
     } catch (error) {
         console.error('Error saving sentences quiz results:', error);
     }
 }
-
-// REMOVED: The old restartQuiz function that was causing the problem
-// function restartQuiz() {
-//     currentQuestion = 0;
-//     score = 0;
-//     correctAnswers = 0;
-//     incorrectAnswers = 0;
-//     userAnswers = [];
-//     
-//     userInteractedWithSpeech = false;
-//     
-//     resultsSection.classList.add('hidden');
-//     quizContent.classList.remove('hidden');
-//     
-//     showQuestion();
-//     updateProgress();
-//     updateScore();
-// }
 
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
