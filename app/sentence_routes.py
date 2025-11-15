@@ -476,7 +476,7 @@ HSK1_SENTENCES = [
 
 
 {"id":451,"sentence":"你家离地铁站远吗？","pinyin":"Nǐ jiā lí dì tiě zhàn yuǎn ma?","english":"Is your home far from the metro station?","options":["Is your office far from the metro station?","Is your school far from the metro station?","Is your home far from the metro station?","Is your home near the metro station?"],"correctAnswer":2},
-{"id":452,"sentence":"他学中文六个月了。","pinyin":"Tā xué zhōng wén liù gè yuè le.","english":"He has been learning Chinese for 6 months.","options":["He has been learning Chinese for 6 months","He has been learning Chinese for 3 months","He has been learning Chinese for 6 years","He has been learning Chinese for 1 year"],"correctAnswer":0},
+{"id":452,"sentence":"他学中文六个月了。","pinyin":"Tā xué zhōng wén liù gè yuè le.","english":"He has been learning Chinese for 6 months.","options":["He has been learning Chinese for 3 months","He has been learning Chinese for 6 months","He has been learning Chinese for 6 years","He has been learning Chinese for 1 year"],"correctAnswer":1},
 {"id":453,"sentence":"再做一次。","pinyin":"Zài zuò yí cì.","english":"Do it again.","options":["Stop doing it","Do it later","Do it again","Do it now"],"correctAnswer":2},
 {"id":454,"sentence":"再见！","pinyin":"Zài jiàn!","english":"Goodbye!","options":["See you later!","Goodbye!","Hello!","Good night!"],"correctAnswer":1},
 {"id":455,"sentence":"你在办公室吗？","pinyin":"Nǐ zài bàn gōng shì ma?","english":"Are you in the office?","options":["Are you at school?","Are you at home?","Are you outside?","Are you in the office?"],"correctAnswer":3},
