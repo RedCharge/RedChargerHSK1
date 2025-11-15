@@ -545,17 +545,17 @@ def get_quiz_sentences():
         # Create a deep copy and randomize the position of correct answers
         randomized_sentences = []
         for sentence in quiz_sentences:
-            # Create a copy to avoid modifying the original data
+            # Create a deep copy to avoid modifying the original data
             sentence_copy = sentence.copy()
             sentence_copy['options'] = sentence['options'].copy()
             
-            # Store the correct English translation before shuffling
+            # Store the correct English translation BEFORE shuffling
             correct_english = sentence['english']
             
             # Randomize options
             random.shuffle(sentence_copy['options'])
             
-            # Find the new position of the correct answer using fuzzy matching
+            # Find the new position of the correct answer using EXACT matching
             try:
                 sentence_copy['correctAnswer'] = sentence_copy['options'].index(correct_english)
             except ValueError:
@@ -569,10 +569,9 @@ def get_quiz_sentences():
                 if found_index is not None:
                     sentence_copy['correctAnswer'] = found_index
                 else:
-                    # If still not found, use the original correctAnswer position
-                    # but make sure it's within bounds after shuffling
-                    original_index = min(sentence['correctAnswer'], len(sentence_copy['options']) - 1)
-                    sentence_copy['correctAnswer'] = original_index
+                    # If still not found, use the first option as fallback
+                    print(f"WARNING: Could not find correct answer '{correct_english}' in options: {sentence_copy['options']}")
+                    sentence_copy['correctAnswer'] = 0
             
             randomized_sentences.append(sentence_copy)
         
@@ -630,13 +629,17 @@ def get_next_quiz():
         # Create randomized versions
         randomized_sentences = []
         for sentence in quiz_sentences:
+            # Create a deep copy
             sentence_copy = sentence.copy()
             sentence_copy['options'] = sentence['options'].copy()
             
+            # Store the correct English translation BEFORE shuffling
             correct_english = sentence['english']
+            
+            # Randomize options
             random.shuffle(sentence_copy['options'])
             
-            # Find the new position of the correct answer using fuzzy matching
+            # Find the new position of the correct answer using EXACT matching
             try:
                 sentence_copy['correctAnswer'] = sentence_copy['options'].index(correct_english)
             except ValueError:
@@ -650,10 +653,9 @@ def get_next_quiz():
                 if found_index is not None:
                     sentence_copy['correctAnswer'] = found_index
                 else:
-                    # If still not found, use the original correctAnswer position
-                    # but make sure it's within bounds after shuffling
-                    original_index = min(sentence['correctAnswer'], len(sentence_copy['options']) - 1)
-                    sentence_copy['correctAnswer'] = original_index
+                    # If still not found, use the first option as fallback
+                    print(f"WARNING: Could not find correct answer '{correct_english}' in options: {sentence_copy['options']}")
+                    sentence_copy['correctAnswer'] = 0
             
             randomized_sentences.append(sentence_copy)
         
