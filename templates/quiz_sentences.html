@@ -1384,38 +1384,28 @@
         }, 500);
     }
 
-    // FIXED: Enhanced selectOption function - USING DIRECT BACKEND CORRECT ANSWER
+    // FIXED: Directly use correctAnswer from backend without any parsing
     function selectOption(selectedIndex) {
         if (userAnswers[currentQuestion] !== null) return; // Already answered
         
         const question = quizData[currentQuestion];
         
-        // FIXED: Get the correct answer directly from backend data
-        // The backend should provide the correct answer index in a consistent format
-        let correctAnswerIndex;
+        // FIXED: Directly use the correctAnswer from backend - NO PARSING NEEDED
+        let correctAnswerIndex = question.correctAnswer;
         
-        // Handle different possible formats from backend
-        if (typeof question.correctAnswer === 'number') {
-            correctAnswerIndex = question.correctAnswer;
-        } else if (typeof question.correctAnswer === 'string') {
-            // Try to parse string to number
-            correctAnswerIndex = parseInt(question.correctAnswer);
-            if (isNaN(correctAnswerIndex)) {
-                console.error('Invalid correct answer string:', question.correctAnswer);
-                // Fallback: try to find the correct answer by matching with options
-                correctAnswerIndex = findCorrectAnswerByMatching(question);
-            }
-        } else {
-            console.error('Unknown correct answer format:', typeof question.correctAnswer, question.correctAnswer);
-            // Fallback: try to find the correct answer by matching with options
-            correctAnswerIndex = findCorrectAnswerByMatching(question);
-        }
+        // DEBUG: Log the exact data we're working with
+        console.log('=== DIRECT BACKEND DATA DEBUG ===');
+        console.log('Question:', question.sentence);
+        console.log('Backend correctAnswer:', question.correctAnswer);
+        console.log('Type of correctAnswer:', typeof question.correctAnswer);
+        console.log('All options:', question.options);
+        console.log('Expected correct option:', question.options[correctAnswerIndex]);
         
-        // Final validation of the correct answer index
-        if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
-            console.error('Invalid correct answer index after processing:', correctAnswerIndex);
-            console.log('Question data:', question);
-            // Ultimate fallback: use first option
+        // Validate the correct answer index is within bounds
+        if (correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
+            console.error('Invalid correct answer index from backend:', correctAnswerIndex);
+            console.error('Options length:', question.options.length);
+            // Fallback to first option if invalid
             correctAnswerIndex = 0;
         }
         
@@ -1425,15 +1415,12 @@
         updateSentenceMastery(question, isCorrect, selectedIndex, correctAnswerIndex);
         
         // DEBUGGING
-        console.log('=== ANSWER DEBUG INFO ===');
-        console.log('Question sentence:', question.sentence);
+        console.log('=== ANSWER VERIFICATION ===');
         console.log('Selected index:', selectedIndex);
         console.log('Selected option:', question.options[selectedIndex]);
         console.log('Correct index:', correctAnswerIndex);
         console.log('Correct option:', question.options[correctAnswerIndex]);
         console.log('Is correct:', isCorrect);
-        console.log('Correct answer from backend:', question.correctAnswer);
-        console.log('Type of correct answer:', typeof question.correctAnswer);
         
         userAnswers[currentQuestion] = selectedIndex;
         
@@ -1456,45 +1443,6 @@
         
         // Highlight the selected option and correct answer
         highlightOption(selectedIndex, correctAnswerIndex);
-    }
-
-    // Fallback function to find correct answer by matching with known patterns
-    function findCorrectAnswerByMatching(question) {
-        console.log('Attempting to find correct answer by matching...');
-        
-        // If backend provides correct_answer_text, use that to match
-        if (question.correct_answer_text) {
-            for (let i = 0; i < question.options.length; i++) {
-                if (question.options[i] === question.correct_answer_text) {
-                    console.log('Found correct answer by text match at index:', i);
-                    return i;
-                }
-            }
-        }
-        
-        // If we have a correctAnswer that's a string but not parseable, try other approaches
-        if (typeof question.correctAnswer === 'string') {
-            const str = question.correctAnswer.toLowerCase().trim();
-            
-            // Try to match "option a", "a)", etc.
-            if (str.includes('a') || str.includes('option a')) return 0;
-            if (str.includes('b') || str.includes('option b')) return 1;
-            if (str.includes('c') || str.includes('option c')) return 2;
-            if (str.includes('d') || str.includes('option d')) return 3;
-            
-            // Try to extract number from string
-            const numMatch = str.match(/\d+/);
-            if (numMatch) {
-                const num = parseInt(numMatch[0]) - 1; // Convert to 0-based index
-                if (num >= 0 && num < question.options.length) {
-                    return num;
-                }
-            }
-        }
-        
-        // Ultimate fallback - use first option
-        console.warn('Could not determine correct answer, using first option as fallback');
-        return 0;
     }
 
     // Highlight selected option and correct answer
@@ -1714,21 +1662,11 @@
             quizData.forEach((question, index) => {
                 const sentence = question.sentence;
                 
-                // Get correct answer index properly - USING FIXED LOGIC
-                let correctAnswerIndex;
-                if (typeof question.correctAnswer === 'number') {
-                    correctAnswerIndex = question.correctAnswer;
-                } else if (typeof question.correctAnswer === 'string') {
-                    correctAnswerIndex = parseInt(question.correctAnswer);
-                    if (isNaN(correctAnswerIndex)) {
-                        correctAnswerIndex = findCorrectAnswerByMatching(question);
-                    }
-                } else {
-                    correctAnswerIndex = findCorrectAnswerByMatching(question);
-                }
+                // FIXED: Directly use correctAnswer from backend
+                let correctAnswerIndex = question.correctAnswer;
                 
-                // Final validation
-                if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
+                // Validate index
+                if (correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
                     correctAnswerIndex = 0;
                 }
                 
