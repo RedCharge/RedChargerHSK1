@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, jsonify, request, session
 import random
+import re
 
 sentence_bp = Blueprint('sentence', __name__)
 
@@ -527,6 +528,48 @@ HSK1_SENTENCES = [
 
 ]
 
+
+
+def find_correct_option_index(options, correct_answer_text, original_correct_text=None):
+    """Robust function to find the correct option index with multiple fallback strategies"""
+    
+    # Strategy 1: Exact match
+    try:
+        return options.index(correct_answer_text)
+    except ValueError:
+        pass
+    
+    # Strategy 2: Case-insensitive exact match
+    correct_lower = correct_answer_text.lower().strip()
+    for i, option in enumerate(options):
+        if option.lower().strip() == correct_lower:
+            return i
+    
+    # Strategy 3: Use original correct text if available
+    if original_correct_text:
+        original_lower = original_correct_text.lower().strip()
+        for i, option in enumerate(options):
+            if option.lower().strip() == original_lower:
+                return i
+    
+    # Strategy 4: Fuzzy matching for minor differences
+    for i, option in enumerate(options):
+        # Remove punctuation and compare
+        option_clean = re.sub(r'[^\w\s]', '', option.lower().strip())
+        correct_clean = re.sub(r'[^\w\s]', '', correct_lower)
+        if option_clean == correct_clean:
+            return i
+    
+    # Strategy 5: Partial match (if one option contains the correct text)
+    for i, option in enumerate(options):
+        if correct_lower in option.lower() or option.lower() in correct_lower:
+            return i
+    
+    # Strategy 6: If all else fails, log and use first option as fallback
+    print(f"WARNING: Could not find correct option for: '{correct_answer_text}'")
+    print(f"Available options: {options}")
+    return 0
+
 @sentence_bp.route('/quiz')
 def sentence_quiz():
     """Render the sentence quiz page"""
@@ -550,23 +593,18 @@ def get_quiz_sentences():
             sentence_copy = sentence.copy()
             sentence_copy['options'] = sentence['options'].copy()
             
-            # ALWAYS use the 'english' field as the correct answer, IGNORE correctAnswer field
+            # Use the 'english' field as the correct answer text
             correct_answer_text = sentence['english']
+            
+            # Store the original correct answer for debugging
+            original_correct_index = sentence.get('correctAnswer')
+            original_correct_text = sentence['options'][original_correct_index] if original_correct_index is not None and 0 <= original_correct_index < len(sentence['options']) else None
             
             # Randomize options
             random.shuffle(sentence_copy['options'])
             
-            # Find the new position of the correct answer using the 'english' field
-            try:
-                # First try exact match
-                new_correct_index = sentence_copy['options'].index(correct_answer_text)
-            except ValueError:
-                # If exact match fails, try case-insensitive matching
-                new_correct_index = 0
-                for i, option in enumerate(sentence_copy['options']):
-                    if option.lower().strip() == correct_answer_text.lower().strip():
-                        new_correct_index = i
-                        break
+            # Find the new position of the correct answer using robust matching
+            new_correct_index = find_correct_option_index(sentence_copy['options'], correct_answer_text, original_correct_text)
             
             sentence_copy['correctAnswer'] = new_correct_index
             
@@ -630,23 +668,18 @@ def get_next_quiz():
             sentence_copy = sentence.copy()
             sentence_copy['options'] = sentence['options'].copy()
             
-            # ALWAYS use the 'english' field as the correct answer, IGNORE correctAnswer field
+            # Use the 'english' field as the correct answer text
             correct_answer_text = sentence['english']
+            
+            # Store the original correct answer for debugging
+            original_correct_index = sentence.get('correctAnswer')
+            original_correct_text = sentence['options'][original_correct_index] if original_correct_index is not None and 0 <= original_correct_index < len(sentence['options']) else None
             
             # Randomize options
             random.shuffle(sentence_copy['options'])
             
-            # Find the new position of the correct answer using the 'english' field
-            try:
-                # First try exact match
-                new_correct_index = sentence_copy['options'].index(correct_answer_text)
-            except ValueError:
-                # If exact match fails, try case-insensitive matching
-                new_correct_index = 0
-                for i, option in enumerate(sentence_copy['options']):
-                    if option.lower().strip() == correct_answer_text.lower().strip():
-                        new_correct_index = i
-                        break
+            # Find the new position of the correct answer using robust matching
+            new_correct_index = find_correct_option_index(sentence_copy['options'], correct_answer_text, original_correct_text)
             
             sentence_copy['correctAnswer'] = new_correct_index
             randomized_sentences.append(sentence_copy)
@@ -795,18 +828,15 @@ def debug_quiz():
             
             correct_answer_text = sentence['english']
             
+            # Store the original correct answer for debugging
+            original_correct_index = sentence.get('correctAnswer')
+            original_correct_text = sentence['options'][original_correct_index] if original_correct_index is not None and 0 <= original_correct_index < len(sentence['options']) else None
+            
             # Randomize options
             random.shuffle(sentence_copy['options'])
             
-            # Find the new position of the correct answer
-            try:
-                new_correct_index = sentence_copy['options'].index(correct_answer_text)
-            except ValueError:
-                new_correct_index = 0
-                for i, option in enumerate(sentence_copy['options']):
-                    if option.lower().strip() == correct_answer_text.lower().strip():
-                        new_correct_index = i
-                        break
+            # Find the new position of the correct answer using robust matching
+            new_correct_index = find_correct_option_index(sentence_copy['options'], correct_answer_text, original_correct_text)
             
             sentence_copy['correctAnswer'] = new_correct_index
             
@@ -832,4 +862,63 @@ def debug_quiz():
         return jsonify({
             'success': False,
             'message': f'Debug error: {str(e)}'
-        }), 500        
+        }), 500
+
+@sentence_bp.route('/api/validate-sentence-data')
+def validate_sentence_data():
+    """API endpoint to validate all sentence data and identify mismatches"""
+    try:
+        validation_results = []
+        mismatches = []
+        
+        for sentence in HSK1_SENTENCES:
+            correct_answer_text = sentence['english']
+            original_correct_index = sentence.get('correctAnswer')
+            
+            if original_correct_index is None or not (0 <= original_correct_index < len(sentence['options'])):
+                mismatches.append({
+                    'id': sentence['id'],
+                    'sentence': sentence['sentence'],
+                    'issue': f'Invalid correctAnswer index: {original_correct_index}',
+                    'english_field': correct_answer_text,
+                    'options': sentence['options']
+                })
+                continue
+            
+            original_correct_text = sentence['options'][original_correct_index]
+            
+            # Check if the original correct text matches the english field
+            exact_match = original_correct_text.strip().lower() == correct_answer_text.strip().lower()
+            
+            if not exact_match:
+                mismatches.append({
+                    'id': sentence['id'],
+                    'sentence': sentence['sentence'],
+                    'issue': 'english field does not match correct option',
+                    'english_field': correct_answer_text,
+                    'correct_option': original_correct_text,
+                    'options': sentence['options']
+                })
+            
+            validation_results.append({
+                'id': sentence['id'],
+                'sentence': sentence['sentence'],
+                'exact_match': exact_match,
+                'english_field': correct_answer_text,
+                'correct_option': original_correct_text,
+                'options_count': len(sentence['options'])
+            })
+        
+        return jsonify({
+            'success': True,
+            'validation_results': validation_results,
+            'mismatches': mismatches,
+            'total_sentences': len(HSK1_SENTENCES),
+            'mismatch_count': len(mismatches)
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error validating sentence data: {str(e)}'
+        }), 500
