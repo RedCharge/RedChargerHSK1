@@ -534,7 +534,7 @@ def sentence_quiz():
 
 @sentence_bp.route('/api/quiz-sentences')
 def get_quiz_sentences():
-    """API endpoint to get sentences for the quiz"""
+    """API endpoint to get sentences for the quiz - FIXED VERSION"""
     try:
         # Get number of questions from request (default 20)
         num_questions = int(request.args.get('count', 20))
@@ -549,29 +549,87 @@ def get_quiz_sentences():
             sentence_copy = sentence.copy()
             sentence_copy['options'] = sentence['options'].copy()
             
-            # Store the correct English translation BEFORE shuffling
-            correct_english = sentence['english']
+            # DEBUG: Print original sentence data for verification
+            print(f"DEBUG - Original sentence: {sentence['sentence']}")
+            print(f"DEBUG - Original correctAnswer: {sentence.get('correctAnswer', 'NOT FOUND')}")
+            print(f"DEBUG - Original english: {sentence.get('english', 'NOT FOUND')}")
+            print(f"DEBUG - Original options: {sentence['options']}")
+            
+            # METHOD 1: Use the original correctAnswer index if it exists and is valid
+            original_correct_index = sentence.get('correctAnswer')
+            if original_correct_index is not None and 0 <= original_correct_index < len(sentence['options']):
+                correct_english = sentence['options'][original_correct_index]
+                print(f"DEBUG - Using original correct index {original_correct_index}: '{correct_english}'")
+            # METHOD 2: Fallback to 'english' field
+            elif 'english' in sentence:
+                correct_english = sentence['english']
+                print(f"DEBUG - Using 'english' field: '{correct_english}'")
+            # METHOD 3: Ultimate fallback - use first option
+            else:
+                correct_english = sentence['options'][0]
+                print(f"DEBUG - Using first option as fallback: '{correct_english}'")
+            
+            # Store the correct English text
+            final_correct_english = correct_english
             
             # Randomize options
+            original_options = sentence_copy['options'].copy()
             random.shuffle(sentence_copy['options'])
+            shuffled_options = sentence_copy['options']
             
-            # Find the new position of the correct answer using EXACT matching
+            print(f"DEBUG - Shuffled options: {shuffled_options}")
+            print(f"DEBUG - Looking for: '{final_correct_english}'")
+            
+            # Find the new position of the correct answer with multiple fallback methods
+            correct_index = None
+            
+            # Method 1: Exact match
             try:
-                sentence_copy['correctAnswer'] = sentence_copy['options'].index(correct_english)
+                correct_index = shuffled_options.index(final_correct_english)
+                print(f"DEBUG - Found with exact match at index: {correct_index}")
             except ValueError:
-                # If exact match fails, try case-insensitive matching
-                found_index = None
-                for i, option in enumerate(sentence_copy['options']):
-                    if option.lower().strip() == correct_english.lower().strip():
-                        found_index = i
+                # Method 2: Case-insensitive match
+                for i, option in enumerate(shuffled_options):
+                    if option.lower().strip() == final_correct_english.lower().strip():
+                        correct_index = i
+                        print(f"DEBUG - Found with case-insensitive match at index: {correct_index}")
                         break
-                
-                if found_index is not None:
-                    sentence_copy['correctAnswer'] = found_index
-                else:
-                    # If still not found, use the first option as fallback
-                    print(f"WARNING: Could not find correct answer '{correct_english}' in options: {sentence_copy['options']}")
-                    sentence_copy['correctAnswer'] = 0
+            
+            # Method 3: Fuzzy matching for small differences
+            if correct_index is None:
+                for i, option in enumerate(shuffled_options):
+                    # Remove extra spaces and compare
+                    option_clean = ' '.join(option.split())
+                    correct_clean = ' '.join(final_correct_english.split())
+                    if option_clean.lower() == correct_clean.lower():
+                        correct_index = i
+                        print(f"DEBUG - Found with space-normalized match at index: {correct_index}")
+                        break
+            
+            # Method 4: Similarity matching (for punctuation differences)
+            if correct_index is None:
+                for i, option in enumerate(shuffled_options):
+                    # Remove common punctuation and compare
+                    option_clean = option.replace('.', '').replace('?', '').replace('!', '').strip()
+                    correct_clean = final_correct_english.replace('.', '').replace('?', '').replace('!', '').strip()
+                    if option_clean.lower() == correct_clean.lower():
+                        correct_index = i
+                        print(f"DEBUG - Found with punctuation-normalized match at index: {correct_index}")
+                        break
+            
+            # Final fallback: Use the first option
+            if correct_index is None:
+                correct_index = 0
+                print(f"DEBUG - WARNING: Using first option as fallback. Could not find: '{final_correct_english}'")
+            
+            sentence_copy['correctAnswer'] = correct_index
+            
+            # VERIFICATION: Double-check the result
+            actual_correct = shuffled_options[correct_index]
+            print(f"DEBUG - FINAL: correctAnswer={correct_index}, actual text='{actual_correct}'")
+            print(f"DEBUG - EXPECTED: '{final_correct_english}'")
+            print(f"DEBUG - MATCH: {actual_correct == final_correct_english}")
+            print("---")
             
             randomized_sentences.append(sentence_copy)
         
@@ -583,6 +641,7 @@ def get_quiz_sentences():
         })
         
     except Exception as e:
+        print(f"ERROR in get_quiz_sentences: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Error retrieving quiz sentences: {str(e)}'
@@ -605,7 +664,7 @@ def get_all_sentences():
 
 @sentence_bp.route('/api/next-quiz')
 def get_next_quiz():
-    """API endpoint to get a new quiz with different sentences"""
+    """API endpoint to get a new quiz with different sentences - FIXED VERSION"""
     try:
         # Get previously used sentence IDs from session
         used_ids = session.get('used_sentence_ids', [])
@@ -626,37 +685,64 @@ def get_next_quiz():
         new_used_ids = used_ids + [sentence['id'] for sentence in quiz_sentences]
         session['used_sentence_ids'] = new_used_ids
         
-        # Create randomized versions
+        # Create randomized versions using the same logic as get_quiz_sentences
         randomized_sentences = []
         for sentence in quiz_sentences:
             # Create a deep copy
             sentence_copy = sentence.copy()
             sentence_copy['options'] = sentence['options'].copy()
             
-            # Store the correct English translation BEFORE shuffling
-            correct_english = sentence['english']
+            # Use the same logic as get_quiz_sentences to determine correct answer
+            original_correct_index = sentence.get('correctAnswer')
+            if original_correct_index is not None and 0 <= original_correct_index < len(sentence['options']):
+                correct_english = sentence['options'][original_correct_index]
+            elif 'english' in sentence:
+                correct_english = sentence['english']
+            else:
+                correct_english = sentence['options'][0]
+            
+            final_correct_english = correct_english
             
             # Randomize options
             random.shuffle(sentence_copy['options'])
+            shuffled_options = sentence_copy['options']
             
-            # Find the new position of the correct answer using EXACT matching
+            # Find the new position of the correct answer
+            correct_index = None
+            
+            # Method 1: Exact match
             try:
-                sentence_copy['correctAnswer'] = sentence_copy['options'].index(correct_english)
+                correct_index = shuffled_options.index(final_correct_english)
             except ValueError:
-                # If exact match fails, try case-insensitive matching
-                found_index = None
-                for i, option in enumerate(sentence_copy['options']):
-                    if option.lower().strip() == correct_english.lower().strip():
-                        found_index = i
+                # Method 2: Case-insensitive match
+                for i, option in enumerate(shuffled_options):
+                    if option.lower().strip() == final_correct_english.lower().strip():
+                        correct_index = i
                         break
-                
-                if found_index is not None:
-                    sentence_copy['correctAnswer'] = found_index
-                else:
-                    # If still not found, use the first option as fallback
-                    print(f"WARNING: Could not find correct answer '{correct_english}' in options: {sentence_copy['options']}")
-                    sentence_copy['correctAnswer'] = 0
             
+            # Method 3: Fuzzy matching for small differences
+            if correct_index is None:
+                for i, option in enumerate(shuffled_options):
+                    option_clean = ' '.join(option.split())
+                    correct_clean = ' '.join(final_correct_english.split())
+                    if option_clean.lower() == correct_clean.lower():
+                        correct_index = i
+                        break
+            
+            # Method 4: Similarity matching (for punctuation differences)
+            if correct_index is None:
+                for i, option in enumerate(shuffled_options):
+                    option_clean = option.replace('.', '').replace('?', '').replace('!', '').strip()
+                    correct_clean = final_correct_english.replace('.', '').replace('?', '').replace('!', '').strip()
+                    if option_clean.lower() == correct_clean.lower():
+                        correct_index = i
+                        break
+            
+            # Final fallback: Use the first option
+            if correct_index is None:
+                correct_index = 0
+            
+            sentence_copy['correctAnswer'] = correct_index
             randomized_sentences.append(sentence_copy)
         
         return jsonify({
@@ -667,6 +753,7 @@ def get_next_quiz():
         })
         
     except Exception as e:
+        print(f"ERROR in get_next_quiz: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Error retrieving next quiz: {str(e)}'
