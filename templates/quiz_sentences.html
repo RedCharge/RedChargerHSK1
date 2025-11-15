@@ -875,7 +875,7 @@
     }
 
     // ============================
-    // FIXED QUIZ FUNCTIONALITY (USING WORDS QUIZ LOGIC)
+    // FIXED QUIZ FUNCTIONALITY
     // ============================
 
     // Initialize Audio Context for sound effects
@@ -1209,14 +1209,16 @@
         });
     }
 
-    // Enhanced loadQuizData function with adaptive learning (SAME AS WORDS)
+    // Enhanced loadQuizData function with adaptive learning
     async function loadQuizData() {
         try {
             showLoading();
             
             console.log('Loading quiz data with enhanced adaptive learning...');
             
-            const response = await fetch('/sentences/api/quiz-sentences?count=50'); // Request more sentences for variety
+            // Add cache-buster to prevent cached responses
+            const cacheBuster = '&t=' + new Date().getTime();
+            const response = await fetch('/sentences/api/quiz-sentences?count=50' + cacheBuster);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1253,6 +1255,21 @@
         }
     }
 
+    // Add this debug function to verify quiz data
+    function debugQuizData() {
+        console.log('=== QUIZ DATA DEBUG ===');
+        quizData.forEach((question, index) => {
+            console.log(`Question ${index + 1}:`, {
+                id: question.id,
+                sentence: question.sentence,
+                correctAnswer: question.correctAnswer,
+                correctOption: question.options[question.correctAnswer],
+                allOptions: question.options
+            });
+        });
+        console.log('=== END QUIZ DATA DEBUG ===');
+    }
+
     // Initialize the quiz
     function initQuiz() {
         currentQuestion = 0;
@@ -1264,6 +1281,9 @@
         
         // Reset speech interaction flag for new quiz
         userInteractedWithSpeech = false;
+        
+        // DEBUG: Verify quiz data
+        debugQuizData();
         
         showQuestion();
         updateProgress();
@@ -1318,9 +1338,11 @@
         }
         
         console.log(`Showing question ${currentQuestion + 1}:`, {
+            id: question.id,
             sentence: question.sentence,
             correctAnswer: question.correctAnswer,
             correctAnswerType: typeof question.correctAnswer,
+            correctOption: question.options[question.correctAnswer],
             options: question.options
         });
         
@@ -1384,24 +1406,28 @@
         }, 500);
     }
 
-    // FIXED: Using the EXACT same logic as words quiz
+    // FIXED: Enhanced selectOption function with better debugging
     function selectOption(selectedIndex) {
         if (userAnswers[currentQuestion] !== null) return; // Already answered
         
         const question = quizData[currentQuestion];
         
-        // Get the correct answer directly from backend data - EXACT SAME LOGIC AS WORDS QUIZ
-        let correctAnswerIndex;
+        // FIXED: Get the correct answer directly from backend data
+        let correctAnswerIndex = question.correctAnswer;
         
-        if (typeof question.correctAnswer === 'string') {
-            correctAnswerIndex = parseInt(question.correctAnswer);
-        } else {
-            correctAnswerIndex = question.correctAnswer;
-        }
+        // DEBUG: Log the exact data we're working with
+        console.log('=== DIRECT BACKEND DATA DEBUG ===');
+        console.log('Question ID:', question.id);
+        console.log('Question:', question.sentence);
+        console.log('Backend correctAnswer:', question.correctAnswer);
+        console.log('Type of correctAnswer:', typeof question.correctAnswer);
+        console.log('All options:', question.options);
+        console.log('Expected correct option:', question.options[correctAnswerIndex]);
         
-        // Validate the correct answer index - EXACT SAME LOGIC AS WORDS QUIZ
-        if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
-            console.error('Invalid correct answer index:', correctAnswerIndex);
+        // Validate the correct answer index is within bounds
+        if (correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
+            console.error('Invalid correct answer index from backend:', correctAnswerIndex);
+            console.error('Options length:', question.options.length);
             // Fallback to first option if invalid
             correctAnswerIndex = 0;
         }
@@ -1411,9 +1437,8 @@
         // Update adaptive learning system with enhanced tracking
         updateSentenceMastery(question, isCorrect, selectedIndex, correctAnswerIndex);
         
-        // DEBUGGING - EXACT SAME LOGIC AS WORDS QUIZ
-        console.log('=== ANSWER DEBUG INFO ===');
-        console.log('Question sentence:', question.sentence);
+        // DEBUGGING
+        console.log('=== ANSWER VERIFICATION ===');
         console.log('Selected index:', selectedIndex);
         console.log('Selected option:', question.options[selectedIndex]);
         console.log('Correct index:', correctAnswerIndex);
@@ -1422,7 +1447,7 @@
         
         userAnswers[currentQuestion] = selectedIndex;
         
-        // Play sound effect based on answer - EXACT SAME LOGIC AS WORDS QUIZ
+        // Play sound effect based on answer
         if (isCorrect) {
             playCorrectSound();
             score += 10;
@@ -1660,13 +1685,8 @@
             quizData.forEach((question, index) => {
                 const sentence = question.sentence;
                 
-                // Get correct answer index properly - USING SAME LOGIC AS WORDS QUIZ
-                let correctAnswerIndex;
-                if (typeof question.correctAnswer === 'string') {
-                    correctAnswerIndex = parseInt(question.correctAnswer);
-                } else {
-                    correctAnswerIndex = question.correctAnswer;
-                }
+                // Get correct answer index properly
+                let correctAnswerIndex = question.correctAnswer;
                 
                 const isCorrect = userAnswers[index] === correctAnswerIndex;
                 
