@@ -534,7 +534,7 @@ def sentence_quiz():
 
 @sentence_bp.route('/api/quiz-sentences')
 def get_quiz_sentences():
-    """API endpoint to get sentences for the quiz - SIMPLIFIED WORKING VERSION"""
+    """API endpoint to get sentences for the quiz - USING WORDS QUIZ STRUCTURE"""
     try:
         # Get number of questions from request (default 20)
         num_questions = int(request.args.get('count', 20))
@@ -542,76 +542,20 @@ def get_quiz_sentences():
         # Select random sentences for the quiz
         quiz_sentences = random.sample(HSK1_SENTENCES, min(num_questions, len(HSK1_SENTENCES)))
         
-        # Create a deep copy and randomize the position of correct answers
-        randomized_sentences = []
+        # Randomize the position of correct answers - EXACT SAME LOGIC AS WORDS QUIZ
         for sentence in quiz_sentences:
-            # Create a deep copy to avoid modifying the original data
-            sentence_copy = sentence.copy()
-            sentence_copy['options'] = sentence['options'].copy()
-            
-            # METHOD 1: Use the original correctAnswer index if it exists and is valid
-            original_correct_index = sentence.get('correctAnswer')
-            if original_correct_index is not None and isinstance(original_correct_index, int):
-                if 0 <= original_correct_index < len(sentence['options']):
-                    correct_english = sentence['options'][original_correct_index]
-                else:
-                    # If index is out of bounds, use first option
-                    correct_english = sentence['options'][0]
-            # METHOD 2: Fallback to 'english' field
-            elif 'english' in sentence:
-                correct_english = sentence['english']
-            # METHOD 3: Ultimate fallback - use first option
-            else:
-                correct_english = sentence['options'][0]
-            
-            # Store the correct English text
-            final_correct_english = correct_english
-            
-            # Randomize options
-            random.shuffle(sentence_copy['options'])
-            shuffled_options = sentence_copy['options']
-            
-            # Find the new position of the correct answer
-            correct_index = None
-            
-            # Method 1: Exact match
-            try:
-                correct_index = shuffled_options.index(final_correct_english)
-            except ValueError:
-                # Method 2: Case-insensitive match
-                for i, option in enumerate(shuffled_options):
-                    if option.lower().strip() == final_correct_english.lower().strip():
-                        correct_index = i
-                        break
-            
-            # Method 3: Remove punctuation and compare
-            if correct_index is None:
-                for i, option in enumerate(shuffled_options):
-                    # Remove common punctuation
-                    option_clean = option.replace('.', '').replace('?', '').replace('!', '').replace('"', '').strip()
-                    correct_clean = final_correct_english.replace('.', '').replace('?', '').replace('!', '').replace('"', '').strip()
-                    if option_clean.lower() == correct_clean.lower():
-                        correct_index = i
-                        break
-            
-            # Final fallback: Use the first option
-            if correct_index is None:
-                correct_index = 0
-            
-            sentence_copy['correctAnswer'] = correct_index
-            randomized_sentences.append(sentence_copy)
+            correct_answer = sentence['options'][sentence['correctAnswer']]
+            random.shuffle(sentence['options'])
+            sentence['correctAnswer'] = sentence['options'].index(correct_answer)
         
         return jsonify({
             'success': True,
-            'sentences': randomized_sentences,
+            'sentences': quiz_sentences,
             'total_sentences': len(HSK1_SENTENCES),
             'quiz_count': num_questions
         })
         
     except Exception as e:
-        import traceback
-        print(f"ERROR in get_quiz_sentences: {str(e)}")
-        print(f"Traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
             'message': f'Error retrieving quiz sentences: {str(e)}'
@@ -655,71 +599,20 @@ def get_next_quiz():
         new_used_ids = used_ids + [sentence['id'] for sentence in quiz_sentences]
         session['used_sentence_ids'] = new_used_ids
         
-        # Create randomized versions using the same logic as get_quiz_sentences
-        randomized_sentences = []
+        # Randomize the position of correct answers - EXACT SAME LOGIC AS WORDS QUIZ
         for sentence in quiz_sentences:
-            # Create a deep copy
-            sentence_copy = sentence.copy()
-            sentence_copy['options'] = sentence['options'].copy()
-            
-            # Use the same logic as get_quiz_sentences to determine correct answer
-            original_correct_index = sentence.get('correctAnswer')
-            if original_correct_index is not None and isinstance(original_correct_index, int):
-                if 0 <= original_correct_index < len(sentence['options']):
-                    correct_english = sentence['options'][original_correct_index]
-                else:
-                    correct_english = sentence['options'][0]
-            elif 'english' in sentence:
-                correct_english = sentence['english']
-            else:
-                correct_english = sentence['options'][0]
-            
-            final_correct_english = correct_english
-            
-            # Randomize options
-            random.shuffle(sentence_copy['options'])
-            shuffled_options = sentence_copy['options']
-            
-            # Find the new position of the correct answer
-            correct_index = None
-            
-            # Method 1: Exact match
-            try:
-                correct_index = shuffled_options.index(final_correct_english)
-            except ValueError:
-                # Method 2: Case-insensitive match
-                for i, option in enumerate(shuffled_options):
-                    if option.lower().strip() == final_correct_english.lower().strip():
-                        correct_index = i
-                        break
-            
-            # Method 3: Remove punctuation and compare
-            if correct_index is None:
-                for i, option in enumerate(shuffled_options):
-                    option_clean = option.replace('.', '').replace('?', '').replace('!', '').replace('"', '').strip()
-                    correct_clean = final_correct_english.replace('.', '').replace('?', '').replace('!', '').replace('"', '').strip()
-                    if option_clean.lower() == correct_clean.lower():
-                        correct_index = i
-                        break
-            
-            # Final fallback: Use the first option
-            if correct_index is None:
-                correct_index = 0
-            
-            sentence_copy['correctAnswer'] = correct_index
-            randomized_sentences.append(sentence_copy)
+            correct_answer = sentence['options'][sentence['correctAnswer']]
+            random.shuffle(sentence['options'])
+            sentence['correctAnswer'] = sentence['options'].index(correct_answer)
         
         return jsonify({
             'success': True,
-            'sentences': randomized_sentences,
+            'sentences': quiz_sentences,
             'total_sentences': len(HSK1_SENTENCES),
             'new_sentences_count': len(quiz_sentences)
         })
         
     except Exception as e:
-        import traceback
-        print(f"ERROR in get_next_quiz: {str(e)}")
-        print(f"Traceback: {traceback.format_exc()}")
         return jsonify({
             'success': False,
             'message': f'Error retrieving next quiz: {str(e)}'
