@@ -875,7 +875,7 @@
     }
 
     // ============================
-    // FIXED QUIZ FUNCTIONALITY
+    // FIXED QUIZ FUNCTIONALITY (USING WORDS QUIZ LOGIC)
     // ============================
 
     // Initialize Audio Context for sound effects
@@ -1317,12 +1317,12 @@
             return;
         }
         
-        console.log(`=== SHOWING QUESTION ${currentQuestion + 1} ===`);
-        console.log('Sentence:', question.sentence);
-        console.log('Backend correctAnswer:', question.correctAnswer);
-        console.log('Type of correctAnswer:', typeof question.correctAnswer);
-        console.log('All options:', question.options);
-        console.log('Expected correct option:', question.options[question.correctAnswer]);
+        console.log(`Showing question ${currentQuestion + 1}:`, {
+            sentence: question.sentence,
+            correctAnswer: question.correctAnswer,
+            correctAnswerType: typeof question.correctAnswer,
+            options: question.options
+        });
         
         questionContainer.innerHTML = `
             <div class="text-center mb-6">
@@ -1384,27 +1384,24 @@
         }, 500);
     }
 
-    // FIXED: Directly use correctAnswer from backend without any parsing
+    // FIXED: Using the EXACT same logic as words quiz
     function selectOption(selectedIndex) {
         if (userAnswers[currentQuestion] !== null) return; // Already answered
         
         const question = quizData[currentQuestion];
         
-        // FIXED: Directly use the correctAnswer from backend - NO PARSING NEEDED
-        let correctAnswerIndex = question.correctAnswer;
+        // Get the correct answer directly from backend data - EXACT SAME LOGIC AS WORDS QUIZ
+        let correctAnswerIndex;
         
-        // DEBUG: Log the exact data we're working with
-        console.log('=== DIRECT BACKEND DATA DEBUG ===');
-        console.log('Question:', question.sentence);
-        console.log('Backend correctAnswer:', question.correctAnswer);
-        console.log('Type of correctAnswer:', typeof question.correctAnswer);
-        console.log('All options:', question.options);
-        console.log('Expected correct option:', question.options[correctAnswerIndex]);
+        if (typeof question.correctAnswer === 'string') {
+            correctAnswerIndex = parseInt(question.correctAnswer);
+        } else {
+            correctAnswerIndex = question.correctAnswer;
+        }
         
-        // Validate the correct answer index is within bounds
-        if (correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
-            console.error('Invalid correct answer index from backend:', correctAnswerIndex);
-            console.error('Options length:', question.options.length);
+        // Validate the correct answer index - EXACT SAME LOGIC AS WORDS QUIZ
+        if (isNaN(correctAnswerIndex) || correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
+            console.error('Invalid correct answer index:', correctAnswerIndex);
             // Fallback to first option if invalid
             correctAnswerIndex = 0;
         }
@@ -1414,8 +1411,9 @@
         // Update adaptive learning system with enhanced tracking
         updateSentenceMastery(question, isCorrect, selectedIndex, correctAnswerIndex);
         
-        // DEBUGGING
-        console.log('=== ANSWER VERIFICATION ===');
+        // DEBUGGING - EXACT SAME LOGIC AS WORDS QUIZ
+        console.log('=== ANSWER DEBUG INFO ===');
+        console.log('Question sentence:', question.sentence);
         console.log('Selected index:', selectedIndex);
         console.log('Selected option:', question.options[selectedIndex]);
         console.log('Correct index:', correctAnswerIndex);
@@ -1424,7 +1422,7 @@
         
         userAnswers[currentQuestion] = selectedIndex;
         
-        // Play sound effect based on answer
+        // Play sound effect based on answer - EXACT SAME LOGIC AS WORDS QUIZ
         if (isCorrect) {
             playCorrectSound();
             score += 10;
@@ -1662,12 +1660,12 @@
             quizData.forEach((question, index) => {
                 const sentence = question.sentence;
                 
-                // FIXED: Directly use correctAnswer from backend
-                let correctAnswerIndex = question.correctAnswer;
-                
-                // Validate index
-                if (correctAnswerIndex < 0 || correctAnswerIndex >= question.options.length) {
-                    correctAnswerIndex = 0;
+                // Get correct answer index properly - USING SAME LOGIC AS WORDS QUIZ
+                let correctAnswerIndex;
+                if (typeof question.correctAnswer === 'string') {
+                    correctAnswerIndex = parseInt(question.correctAnswer);
+                } else {
+                    correctAnswerIndex = question.correctAnswer;
                 }
                 
                 const isCorrect = userAnswers[index] === correctAnswerIndex;
