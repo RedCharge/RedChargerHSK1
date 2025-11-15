@@ -468,7 +468,7 @@
 
     <!-- Quiz Logic -->
     <script>
-        // Quiz state
+                       // Quiz state
     let currentQuestion = 0;
     let score = 0;
     let correctAnswers = 0;
@@ -875,7 +875,7 @@
     }
 
     // ============================
-    // FIXED QUIZ FUNCTIONALITY (USING WORDS QUIZ LOGIC)
+    // FIXED QUIZ FUNCTIONALITY
     // ============================
 
     // Initialize Audio Context for sound effects
@@ -1317,12 +1317,12 @@
             return;
         }
         
-        console.log(`Showing question ${currentQuestion + 1}:`, {
-            sentence: question.sentence,
-            correctAnswer: question.correctAnswer,
-            correctAnswerType: typeof question.correctAnswer,
-            options: question.options
-        });
+        console.log(`=== SHOWING QUESTION ${currentQuestion + 1} ===`);
+        console.log('Sentence:', question.sentence);
+        console.log('Backend correctAnswer:', question.correctAnswer);
+        console.log('Type of correctAnswer:', typeof question.correctAnswer);
+        console.log('All options:', question.options);
+        console.log('Expected correct option:', question.options[question.correctAnswer]);
         
         questionContainer.innerHTML = `
             <div class="text-center mb-6">
