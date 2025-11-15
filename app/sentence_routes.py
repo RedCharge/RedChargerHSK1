@@ -779,3 +779,57 @@ def debug_sentence(sentence_id):
             'success': False,
             'message': f'Error retrieving sentence: {str(e)}'
         }), 500
+        
+@sentence_bp.route('/api/debug-quiz')
+def debug_quiz():
+    """Debug endpoint to see exactly what data is being sent to frontend"""
+    try:
+        num_questions = 1  # Just get one for debugging
+        quiz_sentences = random.sample(HSK1_SENTENCES, min(num_questions, len(HSK1_SENTENCES)))
+        
+        randomized_sentences = []
+        
+        for sentence in quiz_sentences:
+            sentence_copy = sentence.copy()
+            sentence_copy['options'] = sentence['options'].copy()
+            
+            correct_answer_text = sentence['english']
+            
+            # Randomize options
+            random.shuffle(sentence_copy['options'])
+            
+            # Find the new position of the correct answer
+            try:
+                new_correct_index = sentence_copy['options'].index(correct_answer_text)
+            except ValueError:
+                new_correct_index = 0
+                for i, option in enumerate(sentence_copy['options']):
+                    if option.lower().strip() == correct_answer_text.lower().strip():
+                        new_correct_index = i
+                        break
+            
+            sentence_copy['correctAnswer'] = new_correct_index
+            
+            randomized_sentences.append(sentence_copy)
+        
+        # Find the specific problematic sentence
+        problem_sentence = None
+        for s in HSK1_SENTENCES:
+            if s['id'] == 452:  # The problem sentence ID
+                problem_sentence = s
+                break
+        
+        return jsonify({
+            'success': True,
+            'debug_info': {
+                'problem_sentence_original': problem_sentence,
+                'sentences_sent_to_frontend': randomized_sentences,
+                'total_sentences': len(HSK1_SENTENCES)
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Debug error: {str(e)}'
+        }), 500        
