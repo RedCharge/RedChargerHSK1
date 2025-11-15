@@ -534,7 +534,7 @@ def sentence_quiz():
 
 @sentence_bp.route('/api/quiz-sentences')
 def get_quiz_sentences():
-    """API endpoint to get sentences for the quiz - USING WORDS QUIZ STRUCTURE"""
+    """API endpoint to get sentences for the quiz - FIXED VERSION"""
     try:
         # Get number of questions from request (default 20)
         num_questions = int(request.args.get('count', 20))
@@ -542,15 +542,39 @@ def get_quiz_sentences():
         # Select random sentences for the quiz
         quiz_sentences = random.sample(HSK1_SENTENCES, min(num_questions, len(HSK1_SENTENCES)))
         
-        # Randomize the position of correct answers - EXACT SAME LOGIC AS WORDS QUIZ
+        # Create a deep copy and randomize the position of correct answers
+        randomized_sentences = []
+        
         for sentence in quiz_sentences:
-            correct_answer = sentence['options'][sentence['correctAnswer']]
-            random.shuffle(sentence['options'])
-            sentence['correctAnswer'] = sentence['options'].index(correct_answer)
+            # Create a deep copy to avoid modifying the original data
+            sentence_copy = sentence.copy()
+            sentence_copy['options'] = sentence['options'].copy()
+            
+            # ALWAYS use the 'english' field as the correct answer, IGNORE correctAnswer field
+            correct_answer_text = sentence['english']
+            
+            # Randomize options
+            random.shuffle(sentence_copy['options'])
+            
+            # Find the new position of the correct answer using the 'english' field
+            try:
+                # First try exact match
+                new_correct_index = sentence_copy['options'].index(correct_answer_text)
+            except ValueError:
+                # If exact match fails, try case-insensitive matching
+                new_correct_index = 0
+                for i, option in enumerate(sentence_copy['options']):
+                    if option.lower().strip() == correct_answer_text.lower().strip():
+                        new_correct_index = i
+                        break
+            
+            sentence_copy['correctAnswer'] = new_correct_index
+            
+            randomized_sentences.append(sentence_copy)
         
         return jsonify({
             'success': True,
-            'sentences': quiz_sentences,
+            'sentences': randomized_sentences,
             'total_sentences': len(HSK1_SENTENCES),
             'quiz_count': num_questions
         })
@@ -578,7 +602,7 @@ def get_all_sentences():
 
 @sentence_bp.route('/api/next-quiz')
 def get_next_quiz():
-    """API endpoint to get a new quiz with different sentences"""
+    """API endpoint to get a new quiz with different sentences - FIXED VERSION"""
     try:
         # Get previously used sentence IDs from session
         used_ids = session.get('used_sentence_ids', [])
@@ -599,15 +623,37 @@ def get_next_quiz():
         new_used_ids = used_ids + [sentence['id'] for sentence in quiz_sentences]
         session['used_sentence_ids'] = new_used_ids
         
-        # Randomize the position of correct answers - EXACT SAME LOGIC AS WORDS QUIZ
+        # Create randomized versions
+        randomized_sentences = []
         for sentence in quiz_sentences:
-            correct_answer = sentence['options'][sentence['correctAnswer']]
-            random.shuffle(sentence['options'])
-            sentence['correctAnswer'] = sentence['options'].index(correct_answer)
+            # Create a deep copy
+            sentence_copy = sentence.copy()
+            sentence_copy['options'] = sentence['options'].copy()
+            
+            # ALWAYS use the 'english' field as the correct answer, IGNORE correctAnswer field
+            correct_answer_text = sentence['english']
+            
+            # Randomize options
+            random.shuffle(sentence_copy['options'])
+            
+            # Find the new position of the correct answer using the 'english' field
+            try:
+                # First try exact match
+                new_correct_index = sentence_copy['options'].index(correct_answer_text)
+            except ValueError:
+                # If exact match fails, try case-insensitive matching
+                new_correct_index = 0
+                for i, option in enumerate(sentence_copy['options']):
+                    if option.lower().strip() == correct_answer_text.lower().strip():
+                        new_correct_index = i
+                        break
+            
+            sentence_copy['correctAnswer'] = new_correct_index
+            randomized_sentences.append(sentence_copy)
         
         return jsonify({
             'success': True,
-            'sentences': quiz_sentences,
+            'sentences': randomized_sentences,
             'total_sentences': len(HSK1_SENTENCES),
             'new_sentences_count': len(quiz_sentences)
         })
@@ -703,4 +749,33 @@ def get_sentence_stats():
         return jsonify({
             'success': False,
             'message': f'Error retrieving sentence stats: {str(e)}'
+        }), 500
+
+@sentence_bp.route('/api/debug-sentence/<int:sentence_id>')
+def debug_sentence(sentence_id):
+    """Debug endpoint to check a specific sentence"""
+    try:
+        sentence = next((s for s in HSK1_SENTENCES if s['id'] == sentence_id), None)
+        
+        if sentence:
+            return jsonify({
+                'success': True,
+                'sentence': sentence,
+                'debug_info': {
+                    'correct_answer_from_data': sentence.get('correctAnswer'),
+                    'english_field': sentence.get('english'),
+                    'expected_correct_option': sentence['options'][sentence['correctAnswer']] if sentence.get('correctAnswer') is not None and 0 <= sentence['correctAnswer'] < len(sentence['options']) else 'INVALID INDEX',
+                    'options_count': len(sentence['options'])
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Sentence not found'
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error retrieving sentence: {str(e)}'
         }), 500
