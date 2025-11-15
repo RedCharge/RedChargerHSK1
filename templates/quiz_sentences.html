@@ -534,14 +534,17 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeSpeechSystem();
     setupUserInteractionListeners();
     initializeAdaptiveLearning();
-    loadQuizData();
     
-    restartButton.addEventListener('click', restartQuiz);
+    // Set up event listeners - FIXED: Use startQuiz for restart
+    restartButton.addEventListener('click', startQuiz);
     viewResultsButton.addEventListener('click', viewDetailedResults);
     homeButton.addEventListener('click', () => {
         window.location.href = '/';
     });
-    retryButton.addEventListener('click', loadQuizData);
+    retryButton.addEventListener('click', startQuiz);
+    
+    // Start the quiz immediately (like words quiz does)
+    startQuiz();
 });
 
 // ============================
@@ -787,7 +790,7 @@ function updateSentenceMastery(sentence, isCorrect, selectedIndex, correctIndex)
 }
 
 // ============================
-// QUIZ FUNCTIONALITY
+// QUIZ FUNCTIONALITY - FIXED
 // ============================
 
 function initializeAudioContext() {
@@ -1048,6 +1051,31 @@ function initializeMobileMenu() {
             closeMobileMenu();
         }
     });
+}
+
+// FIXED: New startQuiz function that properly reloads everything
+function startQuiz() {
+    console.log('Starting new quiz session...');
+    
+    // Reset all quiz state
+    currentQuestion = 0;
+    score = 0;
+    correctAnswers = 0;
+    incorrectAnswers = 0;
+    userAnswers = [];
+    quizData = [];
+    
+    // Reset speech interaction for new session
+    userInteractedWithSpeech = false;
+    
+    // Show loading, hide everything else
+    resultsSection.classList.add('hidden');
+    quizContent.classList.add('hidden');
+    errorState.classList.add('hidden');
+    loadingState.classList.remove('hidden');
+    
+    // Load fresh quiz data from backend
+    loadQuizData();
 }
 
 async function loadQuizData() {
@@ -1478,22 +1506,23 @@ function saveQuizResultsToLocalStorage() {
     }
 }
 
-function restartQuiz() {
-    currentQuestion = 0;
-    score = 0;
-    correctAnswers = 0;
-    incorrectAnswers = 0;
-    userAnswers = [];
-    
-    userInteractedWithSpeech = false;
-    
-    resultsSection.classList.add('hidden');
-    quizContent.classList.remove('hidden');
-    
-    showQuestion();
-    updateProgress();
-    updateScore();
-}
+// REMOVED: The old restartQuiz function that was causing the problem
+// function restartQuiz() {
+//     currentQuestion = 0;
+//     score = 0;
+//     correctAnswers = 0;
+//     incorrectAnswers = 0;
+//     userAnswers = [];
+//     
+//     userInteractedWithSpeech = false;
+//     
+//     resultsSection.classList.add('hidden');
+//     quizContent.classList.remove('hidden');
+//     
+//     showQuestion();
+//     updateProgress();
+//     updateScore();
+// }
 
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
