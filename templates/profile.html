@@ -584,16 +584,49 @@
         // Global state
         let isMenuOpen = false;
         let originalFormData = {};
+        let isUserAuthenticated = false;
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Profile page initialized');
             initializeMobileMenu();
+            checkAuthentication();
             initializeForm();
-            loadUserProfile();
-            loadUserStats();
             setupAvatarUpload();
             calculateCompletionPercentage();
         });
+
+        // Check if user is authenticated
+        function checkAuthentication() {
+            console.log('Checking authentication...');
+            
+            fetch('/api/profile/check')
+                .then(response => {
+                    console.log('Auth check response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Auth check data:', data);
+                    if (data.authenticated) {
+                        isUserAuthenticated = true;
+                        console.log('User is authenticated, loading profile data...');
+                        loadUserProfile();
+                        loadUserStats();
+                    } else {
+                        isUserAuthenticated = false;
+                        console.log('User not authenticated');
+                        showError('Please log in to save your profile');
+                    }
+                })
+                .catch(error => {
+                    console.error('Authentication check failed:', error);
+                    isUserAuthenticated = false;
+                    showError('Unable to verify login status. Please refresh the page.');
+                });
+        }
 
         // Initialize Mobile Menu
         function initializeMobileMenu() {
@@ -662,63 +695,104 @@
 
         // Initialize form with default values and event listeners
         function initializeForm() {
-            // Store original form data for reset functionality
-            originalFormData = {
-                username: usernameInput.value,
-                email: emailInput.value,
-                firstName: firstNameInput.value,
-                lastName: lastNameInput.value,
-                bio: bioInput.value,
-                dailyGoal: dailyGoalSelect.value,
-                learningMode: learningModeSelect.value,
-                enableSpeech: enableSpeechCheckbox.checked,
-                showPinyin: showPinyinCheckbox.checked
+            console.log('Initializing form...');
+            
+            // Set default values
+            const defaultFormData = {
+                username: '',
+                email: '',
+                firstName: '',
+                lastName: '',
+                bio: '',
+                dailyGoal: '20',
+                learningMode: 'both',
+                enableSpeech: false,
+                showPinyin: true
             };
 
+            // Apply defaults
+            if (usernameInput) usernameInput.value = defaultFormData.username;
+            if (emailInput) emailInput.value = defaultFormData.email;
+            if (firstNameInput) firstNameInput.value = defaultFormData.firstName;
+            if (lastNameInput) lastNameInput.value = defaultFormData.lastName;
+            if (bioInput) bioInput.value = defaultFormData.bio;
+            if (dailyGoalSelect) dailyGoalSelect.value = defaultFormData.dailyGoal;
+            if (learningModeSelect) learningModeSelect.value = defaultFormData.learningMode;
+            if (enableSpeechCheckbox) enableSpeechCheckbox.checked = defaultFormData.enableSpeech;
+            if (showPinyinCheckbox) showPinyinCheckbox.checked = defaultFormData.showPinyin;
+
+            // Store original form data for reset functionality
+            originalFormData = { ...defaultFormData };
+
             // Add input listeners for real-time validation
-            usernameInput.addEventListener('input', validateUsername);
-            emailInput.addEventListener('input', validateEmail);
+            if (usernameInput) usernameInput.addEventListener('input', validateUsername);
+            if (emailInput) emailInput.addEventListener('input', validateEmail);
             
             // Add form change listener for completion percentage
-            const formElements = [usernameInput, emailInput, firstNameInput, lastNameInput, bioInput, dailyGoalSelect, learningModeSelect];
+            const formElements = [usernameInput, emailInput, firstNameInput, lastNameInput, bioInput, dailyGoalSelect, learningModeSelect].filter(el => el);
             formElements.forEach(element => {
                 element.addEventListener('input', calculateCompletionPercentage);
                 element.addEventListener('change', calculateCompletionPercentage);
             });
+
+            console.log('Form initialized successfully');
         }
 
         // Load user profile data from server
         function loadUserProfile() {
+            if (!isUserAuthenticated) {
+                console.log('Skipping profile load - user not authenticated');
+                return;
+            }
+
+            console.log('Loading user profile data...');
+            
+            // First try to get existing profile data
             fetch('/api/profile/stats')
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Network response was not ok');
+                        throw new Error(`HTTP ${response.status}`);
                     }
                     return response.json();
                 })
                 .then(data => {
+                    console.log('Profile stats loaded:', data);
                     if (data.success) {
-                        // If you have a dedicated profile endpoint, use it here
-                        // For now, we'll use the stats to infer some profile data
-                        console.log('Profile stats loaded:', data.stats);
+                        // If you have existing profile data, you can pre-fill the form here
+                        // For now, we'll just log that stats were loaded
+                        console.log('User stats available');
                     } else {
-                        showError('Failed to load profile data: ' + data.message);
+                        console.warn('Profile stats load warning:', data.message);
                     }
                 })
                 .catch(error => {
-                    console.error('Error loading profile:', error);
-                    showError('Unable to load profile data. Please refresh the page.');
+                    console.error('Error loading profile stats:', error);
                 });
         }
 
         // Load user statistics
         function loadUserStats() {
+            if (!isUserAuthenticated) {
+                console.log('Skipping stats load - user not authenticated');
+                return;
+            }
+
+            console.log('Loading user statistics...');
+            
             fetch('/api/profile/stats')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Stats response:', data);
                     if (data.success && data.stats) {
                         updateStatsDisplay(data.stats);
+                        console.log('Statistics displayed successfully');
                     } else {
+                        console.warn('Failed to load statistics:', data.message);
                         showError('Failed to load statistics: ' + (data.message || 'Unknown error'));
                     }
                 })
@@ -730,17 +804,38 @@
 
         // Update statistics display
         function updateStatsDisplay(stats) {
-            if (totalWordsElement) totalWordsElement.textContent = stats.totalWords || 0;
-            if (totalSentencesElement) totalSentencesElement.textContent = stats.totalSentences || 0;
-            if (streakDaysElement) streakDaysElement.textContent = stats.streakDays || 0;
-            if (accuracyRateElement) accuracyRateElement.textContent = (stats.accuracyRate || 0) + '%';
+            console.log('Updating stats display with:', stats);
+            
+            if (totalWordsElement) {
+                totalWordsElement.textContent = stats.totalWords || 0;
+                console.log('Updated total words:', stats.totalWords || 0);
+            }
+            if (totalSentencesElement) {
+                totalSentencesElement.textContent = stats.totalSentences || 0;
+                console.log('Updated total sentences:', stats.totalSentences || 0);
+            }
+            if (streakDaysElement) {
+                streakDaysElement.textContent = stats.streakDays || 0;
+                console.log('Updated streak days:', stats.streakDays || 0);
+            }
+            if (accuracyRateElement) {
+                accuracyRateElement.textContent = (stats.accuracyRate || 0) + '%';
+                console.log('Updated accuracy rate:', stats.accuracyRate || 0);
+            }
         }
 
         // Setup avatar upload functionality
         function setupAvatarUpload() {
+            if (!avatarInput) {
+                console.log('Avatar input not found, skipping setup');
+                return;
+            }
+
             avatarInput.addEventListener('change', function(event) {
                 const file = event.target.files[0];
                 if (file) {
+                    console.log('Avatar file selected:', file.name, file.size, file.type);
+                    
                     if (file.size > 5 * 1024 * 1024) { // 5MB limit
                         showError('Image size must be less than 5MB');
                         return;
@@ -753,6 +848,7 @@
 
                     const reader = new FileReader();
                     reader.onload = function(e) {
+                        console.log('Avatar image loaded successfully');
                         avatarPreview.src = e.target.result;
                         avatarPreview.classList.remove('hidden');
                         avatarPlaceholder.classList.add('hidden');
@@ -760,6 +856,12 @@
                         // Upload avatar to server
                         uploadAvatar(e.target.result);
                     };
+                    
+                    reader.onerror = function(error) {
+                        console.error('Error reading avatar file:', error);
+                        showError('Error reading image file. Please try another image.');
+                    };
+                    
                     reader.readAsDataURL(file);
                 }
             });
@@ -767,6 +869,13 @@
 
         // Upload avatar to server
         function uploadAvatar(avatarData) {
+            if (!isUserAuthenticated) {
+                showError('Please log in to upload avatar');
+                return;
+            }
+
+            console.log('Uploading avatar...');
+            
             fetch('/api/profile/upload-avatar', {
                 method: 'POST',
                 headers: {
@@ -774,8 +883,14 @@
                 },
                 body: JSON.stringify({ avatar: avatarData })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Avatar upload response:', data);
                 if (data.success) {
                     showSuccess('Avatar updated successfully!');
                 } else {
@@ -793,15 +908,17 @@
             let completedFields = 0;
             const totalFields = 7; // username, email, firstName, lastName, bio, dailyGoal, learningMode
 
-            if (usernameInput.value.trim()) completedFields++;
-            if (emailInput.value.trim()) completedFields++;
-            if (firstNameInput.value.trim()) completedFields++;
-            if (lastNameInput.value.trim()) completedFields++;
-            if (bioInput.value.trim()) completedFields++;
-            if (dailyGoalSelect.value) completedFields++;
-            if (learningModeSelect.value) completedFields++;
+            if (usernameInput && usernameInput.value.trim()) completedFields++;
+            if (emailInput && emailInput.value.trim()) completedFields++;
+            if (firstNameInput && firstNameInput.value.trim()) completedFields++;
+            if (lastNameInput && lastNameInput.value.trim()) completedFields++;
+            if (bioInput && bioInput.value.trim()) completedFields++;
+            if (dailyGoalSelect && dailyGoalSelect.value) completedFields++;
+            if (learningModeSelect && learningModeSelect.value) completedFields++;
 
             const percentage = Math.round((completedFields / totalFields) * 100);
+            
+            console.log('Profile completion:', percentage + '% (' + completedFields + '/' + totalFields + ' fields)');
             
             if (completionPercentage) {
                 completionPercentage.textContent = percentage + '%';
@@ -812,8 +929,10 @@
 
         // Validate username
         function validateUsername() {
+            if (!usernameInput) return true;
+            
             const username = usernameInput.value.trim();
-            const usernameError = document.getElementById('username-error');
+            let usernameError = document.getElementById('username-error');
             
             if (!usernameError) {
                 // Create error element if it doesn't exist
@@ -821,6 +940,7 @@
                 errorElement.id = 'username-error';
                 errorElement.className = 'text-red-400 text-sm mt-1';
                 usernameInput.parentNode.appendChild(errorElement);
+                usernameError = errorElement;
             }
 
             if (username.length < 3) {
@@ -844,14 +964,17 @@
 
         // Validate email
         function validateEmail() {
+            if (!emailInput) return true;
+            
             const email = emailInput.value.trim();
-            const emailError = document.getElementById('email-error');
+            let emailError = document.getElementById('email-error');
             
             if (!emailError && email) {
                 const errorElement = document.createElement('div');
                 errorElement.id = 'email-error';
                 errorElement.className = 'text-red-400 text-sm mt-1';
                 emailInput.parentNode.appendChild(errorElement);
+                emailError = errorElement;
             }
 
             if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -884,6 +1007,14 @@
 
         // Main save profile function
         function saveProfile() {
+            console.log('Save profile initiated...');
+            
+            // Check authentication
+            if (!isUserAuthenticated) {
+                showError('Please log in to save your profile');
+                return;
+            }
+
             // Validate required fields
             if (!validateUsername()) {
                 showError('Please fix the username errors before saving.');
@@ -896,16 +1027,18 @@
             }
 
             const profileData = {
-                username: usernameInput.value.trim(),
-                email: emailInput.value.trim(),
-                firstName: firstNameInput.value.trim(),
-                lastName: lastNameInput.value.trim(),
-                bio: bioInput.value.trim(),
-                dailyGoal: dailyGoalSelect.value,
-                learningMode: learningModeSelect.value,
-                enableSpeech: enableSpeechCheckbox.checked,
-                showPinyin: showPinyinCheckbox.checked
+                username: usernameInput ? usernameInput.value.trim() : '',
+                email: emailInput ? emailInput.value.trim() : '',
+                firstName: firstNameInput ? firstNameInput.value.trim() : '',
+                lastName: lastNameInput ? lastNameInput.value.trim() : '',
+                bio: bioInput ? bioInput.value.trim() : '',
+                dailyGoal: dailyGoalSelect ? dailyGoalSelect.value : '20',
+                learningMode: learningModeSelect ? learningModeSelect.value : 'both',
+                enableSpeech: enableSpeechCheckbox ? enableSpeechCheckbox.checked : false,
+                showPinyin: showPinyinCheckbox ? showPinyinCheckbox.checked : true
             };
+
+            console.log('Saving profile data:', profileData);
 
             // Show loading state
             const saveButton = document.querySelector('button[onclick="saveProfile()"]');
@@ -913,21 +1046,31 @@
             saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
             saveButton.disabled = true;
 
+            // First test with a simple request to see if endpoint is reachable
             fetch('/api/profile/save', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken() // If you're using CSRF protection
+                'Accept': 'application/json'
                 },
                 body: JSON.stringify(profileData)
             })
             .then(response => {
+                console.log('Save response status:', response.status);
+                console.log('Save response headers:', response.headers);
+                
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    // Get more details about the error
+                    return response.text().then(text => {
+                        console.error('Server response text:', text);
+                        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+                    });
                 }
                 return response.json();
             })
             .then(data => {
+                console.log('Save response data:', data);
+                
                 if (data.success) {
                     showSuccess('Profile saved successfully! Your progress will now appear on the leaderboard.');
                     
@@ -940,55 +1083,88 @@
                     // Update completion percentage
                     calculateCompletionPercentage();
                     
+                    console.log('Profile saved successfully');
+                    
                 } else {
-                    showError(data.message || 'Failed to save profile. Please try again.');
+                    throw new Error(data.message || 'Server returned success: false');
                 }
             })
             .catch(error => {
-                console.error('Save error:', error);
-                showError('Network error. Please check your connection and try again.');
+                console.error('Save error details:', error);
+                
+                // More specific error messages
+                if (error.message.includes('Failed to fetch')) {
+                    showError('Network error: Cannot connect to server. Please check your internet connection.');
+                } else if (error.message.includes('401')) {
+                    showError('Session expired. Please log in again.');
+                } else if (error.message.includes('404')) {
+                    showError('Server endpoint not found. Please contact support.');
+                } else if (error.message.includes('500')) {
+                    showError('Server error. Please try again later.');
+                } else {
+                    showError('Save failed: ' + error.message);
+                }
             })
             .finally(() => {
                 // Restore button
                 saveButton.innerHTML = originalText;
                 saveButton.disabled = false;
+                console.log('Save process completed');
             });
         }
 
         // Sync profile to Firebase for leaderboard
         function syncToFirebase() {
+            if (!isUserAuthenticated) {
+                console.log('Skipping Firebase sync - user not authenticated');
+                return;
+            }
+
+            console.log('Syncing to Firebase...');
+            
             fetch('/api/profile/sync-to-firebase', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken()
+                'Accept': 'application/json'
                 }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Firebase sync response:', data);
                 if (data.success) {
                     console.log('Successfully synced to leaderboard');
                 } else {
                     console.warn('Firebase sync warning:', data.message);
+                // Don't show error to user for Firebase sync failures
+                // It's not critical for the main profile save
                 }
             })
             .catch(error => {
                 console.error('Firebase sync error:', error);
+                // Don't show error to user for Firebase sync failures
             });
         }
 
         // Reset profile to original values
         function resetProfile() {
             if (confirm('Are you sure you want to reset all changes? This will restore your original profile data.')) {
-                usernameInput.value = originalFormData.username || '';
-                emailInput.value = originalFormData.email || '';
-                firstNameInput.value = originalFormData.firstName || '';
-                lastNameInput.value = originalFormData.lastName || '';
-                bioInput.value = originalFormData.bio || '';
-                dailyGoalSelect.value = originalFormData.dailyGoal || '20';
-                learningModeSelect.value = originalFormData.learningMode || 'both';
-                enableSpeechCheckbox.checked = originalFormData.enableSpeech || false;
-                showPinyinCheckbox.checked = originalFormData.showPinyin !== undefined ? originalFormData.showPinyin : true;
+                console.log('Resetting profile form...');
+                
+                if (usernameInput) usernameInput.value = originalFormData.username || '';
+                if (emailInput) emailInput.value = originalFormData.email || '';
+                if (firstNameInput) firstNameInput.value = originalFormData.firstName || '';
+                if (lastNameInput) lastNameInput.value = originalFormData.lastName || '';
+                if (bioInput) bioInput.value = originalFormData.bio || '';
+                if (dailyGoalSelect) dailyGoalSelect.value = originalFormData.dailyGoal || '20';
+                if (learningModeSelect) learningModeSelect.value = originalFormData.learningMode || 'both';
+                if (enableSpeechCheckbox) enableSpeechCheckbox.checked = originalFormData.enableSpeech || false;
+                if (showPinyinCheckbox) showPinyinCheckbox.checked = originalFormData.showPinyin !== undefined ? originalFormData.showPinyin : true;
                 
                 // Clear validation errors
                 hideFieldError('username-error');
@@ -998,11 +1174,19 @@
                 calculateCompletionPercentage();
                 
                 showSuccess('Profile reset to original values.');
+                console.log('Profile reset completed');
             }
         }
 
         // Export user data
         function exportData() {
+            if (!isUserAuthenticated) {
+                showError('Please log in to export your data');
+                return;
+            }
+
+            console.log('Exporting user data...');
+            
             // Show loading state
             const exportButton = document.querySelector('button[onclick="exportData()"]');
             const originalText = exportButton.innerHTML;
@@ -1010,8 +1194,14 @@
             exportButton.disabled = true;
 
             fetch('/api/profile/export-data')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Export response:', data);
                     if (data.success) {
                         // Create and download JSON file
                         const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
@@ -1025,13 +1215,14 @@
                         URL.revokeObjectURL(url);
                         
                         showSuccess('Data exported successfully!');
+                        console.log('Data export completed');
                     } else {
-                        showError('Failed to export data: ' + data.message);
+                        throw new Error(data.message || 'Export failed');
                     }
                 })
                 .catch(error => {
                     console.error('Export error:', error);
-                    showError('Failed to export data. Please try again.');
+                    showError('Failed to export data: ' + error.message);
                 })
                 .finally(() => {
                     // Restore button
@@ -1042,49 +1233,58 @@
 
         // View leaderboard
         function viewLeaderboard() {
+            console.log('Navigating to leaderboard...');
             window.location.href = '/leaderboard';
-        }
-
-        // Get CSRF token (if using Flask-WTF or similar)
-        function getCSRFToken() {
-            const metaTag = document.querySelector('meta[name="csrf-token"]');
-            return metaTag ? metaTag.getAttribute('content') : '';
         }
 
         // Show success message
         function showSuccess(message) {
-            successText.textContent = message;
-            successMessage.classList.remove('hidden');
-            
-            // Auto-hide after 5 seconds
-            setTimeout(() => {
-                hideSuccessMessage();
-            }, 5000);
+            console.log('Success:', message);
+            if (successText && successMessage) {
+                successText.textContent = message;
+                successMessage.classList.remove('hidden');
+                
+                // Auto-hide after 5 seconds
+                setTimeout(() => {
+                    hideSuccessMessage();
+                }, 5000);
+            } else {
+                alert('Success: ' + message);
+            }
         }
 
-        // Show error message (using alert for simplicity, you can create a proper error display)
+        // Show error message
         function showError(message) {
-            // You can replace this with a proper error display component
+            console.error('Error:', message);
+            // Create a temporary error display if none exists
             alert('Error: ' + message);
         }
 
         // Hide success message
         function hideSuccessMessage() {
-            successMessage.classList.add('hidden');
+            if (successMessage) {
+                successMessage.classList.add('hidden');
+            }
         }
 
         // Auto-save when leaving page (optional)
         window.addEventListener('beforeunload', function(e) {
             // Check if form has unsaved changes
             const currentData = {
-                username: usernameInput.value,
-                email: emailInput.value,
-                firstName: firstNameInput.value,
-                lastName: lastNameInput.value,
-                bio: bioInput.value
+                username: usernameInput ? usernameInput.value : '',
+                email: emailInput ? emailInput.value : '',
+                firstName: firstNameInput ? firstNameInput.value : '',
+                lastName: lastNameInput ? lastNameInput.value : '',
+                bio: bioInput ? bioInput.value : ''
             };
 
-            const hasUnsavedChanges = JSON.stringify(currentData) !== JSON.stringify(originalFormData);
+            const hasUnsavedChanges = JSON.stringify(currentData) !== JSON.stringify({
+                username: originalFormData.username || '',
+                email: originalFormData.email || '',
+                firstName: originalFormData.firstName || '',
+                lastName: originalFormData.lastName || '',
+                bio: originalFormData.bio || ''
+            });
             
             if (hasUnsavedChanges) {
                 e.preventDefault();
@@ -1109,11 +1309,16 @@
 
         // Periodic stats refresh (every 2 minutes)
         setInterval(() => {
-            loadUserStats();
+            if (isUserAuthenticated) {
+                console.log('Refreshing statistics...');
+                loadUserStats();
+            }
         }, 120000);
 
         // Initialize completion percentage on load
         calculateCompletionPercentage();
+
+        console.log('Profile page JavaScript loaded completely');
     </script>
 </body>
 </html>

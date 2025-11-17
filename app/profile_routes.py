@@ -645,3 +645,33 @@ def sync_to_leaderboard():
             'success': False,
             'message': f'Error syncing to leaderboard: {str(e)}'
         }), 500
+        
+        
+@profile_bp.route('/api/profile/debug-save', methods=['POST'])
+def debug_save():
+    """Debug endpoint to test profile saving"""
+    try:
+        print("=== DEBUG SAVE CALLED ===")
+        print("Headers:", dict(request.headers))
+        print("Method:", request.method)
+        print("Content-Type:", request.content_type)
+        
+        if request.is_json:
+            data = request.get_json()
+            print("Received JSON data:", data)
+        else:
+            print("No JSON data received")
+            data = None
+            
+        return jsonify({
+            'success': True,
+            'message': 'Debug save received',
+            'received_data': data
+        })
+        
+    except Exception as e:
+        print("Debug save error:", str(e))
+        return jsonify({
+            'success': False,
+            'message': f'Debug error: {str(e)}'
+        }), 500        
