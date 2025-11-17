@@ -196,6 +196,20 @@
         .pulse-animation {
             animation: pulseGlow 2s ease-in-out infinite alternate;
         }
+
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #5c7cfa;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="selection:bg-primary-blue selection:text-white">
@@ -346,16 +360,22 @@
                             Overall Leaderboard
                         </h2>
                         
+                        <!-- Loading State -->
+                        <div id="loading-state" class="text-center py-8">
+                            <div class="loading-spinner mx-auto mb-4"></div>
+                            <p class="text-text-muted">Loading leaderboard...</p>
+                        </div>
+                        
                         <div class="space-y-3" id="leaderboard-list">
-                            <!-- Leaderboard items will be populated here -->
+                            <!-- Leaderboard items will be populated here by Firebase -->
                         </div>
 
-                        <div id="no-data" class="text-center py-12 text-text-muted">
+                        <div id="no-data" class="text-center py-12 text-text-muted hidden">
                             <i class="fas fa-trophy text-6xl mb-4"></i>
                             <p class="text-xl mb-4">No learners yet</p>
-                            <p class="text-text-muted mb-6">Complete your first quiz to appear on the leaderboard!</p>
-                            <a href="/words/quiz" class="inline-block py-3 px-6 rounded-lg bg-gradient-to-r from-primary-blue to-secondary-cyan text-white font-medium hover:shadow-lg transition duration-300">
-                                <i class="fas fa-play mr-2"></i> Start Learning
+                            <p class="text-text-muted mb-6">Complete your profile and first quiz to appear on the leaderboard!</p>
+                            <a href="/profile" class="inline-block py-3 px-6 rounded-lg bg-gradient-to-r from-primary-blue to-secondary-cyan text-white font-medium hover:shadow-lg transition duration-300">
+                                <i class="fas fa-user mr-2"></i> Complete Profile
                             </a>
                         </div>
                     </div>
@@ -376,7 +396,10 @@
 
                         <div id="no-user-data" class="text-center py-4 text-text-muted">
                             <i class="fas fa-user-slash text-4xl mb-3"></i>
-                            <p>Complete a quiz to see your ranking</p>
+                            <p>Complete your profile to see your ranking</p>
+                            <a href="/profile" class="inline-block mt-3 py-2 px-4 rounded-lg bg-primary-blue text-white text-sm hover:shadow-lg transition duration-300">
+                                Complete Profile
+                            </a>
                         </div>
                     </div>
 
@@ -426,6 +449,28 @@
         <p class="text-sm">&copy; 2025 RedCharger. Learn Chinese, climb the ranks!</p>
     </footer>
 
+    <!-- Firebase Integration -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAw4CCOFDlfsVxkAcg2YdshgEB-x3fKNLY",
+            authDomain: "redchargerhsk1.firebaseapp.com",
+            databaseURL: "https://redchargerhsk1-default-rtdb.firebaseio.com",
+            projectId: "redchargerhsk1",
+            storageBucket: "redchargerhsk1.firebasestorage.app",
+            messagingSenderId: "287577907928",
+            appId: "1:287577907928:web:ea58eaba023213696d6dad",
+            measurementId: "G-W6PDP1NWT4"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+    </script>
+
     <!-- Leaderboard Logic -->
     <script>
         // DOM Elements
@@ -439,6 +484,13 @@
         const noUserData = document.getElementById('no-user-data');
         const noAchievements = document.getElementById('no-achievements');
         const leaderboardTitle = document.getElementById('leaderboard-title');
+        const loadingState = document.getElementById('loading-state');
+        
+        // Global stats elements
+        const totalLearners = document.getElementById('total-learners');
+        const totalQuizzes = document.getElementById('total-quizzes');
+        const totalWords = document.getElementById('total-words');
+        const totalSentences = document.getElementById('total-sentences');
         
         // Tab elements
         const tabOverall = document.getElementById('tab-overall');
@@ -449,16 +501,279 @@
         // Global state
         let currentTab = 'overall';
         let isMenuOpen = false;
+        let currentUserId = null; // This would come from your Flask session
+        let allUsers = [];
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             initializeMobileMenu();
             initializeTabs();
-            loadLeaderboard();
-            
-            // Update leaderboard every 10 seconds for real-time updates
-            setInterval(loadLeaderboard, 10000);
+            loadCurrentUser();
+            initializeFirebaseListener();
         });
+
+        // Get current user from Flask session (you'll need to implement this)
+        function loadCurrentUser() {
+            // This would typically come from your Flask backend
+            // For now, we'll use a placeholder
+            fetch('/api/profile/check')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.authenticated) {
+                        currentUserId = data.user_id;
+                        checkProfileCompletion();
+                    } else {
+                        showLoginPrompt();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking user:', error);
+                    // Fallback for demo
+                    currentUserId = 'demo_user';
+                });
+        }
+
+        // Check if user has completed profile (Gatekeeper logic)
+        function checkProfileCompletion() {
+            fetch('/api/profile/check-completion')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.profileComplete) {
+                        showProfileCompletionPrompt();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking profile completion:', error);
+                });
+        }
+
+        function showProfileCompletionPrompt() {
+            // You can show a modal or notification here
+            console.log('Please complete your profile to appear on the leaderboard');
+        }
+
+        function showLoginPrompt() {
+            // Redirect to login or show login modal
+            console.log('Please log in to view leaderboard');
+        }
+
+        // Initialize Firebase Real-time Listener
+        function initializeFirebaseListener() {
+            const leaderboardRef = database.ref('leaderboard');
+            
+            leaderboardRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                allUsers = [];
+                
+                if (data) {
+                    // Convert Firebase object to array
+                    Object.keys(data).forEach(key => {
+                        allUsers.push({
+                            id: key,
+                            ...data[key]
+                        });
+                    });
+                    
+                    updateGlobalStats(allUsers);
+                    displayLeaderboard(allUsers);
+                    hideLoadingState();
+                } else {
+                    showNoData();
+                    hideLoadingState();
+                }
+            }, (error) => {
+                console.error('Firebase error:', error);
+                hideLoadingState();
+            });
+        }
+
+        // Update global statistics
+        function updateGlobalStats(users) {
+            if (users.length === 0) return;
+            
+            const totalQuizzesCount = users.reduce((sum, user) => sum + (user.totalQuizzes || 0), 0);
+            const totalWordsCount = users.reduce((sum, user) => sum + (user.wordsMastered || 0), 0);
+            const totalSentencesCount = users.reduce((sum, user) => sum + (user.sentencesMastered || 0), 0);
+            
+            totalLearners.textContent = users.length;
+            totalQuizzes.textContent = totalQuizzesCount;
+            totalWords.textContent = totalWordsCount;
+            totalSentences.textContent = totalSentencesCount;
+        }
+
+        // Display leaderboard based on current tab
+        function displayLeaderboard(users) {
+            if (users.length === 0) {
+                showNoData();
+                return;
+            }
+            
+            // Sort users based on current tab
+            const sortedUsers = sortUsersByCriteria(users, currentTab);
+            renderLeaderboardList(sortedUsers);
+            updateCurrentUserRank(sortedUsers);
+        }
+
+        // Sort users based on current tab criteria
+        function sortUsersByCriteria(users, criteria) {
+            return users.sort((a, b) => {
+                switch(criteria) {
+                    case 'overall':
+                        return (b.totalPoints || 0) - (a.totalPoints || 0);
+                    case 'words':
+                        return (b.wordsMastered || 0) - (a.wordsMastered || 0);
+                    case 'sentences':
+                        return (b.sentencesMastered || 0) - (a.sentencesMastered || 0);
+                    case 'streak':
+                        return (b.streakDays || 0) - (a.streakDays || 0);
+                    default:
+                        return (b.totalPoints || 0) - (a.totalPoints || 0);
+                }
+            });
+        }
+
+        // Render leaderboard list
+        function renderLeaderboardList(users) {
+            leaderboardList.innerHTML = '';
+            
+            users.forEach((user, index) => {
+                const rank = index + 1;
+                const isCurrentUser = user.id === currentUserId;
+                
+                const leaderboardItem = createLeaderboardItem(user, rank, isCurrentUser);
+                leaderboardList.appendChild(leaderboardItem);
+            });
+            
+            noData.classList.add('hidden');
+        }
+
+        // Create individual leaderboard item
+        function createLeaderboardItem(user, rank, isCurrentUser) {
+            const item = document.createElement('div');
+            item.className = `leaderboard-item p-4 rounded-lg ${
+                isCurrentUser ? 'current-user' : ''
+            } ${rank <= 3 ? `rank-${rank}` : ''}`;
+            
+            const points = user.totalPoints || 0;
+            const words = user.wordsMastered || 0;
+            const sentences = user.sentencesMastered || 0;
+            const streak = user.streakDays || 0;
+            
+            item.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center justify-center w-10">
+                            ${rank <= 3 ? 
+                                `<div class="medal medal-${getMedalClass(rank)}">${rank}</div>` :
+                                `<div class="text-lg font-bold text-text-muted">${rank}</div>`
+                            }
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2">
+                                <div class="font-semibold text-text-light">${user.username || 'Anonymous'}</div>
+                                ${isCurrentUser ? '<span class="px-2 py-1 bg-secondary-cyan text-main-bg text-xs rounded-full">You</span>' : ''}
+                            </div>
+                            <div class="flex items-center space-x-4 mt-1 text-sm text-text-muted">
+                                <span><i class="fas fa-star text-yellow-400 mr-1"></i> ${points} pts</span>
+                                <span><i class="fas fa-font text-primary-blue mr-1"></i> ${words} words</span>
+                                <span><i class="fas fa-comment text-secondary-cyan mr-1"></i> ${sentences} sentences</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-lg font-bold text-text-light">
+                            ${getScoreByTab(user, currentTab)}
+                        </div>
+                        <div class="text-sm text-text-muted">
+                            ${getScoreLabel(currentTab)}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return item;
+        }
+
+        // Helper functions
+        function getMedalClass(rank) {
+            switch(rank) {
+                case 1: return 'gold';
+                case 2: return 'silver';
+                case 3: return 'bronze';
+                default: return '';
+            }
+        }
+
+        function getScoreByTab(user, tab) {
+            switch(tab) {
+                case 'overall': return user.totalPoints || 0;
+                case 'words': return user.wordsMastered || 0;
+                case 'sentences': return user.sentencesMastered || 0;
+                case 'streak': return user.streakDays || 0;
+                default: return user.totalPoints || 0;
+            }
+        }
+
+        function getScoreLabel(tab) {
+            switch(tab) {
+                case 'overall': return 'Points';
+                case 'words': return 'Words';
+                case 'sentences': return 'Sentences';
+                case 'streak': return 'Days';
+                default: return 'Points';
+            }
+        }
+
+        // Update current user's rank display
+        function updateCurrentUserRank(users) {
+            const currentUserIndex = users.findIndex(user => user.id === currentUserId);
+            
+            if (currentUserIndex !== -1) {
+                const currentUser = users[currentUserIndex];
+                const rank = currentUserIndex + 1;
+                
+                currentUserStats.innerHTML = `
+                    <div class="text-4xl font-bold text-secondary-cyan mb-2">#${rank}</div>
+                    <div class="text-lg text-text-light mb-1">${currentUser.username || 'You'}</div>
+                    <div class="text-text-muted mb-4">${currentUser.totalPoints || 0} Total Points</div>
+                    
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div class="text-center p-2 bg-card-bg/50 rounded">
+                            <div class="font-bold text-primary-blue">${currentUser.wordsMastered || 0}</div>
+                            <div class="text-text-muted">Words</div>
+                        </div>
+                        <div class="text-center p-2 bg-card-bg/50 rounded">
+                            <div class="font-bold text-secondary-cyan">${currentUser.sentencesMastered || 0}</div>
+                            <div class="text-text-muted">Sentences</div>
+                        </div>
+                        <div class="text-center p-2 bg-card-bg/50 rounded">
+                            <div class="font-bold text-yellow-400">${currentUser.streakDays || 0}</div>
+                            <div class="text-text-muted">Day Streak</div>
+                        </div>
+                        <div class="text-center p-2 bg-card-bg/50 rounded">
+                            <div class="font-bold text-green-400">${currentUser.totalQuizzes || 0}</div>
+                            <div class="text-text-muted">Quizzes</div>
+                        </div>
+                    </div>
+                `;
+                
+                noUserData.classList.add('hidden');
+                currentUserStats.classList.remove('hidden');
+            } else {
+                currentUserStats.classList.add('hidden');
+                noUserData.classList.remove('hidden');
+            }
+        }
+
+        // UI State Management
+        function showNoData() {
+            noData.classList.remove('hidden');
+            leaderboardList.innerHTML = '';
+        }
+
+        function hideLoadingState() {
+            loadingState.style.display = 'none';
+        }
 
         // Initialize Mobile Menu
         function initializeMobileMenu() {
@@ -565,545 +880,13 @@
                     break;
             }
             
-            loadLeaderboard();
-        }
-
-        // Main leaderboard loading function
-        function loadLeaderboard() {
-            const users = getAllUsers();
-            const currentUser = getCurrentUser();
-            
-            updateGlobalStats(users);
-            
-            if (users.length === 0) {
-                showNoData();
-                return;
-            }
-            
-            // Sort users based on current tab
-            const sortedUsers = sortUsersByCriteria(users, currentTab);
-            displayLeaderboard(sortedUsers, currentUser);
-            displayCurrentUserStats(sortedUsers, currentUser);
-            displayAchievements(currentUser);
-        }
-
-        // Get all users from localStorage
-        function getAllUsers() {
-            // In a real app, this would be from a backend API
-            // For demo, we'll use localStorage and create some mock users
-            const users = [];
-            
-            // Get current user
-            const currentUserData = localStorage.getItem('userProfile');
-            if (currentUserData) {
-                const user = JSON.parse(currentUserData);
-                const stats = calculateUserStats();
-                users.push({
-                    id: 'current-user',
-                    username: user.username || 'You',
-                    avatar: user.avatar,
-                    stats: stats,
-                    isCurrentUser: true
-                });
-            }
-            
-            // Add mock users for demonstration
-            const mockUsers = generateMockUsers();
-            users.push(...mockUsers);
-            
-            return users;
-        }
-
-        // Calculate user stats (same as profile.html)
-        function calculateUserStats() {
-            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
-            const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{"words":{},"sentences":{}}');
-            
-            let totalWords = 0;
-            let totalSentences = 0;
-            let totalCorrect = 0;
-            let totalQuestions = 0;
-            let streakDays = 0;
-            let wordsMastered = 0;
-            let sentencesMastered = 0;
-            
-            // Calculate from quiz history
-            quizHistory.forEach(quiz => {
-                const correct = quiz.correct_answers || quiz.correct || 0;
-                const total = quiz.total_questions || quiz.total || 0;
-                
-                totalCorrect += correct;
-                totalQuestions += total;
-                
-                if (quiz.quiz_type === 'words') {
-                    totalWords += correct;
-                } else if (quiz.quiz_type === 'sentences') {
-                    totalSentences += correct;
-                }
-            });
-            
-            // Calculate mastered items
-            if (performanceData.words) {
-                Object.values(performanceData.words).forEach(word => {
-                    const totalAttempts = word.correct + (word.incorrect || 0);
-                    const accuracy = totalAttempts > 0 ? (word.correct / totalAttempts) * 100 : 0;
-                    if (accuracy >= 70) wordsMastered++;
-                });
-                totalWords = Math.max(totalWords, Object.keys(performanceData.words).length);
-            }
-            
-            if (performanceData.sentences) {
-                Object.values(performanceData.sentences).forEach(sentence => {
-                    const totalAttempts = sentence.correct + (sentence.incorrect || 0);
-                    const accuracy = totalAttempts > 0 ? (sentence.correct / totalAttempts) * 100 : 0;
-                    if (accuracy >= 70) sentencesMastered++;
-                });
-                totalSentences = Math.max(totalSentences, Object.keys(performanceData.sentences).length);
-            }
-            
-            // Calculate streak
-            streakDays = calculateStudyStreak(quizHistory);
-            
-            const accuracyRate = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
-            
-            return {
-                totalWords,
-                totalSentences,
-                streakDays,
-                accuracyRate,
-                totalQuizzes: quizHistory.length,
-                wordsMastered,
-                sentencesMastered,
-                totalScore: (wordsMastered * 2) + (sentencesMastered * 3) + (streakDays * 5) + accuracyRate
-            };
-        }
-
-        // Calculate study streak
-        function calculateStudyStreak(quizHistory) {
-            if (quizHistory.length === 0) return 0;
-            
-            const sortedQuizzes = [...quizHistory].sort((a, b) => 
-                new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date)
-            );
-            
-            let streak = 0;
-            let currentDate = new Date();
-            
-            const today = new Date().toDateString();
-            const hasQuizToday = sortedQuizzes.some(quiz => {
-                const quizDate = new Date(quiz.timestamp || quiz.date).toDateString();
-                return quizDate === today;
-            });
-            
-            if (hasQuizToday) {
-                streak = 1;
-                currentDate.setDate(currentDate.getDate() - 1);
-            }
-            
-            for (let i = 0; i < sortedQuizzes.length; i++) {
-                const quizDate = new Date(sortedQuizzes[i].timestamp || sortedQuizzes[i].date).toDateString();
-                const expectedDate = currentDate.toDateString();
-                
-                if (quizDate === expectedDate) {
-                    streak++;
-                    currentDate.setDate(currentDate.getDate() - 1);
-                } else if (quizDate < expectedDate) {
-                    continue;
-                } else {
-                    break;
-                }
-            }
-            
-            return streak;
-        }
-
-        // Sort users based on current criteria
-        function sortUsersByCriteria(users, criteria) {
-            return [...users].sort((a, b) => {
-                switch(criteria) {
-                    case 'words':
-                        return b.stats.wordsMastered - a.stats.wordsMastered;
-                    case 'sentences':
-                        return b.stats.sentencesMastered - a.stats.sentencesMastered;
-                    case 'streak':
-                        return b.stats.streakDays - a.stats.streakDays;
-                    default: // overall
-                        return b.stats.totalScore - a.stats.totalScore;
-                }
-            });
-        }
-
-        // Display leaderboard list
-        function displayLeaderboard(users, currentUser) {
-            if (users.length === 0) {
-                showNoData();
-                return;
-            }
-            
-            noData.classList.add('hidden');
-            leaderboardList.innerHTML = '';
-            
-            users.forEach((user, index) => {
-                const rank = index + 1;
-                const isCurrentUser = user.id === 'current-user';
-                
-                const item = document.createElement('div');
-                item.className = `leaderboard-item p-4 rounded-lg flex items-center space-x-4 ${
-                    rank <= 3 ? `rank-${rank}` : ''
-                } ${isCurrentUser ? 'current-user pulse-animation' : ''}`;
-                
-                item.innerHTML = `
-                    <div class="flex-shrink-0">
-                        ${rank <= 3 ? `
-                            <div class="medal medal-${getMedalColor(rank)}">
-                                ${rank}
-                            </div>
-                        ` : `
-                            <div class="w-10 h-10 rounded-full bg-card-bg flex items-center justify-center text-text-muted font-bold">
-                                ${rank}
-                            </div>
-                        `}
-                    </div>
-                    
-                    <div class="flex-shrink-0">
-                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-blue to-secondary-cyan flex items-center justify-center text-white font-bold text-lg overflow-hidden">
-                            ${user.avatar ? `
-                                <img src="${user.avatar}" alt="${user.username}" class="w-full h-full object-cover">
-                            ` : `
-                                <i class="fas fa-user"></i>
-                            `}
-                        </div>
-                    </div>
-                    
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center justify-between">
-                            <h3 class="font-semibold text-text-light truncate ${isCurrentUser ? 'text-secondary-cyan' : ''}">
-                                ${user.username} ${isCurrentUser ? '<span class="text-sm">(You)</span>' : ''}
-                            </h3>
-                            <span class="text-lg font-bold ${getRankColor(rank)}">
-                                ${getDisplayValue(user.stats, currentTab)}
-                            </span>
-                        </div>
-                        
-                        <div class="mt-2">
-                            <div class="flex justify-between text-sm text-text-muted mb-1">
-                                <span>Progress</span>
-                                <span>${getProgressValue(user.stats, currentTab)}</span>
-                            </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${getProgressPercentage(user.stats, currentTab)}%"></div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                
-                leaderboardList.appendChild(item);
-            });
-        }
-
-        // Display current user stats
-        function displayCurrentUserStats(users, currentUser) {
-            if (!currentUser) {
-                noUserData.classList.remove('hidden');
-                currentUserStats.classList.add('hidden');
-                return;
-            }
-            
-            const currentUserRank = users.findIndex(user => user.id === 'current-user') + 1;
-            const totalUsers = users.length;
-            
-            noUserData.classList.add('hidden');
-            currentUserStats.classList.remove('hidden');
-            
-            currentUserStats.innerHTML = `
-                <div class="mb-4">
-                    <div class="text-4xl font-bold text-secondary-cyan mb-2">#${currentUserRank}</div>
-                    <div class="text-text-muted">out of ${totalUsers} learners</div>
-                </div>
-                
-                <div class="space-y-3 text-left">
-                    <div class="flex justify-between">
-                        <span class="text-text-muted">Words Mastered</span>
-                        <span class="font-semibold text-text-light">${currentUser.stats.wordsMastered}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-text-muted">Sentences Mastered</span>
-                        <span class="font-semibold text-text-light">${currentUser.stats.sentencesMastered}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-text-muted">Study Streak</span>
-                        <span class="font-semibold text-text-light">${currentUser.stats.streakDays} days</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-text-muted">Accuracy</span>
-                        <span class="font-semibold text-text-light">${currentUser.stats.accuracyRate}%</span>
-                    </div>
-                </div>
-                
-                ${currentUserRank <= 3 ? `
-                    <div class="mt-4 p-3 rounded-lg bg-gradient-to-r from-yellow-400 to-orange-400 text-main-bg text-center">
-                        <i class="fas fa-trophy mr-2"></i>
-                        You're in the top ${currentUserRank}!
-                    </div>
-                ` : currentUserRank <= 10 ? `
-                    <div class="mt-4 p-3 rounded-lg bg-gradient-to-r from-primary-blue to-secondary-cyan text-white text-center">
-                        <i class="fas fa-star mr-2"></i>
-                        Top 10 achiever!
-                    </div>
-                ` : ''}
-            `;
-        }
-
-        // Display achievements
-        function displayAchievements(currentUser) {
-            if (!currentUser) {
-                noAchievements.classList.remove('hidden');
-                achievementsList.classList.add('hidden');
-                return;
-            }
-            
-            const achievements = calculateAchievements(currentUser.stats);
-            
-            if (achievements.length === 0) {
-                noAchievements.classList.remove('hidden');
-                achievementsList.classList.add('hidden');
-                return;
-            }
-            
-            noAchievements.classList.add('hidden');
-            achievementsList.classList.remove('hidden');
-            achievementsList.innerHTML = '';
-            
-            achievements.forEach(achievement => {
-                const achievementEl = document.createElement('div');
-                achievementEl.className = 'flex items-center space-x-3 p-3 rounded-lg bg-card-bg/50 border border-text-muted/20';
-                achievementEl.innerHTML = `
-                    <div class="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-400 flex items-center justify-center text-main-bg">
-                        <i class="fas ${achievement.icon}"></i>
-                    </div>
-                    <div class="flex-1">
-                        <div class="font-semibold text-text-light">${achievement.title}</div>
-                        <div class="text-sm text-text-muted">${achievement.description}</div>
-                    </div>
-                `;
-                achievementsList.appendChild(achievementEl);
-            });
-        }
-
-        // Update global statistics
-        function updateGlobalStats(users) {
-            let totalQuizzes = 0;
-            let totalWords = 0;
-            let totalSentences = 0;
-            
-            users.forEach(user => {
-                totalQuizzes += user.stats.totalQuizzes;
-                totalWords += user.stats.wordsMastered;
-                totalSentences += user.stats.sentencesMastered;
-            });
-            
-            document.getElementById('total-learners').textContent = users.length;
-            document.getElementById('total-quizzes').textContent = totalQuizzes;
-            document.getElementById('total-words').textContent = totalWords;
-            document.getElementById('total-sentences').textContent = totalSentences;
-        }
-
-        // Helper functions
-        function getCurrentUser() {
-            const users = getAllUsers();
-            return users.find(user => user.id === 'current-user');
-        }
-
-        function showNoData() {
-            noData.classList.remove('hidden');
-            leaderboardList.innerHTML = '';
-            noUserData.classList.remove('hidden');
-            currentUserStats.classList.add('hidden');
-            noAchievements.classList.remove('hidden');
-            achievementsList.classList.add('hidden');
-        }
-
-        function getMedalColor(rank) {
-            switch(rank) {
-                case 1: return 'gold';
-                case 2: return 'silver';
-                case 3: return 'bronze';
-                default: return '';
+            // Re-sort and display based on new tab
+            if (allUsers.length > 0) {
+                const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
+                renderLeaderboardList(sortedUsers);
+                updateCurrentUserRank(sortedUsers);
             }
         }
-
-        function getRankColor(rank) {
-            switch(rank) {
-                case 1: return 'text-gold';
-                case 2: return 'text-silver';
-                case 3: return 'text-bronze';
-                default: return 'text-text-light';
-            }
-        }
-
-        function getDisplayValue(stats, tab) {
-            switch(tab) {
-                case 'words': return stats.wordsMastered;
-                case 'sentences': return stats.sentencesMastered;
-                case 'streak': return `${stats.streakDays}d`;
-                default: return stats.totalScore;
-            }
-        }
-
-        function getProgressValue(stats, tab) {
-            switch(tab) {
-                case 'words': return `${stats.wordsMastered} words`;
-                case 'sentences': return `${stats.sentencesMastered} sentences`;
-                case 'streak': return `${stats.streakDays} days`;
-                default: return `${stats.totalScore} points`;
-            }
-        }
-
-        function getProgressPercentage(stats, tab) {
-            // Simplified progress calculation
-            switch(tab) {
-                case 'words': return Math.min((stats.wordsMastered / 150) * 100, 100);
-                case 'sentences': return Math.min((stats.sentencesMastered / 150) * 100, 100);
-                case 'streak': return Math.min((stats.streakDays / 30) * 100, 100);
-                default: return Math.min((stats.totalScore / 2000) * 100, 100);
-            }
-        }
-
-        function calculateAchievements(stats) {
-            const achievements = [];
-            
-            if (stats.streakDays >= 7) {
-                achievements.push({
-                    icon: 'fa-fire',
-                    title: 'Weekly Warrior',
-                    description: 'Maintained a 7-day study streak'
-                });
-            }
-            
-            if (stats.wordsMastered >= 50) {
-                achievements.push({
-                    icon: 'fa-font',
-                    title: 'Word Master',
-                    description: 'Mastered 50+ vocabulary words'
-                });
-            }
-            
-            if (stats.sentencesMastered >= 30) {
-                achievements.push({
-                    icon: 'fa-comment-alt',
-                    title: 'Sentence Builder',
-                    description: 'Mastered 30+ sentences'
-                });
-            }
-            
-            if (stats.accuracyRate >= 80) {
-                achievements.push({
-                    icon: 'fa-bullseye',
-                    title: 'Accuracy Expert',
-                    description: 'Maintained 80%+ accuracy rate'
-                });
-            }
-            
-            if (stats.totalQuizzes >= 10) {
-                achievements.push({
-                    icon: 'fa-trophy',
-                    title: 'Quiz Champion',
-                    description: 'Completed 10+ quizzes'
-                });
-            }
-            
-            return achievements;
-        }
-
-        // Generate mock users for demonstration
-        function generateMockUsers() {
-            return [
-                {
-                    id: 'user1',
-                    username: 'LanguageMaster',
-                    avatar: '',
-                    stats: {
-                        totalWords: 142,
-                        totalSentences: 89,
-                        streakDays: 14,
-                        accuracyRate: 92,
-                        totalQuizzes: 28,
-                        wordsMastered: 128,
-                        sentencesMastered: 76,
-                        totalScore: 1845
-                    }
-                },
-                {
-                    id: 'user2',
-                    username: 'HSKPro',
-                    avatar: '',
-                    stats: {
-                        totalWords: 138,
-                        totalSentences: 82,
-                        streakDays: 21,
-                        accuracyRate: 88,
-                        totalQuizzes: 32,
-                        wordsMastered: 121,
-                        sentencesMastered: 69,
-                        totalScore: 1792
-                    }
-                },
-                {
-                    id: 'user3',
-                    username: 'MandarinLearner',
-                    avatar: '',
-                    stats: {
-                        totalWords: 126,
-                        totalSentences: 74,
-                        streakDays: 9,
-                        accuracyRate: 85,
-                        totalQuizzes: 25,
-                        wordsMastered: 112,
-                        sentencesMastered: 61,
-                        totalScore: 1623
-                    }
-                },
-                {
-                    id: 'user4',
-                    username: 'ChineseExplorer',
-                    avatar: '',
-                    stats: {
-                        totalWords: 118,
-                        totalSentences: 67,
-                        streakDays: 5,
-                        accuracyRate: 82,
-                        totalQuizzes: 19,
-                        wordsMastered: 98,
-                        sentencesMastered: 54,
-                        totalScore: 1456
-                    }
-                },
-                {
-                    id: 'user5',
-                    username: 'PinyinMaster',
-                    avatar: '',
-                    stats: {
-                        totalWords: 95,
-                        totalSentences: 52,
-                        streakDays: 3,
-                        accuracyRate: 78,
-                        totalQuizzes: 15,
-                        wordsMastered: 84,
-                        sentencesMastered: 43,
-                        totalScore: 1234
-                    }
-                }
-            ];
-        }
-
-        // Refresh when page becomes visible
-        document.addEventListener('visibilitychange', function() {
-            if (!document.hidden) {
-                loadLeaderboard();
-            }
-        });
-
-        window.addEventListener('focus', loadLeaderboard);
     </script>
 </body>
 </html>

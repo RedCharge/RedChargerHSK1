@@ -526,10 +526,34 @@
         </section>
     </main>
 
-    <!-- Footer -->
+     <!-- Footer -->
     <footer class="py-10 border-t border-main-bg/20 text-center text-text-muted bg-card-bg mt-12">
         <p class="text-sm">&copy; 2025 RedCharger. Track your progress in both vocabulary and sentences.</p>
     </footer>
+
+    <!-- ADD FIREBASE HERE - Right before your existing script -->
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <!-- Firebase Configuration -->
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyAw4CCOFDlfsVxkAcg2YdshgEB-x3fKNLY",
+            authDomain: "redchargerhsk1.firebaseapp.com",
+            databaseURL: "https://redchargerhsk1-default-rtdb.firebaseio.com",
+            projectId: "redchargerhsk1",
+            storageBucket: "redchargerhsk1.firebasestorage.app",
+            messagingSenderId: "287577907928",
+            appId: "1:287577907928:web:ea58eaba023213696d6dad",
+            measurementId: "G-W6PDP1NWT4"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        console.log("Firebase loaded successfully!");
+    </script>
 
     <!-- Results Logic -->
         <script>

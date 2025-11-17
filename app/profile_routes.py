@@ -10,6 +10,11 @@ def profile_page():
     """Serve the profile.html page"""
     return render_template('profile.html')
 
+@profile_bp.route('/leaderboard')
+def leaderboard_page():
+    """Serve the leaderboard page"""
+    return render_template('leaderboard.html')
+
 @profile_bp.route('/api/profile/save', methods=['POST'])
 def save_profile():
     """API endpoint to save profile data to database"""
@@ -453,3 +458,60 @@ def delete_account():
             'success': False,
             'message': f'Error deleting account: {str(e)}'
         }), 500
+        
+        
+@profile_bp.route('/api/profile/sync-to-leaderboard', methods=['POST'])
+def sync_to_leaderboard():
+    """Sync user stats to Firebase for leaderboard"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': 'User not authenticated'
+            }), 401
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 404
+        
+        # Get user's current stats from your database
+        quiz_results = QuizResult.query.filter_by(user_id=user_id).all()
+        total_quizzes = len(quiz_results)
+        
+        # Calculate total points (you can define your own scoring system)
+        total_points = (
+            user.words_mastered * 10 + 
+            user.sentences_mastered * 20 +
+            total_quizzes * 5 +
+            user.current_streak * 3
+        )
+        
+        # Prepare data for Firebase
+        leaderboard_data = {
+            'username': user.username or f'User{user_id}',
+            'totalPoints': total_points,
+            'wordsMastered': user.words_mastered,
+            'sentencesMastered': user.sentences_mastered,
+            'streakDays': user.current_streak,
+            'totalQuizzes': total_quizzes,
+            'lastUpdated': datetime.utcnow().isoformat()
+        }
+        
+        # Here you would send this data to Firebase
+        # For now, return the data - we'll add Firebase API call later
+        return jsonify({
+            'success': True,
+            'message': 'Ready to sync with leaderboard',
+            'leaderboardData': leaderboard_data,
+            'firebaseUserId': f'user_{user_id}'  # Unique ID for Firebase
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error syncing to leaderboard: {str(e)}'
+        }), 500        

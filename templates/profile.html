@@ -1003,6 +1003,50 @@
             });
         });
 
+        // After your existing profile loading logic, add:
+function checkLeaderboardAccess() {
+    // Check if user has completed profile
+    if (userHasCompletedProfile) {  // You'll define this based on your data
+        showLeaderboard();
+        syncToFirebaseLeaderboard();
+    } else {
+        showProfileCompletionPrompt();
+    }
+}
+
+function showProfileCompletionPrompt() {
+    // Show a message like: "Complete your profile to join the leaderboard!"
+    // This motivates users to fill out their profile
+}
+
+function syncToFirebaseLeaderboard() {
+    // Call your new Flask endpoint
+    fetch('/api/profile/sync-to-leaderboard', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Now save to Firebase
+            saveToFirebase(data.firebaseUserId, data.leaderboardData);
+        }
+    });
+}
+
+function saveToFirebase(userId, data) {
+    // Save to Firebase Realtime Database
+    leaderboardDb.ref('leaderboard/' + userId).set(data)
+    .then(() => {
+        console.log('Leaderboard data saved to Firebase!');
+    })
+    .catch(error => {
+        console.error('Error saving to Firebase:', error);
+    });
+}
+
         // Refresh stats when page becomes visible or focused
         document.addEventListener('visibilitychange', function() {
             if (!document.hidden) {
