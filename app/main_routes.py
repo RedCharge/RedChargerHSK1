@@ -19,7 +19,10 @@ def result():
     """Render the result page"""
     return render_template('result.html')
 
-
+@main_bp.route('/leaderboard')
+def leaderboard_page():
+    """Serve the leaderboard page"""
+    return render_template('leaderboard.html')
 
 
 @main_bp.route('/api/quiz-results', methods=['POST'])

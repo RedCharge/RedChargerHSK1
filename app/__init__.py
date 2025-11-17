@@ -33,23 +33,6 @@ def create_app():
     from .profile_routes import profile_bp
     from .chat_routes import chat_bp
     
-    # Import leaderboard routes
-    try:
-        from .leaderboard_routes import leaderboard_bp
-        app.register_blueprint(leaderboard_bp)
-        print("Leaderboard routes registered successfully")
-    except ImportError as e:
-        print(f"Leaderboard routes not available: {e}")
-        # Create a simple leaderboard blueprint as fallback
-        from flask import Blueprint
-        leaderboard_bp = Blueprint('leaderboard', __name__)
-        
-        @leaderboard_bp.route('/leaderboard')
-        def leaderboard_fallback():
-            return "Leaderboard coming soon"
-            
-        app.register_blueprint(leaderboard_bp)
-        print("Using fallback leaderboard routes")
 
     app.register_blueprint(main_bp)
     app.register_blueprint(words_bp, url_prefix='/words')
@@ -63,10 +46,7 @@ def create_app():
         try:
             db.create_all()
             print("Database tables created")
-            
-            # Initialize sample data for leaderboard
-            from .leaderboard_routes import initialize_sample_users
-            initialize_sample_users()
+        
             
         except Exception as e:
             print(f"Database setup error: {e}")

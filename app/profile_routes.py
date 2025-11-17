@@ -10,10 +10,7 @@ def profile_page():
     """Serve the profile.html page"""
     return render_template('profile.html')
 
-@profile_bp.route('/leaderboard')
-def leaderboard_page():
-    """Serve the leaderboard page"""
-    return render_template('leaderboard.html')
+
 
 @profile_bp.route('/api/profile/save', methods=['POST'])
 def save_profile():
