@@ -15,32 +15,185 @@ def leaderboard_page():
     """Serve the leaderboard.html page"""
     return render_template('leaderboard.html')
 
+# ===== DEBUG ROUTES =====
+@profile_bp.route('/api/profile/debug-auth')
+def debug_auth():
+    """Debug endpoint to check authentication status"""
+    try:
+        user_id = session.get('user_id')
+        session_data = dict(session)
+        
+        print("=== DEBUG AUTH ===")
+        print("Session data:", session_data)
+        print("User ID from session:", user_id)
+        print("Session ID:", session.sid if hasattr(session, 'sid') else 'No session ID')
+        
+        if user_id:
+            user = User.query.get(user_id)
+            if user:
+                return jsonify({
+                    'authenticated': True,
+                    'user_id': user_id,
+                    'username': user.username,
+                    'session_keys': list(session.keys()),
+                    'message': 'User is authenticated'
+                })
+            else:
+                return jsonify({
+                    'authenticated': False,
+                    'message': 'User ID in session but user not found in database'
+                })
+        else:
+            return jsonify({
+                'authenticated': False,
+                'message': 'No user_id in session',
+                'session_keys': list(session.keys())
+            })
+            
+    except Exception as e:
+        return jsonify({
+            'authenticated': False,
+            'message': f'Auth error: {str(e)}'
+        }), 500
+
+@profile_bp.route('/api/profile/create-test-user', methods=['POST'])
+def create_test_user():
+    """Create a test user for debugging"""
+    try:
+        # Check if we already have a test user
+        test_user = User.query.filter_by(username='testuser').first()
+        if not test_user:
+            test_user = User(
+                username='testuser',
+                email='test@example.com',
+                first_name='Test',
+                last_name='User'
+            )
+            test_user.set_password('testpassword')
+            db.session.add(test_user)
+            db.session.commit()
+            print("Created test user with ID:", test_user.id)
+        
+        # Log in the test user
+        session['user_id'] = test_user.id
+        session.permanent = True
+        
+        return jsonify({
+            'success': True,
+            'message': 'Test user created and logged in',
+            'user_id': test_user.id,
+            'username': test_user.username
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Error creating test user: {str(e)}'
+        }), 500
+
+@profile_bp.route('/api/profile/login-test-user')
+def login_test_user():
+    """Log in as test user for debugging"""
+    try:
+        test_user = User.query.filter_by(username='testuser').first()
+        if not test_user:
+            return jsonify({
+                'success': False,
+                'message': 'Test user not found. Create one first.'
+            }), 404
+        
+        # Log in the test user
+        session['user_id'] = test_user.id
+        session.permanent = True
+        
+        print("=== LOGGED IN TEST USER ===")
+        print("User ID:", test_user.id)
+        print("Session user_id:", session.get('user_id'))
+        
+        return jsonify({
+            'success': True,
+            'message': 'Logged in as test user',
+            'user_id': test_user.id,
+            'username': test_user.username
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error logging in: {str(e)}'
+        }), 500
+
+@profile_bp.route('/api/profile/current-session')
+def current_session():
+    """Check current session state"""
+    return jsonify({
+        'session_data': dict(session),
+        'user_id_in_session': session.get('user_id'),
+        'all_session_keys': list(session.keys())
+    })
+
+@profile_bp.route('/api/profile/debug-save', methods=['POST'])
+def debug_save():
+    """Debug endpoint to test profile saving"""
+    try:
+        print("=== DEBUG SAVE CALLED ===")
+        print("Headers:", dict(request.headers))
+        print("Method:", request.method)
+        print("Content-Type:", request.content_type)
+        
+        if request.is_json:
+            data = request.get_json()
+            print("Received JSON data:", data)
+        else:
+            print("No JSON data received")
+            data = None
+            
+        return jsonify({
+            'success': True,
+            'message': 'Debug save received',
+            'received_data': data
+        })
+        
+    except Exception as e:
+        print("Debug save error:", str(e))
+        return jsonify({
+            'success': False,
+            'message': f'Debug error: {str(e)}'
+        }), 500
+# ===== END DEBUG ROUTES =====
+
 @profile_bp.route('/api/profile/check')
 def check_auth():
     """Check if user is authenticated and get basic info"""
     try:
         user_id = session.get('user_id')
+        print(f"=== AUTH CHECK: user_id from session = {user_id} ===")
+        
         if not user_id:
             return jsonify({
                 'authenticated': False,
-                'message': 'User not authenticated'
+                'message': 'User not authenticated - no user_id in session'
             }), 401
         
         user = User.query.get(user_id)
         if not user:
+            print(f"User with ID {user_id} not found in database")
             return jsonify({
                 'authenticated': False,
                 'message': 'User not found'
             }), 404
         
+        print(f"User authenticated: {user.username} (ID: {user_id})")
         return jsonify({
             'authenticated': True,
             'user_id': user_id,
             'username': user.username,
-            'has_profile': bool(user.username)  # Basic profile completion check
+            'has_profile': bool(user.username)
         })
         
     except Exception as e:
+        print(f"Auth check error: {str(e)}")
         return jsonify({
             'authenticated': False,
             'message': f'Error checking auth: {str(e)}'
@@ -64,7 +217,6 @@ def check_profile_completion():
                 'message': 'User not found'
             }), 404
         
-        # Define what constitutes a "complete" profile - at least username is set
         profile_complete = bool(user.username)
         
         return jsonify({
@@ -85,6 +237,10 @@ def save_profile():
     try:
         profile_data = request.get_json()
         
+        print("=== SAVE PROFILE CALLED ===")
+        print("Request JSON:", profile_data)
+        print("User ID in session:", session.get('user_id'))
+        
         if not profile_data:
             return jsonify({
                 'success': False,
@@ -93,9 +249,10 @@ def save_profile():
         
         user_id = session.get('user_id')
         if not user_id:
+            print("NO USER ID IN SESSION - AUTH FAILED")
             return jsonify({
                 'success': False,
-                'message': 'User not authenticated'
+                'message': 'User not authenticated - please log in first'
             }), 401
         
         user = User.query.get(user_id)
@@ -105,36 +262,46 @@ def save_profile():
                 'message': 'User not found'
             }), 404
         
-        # Update user profile data with all fields from your form
+        # Update user profile data
+        updates = []
         if 'username' in profile_data:
             user.username = profile_data['username']
+            updates.append('username')
         if 'email' in profile_data:
             user.email = profile_data['email']
+            updates.append('email')
         if 'firstName' in profile_data:
             user.first_name = profile_data['firstName']
+            updates.append('first_name')
         if 'lastName' in profile_data:
             user.last_name = profile_data['lastName']
+            updates.append('last_name')
         if 'bio' in profile_data:
             user.bio = profile_data['bio']
+            updates.append('bio')
         if 'avatar_color' in profile_data:
             user.avatar_color = profile_data['avatar_color']
+            updates.append('avatar_color')
         
         db.session.commit()
+        print(f"Profile saved successfully. Updated fields: {updates}")
         
-        # Auto-sync to Firebase after profile save
+        # Auto-sync to Firebase
         try:
-            sync_to_firebase()
+            sync_response = sync_to_firebase()
+            print("Firebase sync attempted")
         except Exception as firebase_error:
             print(f"Firebase sync warning: {firebase_error}")
-            # Don't fail the entire save if Firebase sync fails
         
         return jsonify({
             'success': True,
-            'message': 'Profile saved successfully!'
+            'message': 'Profile saved successfully!',
+            'updated_fields': updates
         })
         
     except Exception as e:
         db.session.rollback()
+        print(f"Save profile error: {str(e)}")
         return jsonify({
             'success': False,
             'message': f'Error saving profile: {str(e)}'
@@ -158,11 +325,9 @@ def sync_to_firebase():
                 'message': 'User not found'
             }), 404
         
-        # Get user stats from your database
         quiz_results = QuizResult.query.filter_by(user_id=user_id).all()
         total_quizzes = len(quiz_results)
         
-        # Calculate total points for leaderboard
         total_points = (
             (user.words_mastered or 0) * 10 + 
             (user.sentences_mastered or 0) * 20 +
@@ -170,7 +335,6 @@ def sync_to_firebase():
             (user.current_streak or 0) * 3
         )
         
-        # Prepare data for Firebase
         firebase_data = {
             'username': user.username or f'User{user_id}',
             'totalPoints': total_points,
@@ -645,33 +809,3 @@ def sync_to_leaderboard():
             'success': False,
             'message': f'Error syncing to leaderboard: {str(e)}'
         }), 500
-        
-        
-@profile_bp.route('/api/profile/debug-save', methods=['POST'])
-def debug_save():
-    """Debug endpoint to test profile saving"""
-    try:
-        print("=== DEBUG SAVE CALLED ===")
-        print("Headers:", dict(request.headers))
-        print("Method:", request.method)
-        print("Content-Type:", request.content_type)
-        
-        if request.is_json:
-            data = request.get_json()
-            print("Received JSON data:", data)
-        else:
-            print("No JSON data received")
-            data = None
-            
-        return jsonify({
-            'success': True,
-            'message': 'Debug save received',
-            'received_data': data
-        })
-        
-    except Exception as e:
-        print("Debug save error:", str(e))
-        return jsonify({
-            'success': False,
-            'message': f'Debug error: {str(e)}'
-        }), 500        
