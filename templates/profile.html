@@ -551,7 +551,29 @@
         <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
     </footer>
 
-            <    <!-- Profile Logic -->
+                <!-- Firebase Integration -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAw4CCOFDlfsVxkAcg2YdshgEB-x3fKNLY",
+            authDomain: "redchargerhsk1.firebaseapp.com",
+            databaseURL: "https://redchargerhsk1-default-rtdb.firebaseio.com",
+            projectId: "redchargerhsk1",
+            storageBucket: "redchargerhsk1.firebasestorage.app",
+            messagingSenderId: "287577907928",
+            appId: "1:287577907928:web:ea58eaba023213696d6dad",
+            measurementId: "G-W6PDP1NWT4"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+    </script>
+
+    <!-- Profile Logic -->
     <script>
         // DOM Elements
         const mobileMenuButton = document.getElementById('mobile-menu-button');
@@ -584,48 +606,79 @@
         // Global state
         let isMenuOpen = false;
         let originalFormData = {};
-        let isUserAuthenticated = false;
+        let currentUserId = null;
+        let userStats = {
+            totalWords: 0,
+            totalSentences: 0,
+            streakDays: 0,
+            accuracyRate: 0,
+            quizzesCompleted: 0,
+            totalStudyTime: 0
+        };
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Profile page initialized');
             initializeMobileMenu();
-            checkAuthentication();
             initializeForm();
             setupAvatarUpload();
+            initializeUserSession();
             calculateCompletionPercentage();
         });
 
-        // Check if user is authenticated
-        function checkAuthentication() {
-            console.log('Checking authentication...');
+        // Initialize user session - create if doesn't exist
+        function initializeUserSession() {
+            // Check if we have a user ID in localStorage
+            currentUserId = localStorage.getItem('redcharger_user_id');
             
-            fetch('/api/profile/check')
-                .then(response => {
-                    console.log('Auth check response status:', response.status);
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Auth check data:', data);
-                    if (data.authenticated) {
-                        isUserAuthenticated = true;
-                        console.log('User is authenticated, loading profile data...');
-                        loadUserProfile();
-                        loadUserStats();
+            if (!currentUserId) {
+                // Create a new user ID
+                currentUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('redcharger_user_id', currentUserId);
+                console.log('Created new user ID:', currentUserId);
+            } else {
+                console.log('Found existing user ID:', currentUserId);
+            }
+
+            // Load user data from Firebase
+            loadUserData();
+            loadUserStats();
+        }
+
+        // Load user data from Firebase
+        function loadUserData() {
+            const userRef = database.ref('users/' + currentUserId);
+            
+            userRef.once('value')
+                .then((snapshot) => {
+                    const userData = snapshot.val();
+                    if (userData) {
+                        console.log('Loaded user data from Firebase:', userData);
+                        populateForm(userData);
                     } else {
-                        isUserAuthenticated = false;
-                        console.log('User not authenticated');
-                        showError('Please log in to save your profile');
+                        console.log('No existing user data found in Firebase');
+                        // Initialize with empty data
+                        saveUserDataToFirebase(getFormData());
                     }
                 })
-                .catch(error => {
-                    console.error('Authentication check failed:', error);
-                    isUserAuthenticated = false;
-                    showError('Unable to verify login status. Please refresh the page.');
+                .catch((error) => {
+                    console.error('Error loading user data:', error);
                 });
+        }
+
+        // Load user stats
+        function loadUserStats() {
+            // For now, use demo stats - you can replace this with real data
+            userStats = {
+                totalWords: 45,
+                totalSentences: 23,
+                streakDays: 7,
+                accuracyRate: 85,
+                quizzesCompleted: 12,
+                totalStudyTime: 240
+            };
+            
+            updateStatsDisplay(userStats);
         }
 
         // Initialize Mobile Menu
@@ -710,19 +763,19 @@
                 showPinyin: true
             };
 
-            // Apply defaults
-            if (usernameInput) usernameInput.value = defaultFormData.username;
-            if (emailInput) emailInput.value = defaultFormData.email;
-            if (firstNameInput) firstNameInput.value = defaultFormData.firstName;
-            if (lastNameInput) lastNameInput.value = defaultFormData.lastName;
-            if (bioInput) bioInput.value = defaultFormData.bio;
-            if (dailyGoalSelect) dailyGoalSelect.value = defaultFormData.dailyGoal;
-            if (learningModeSelect) learningModeSelect.value = defaultFormData.learningMode;
+            // Apply defaults only if fields are empty
+            if (usernameInput && !usernameInput.value) usernameInput.value = defaultFormData.username;
+            if (emailInput && !emailInput.value) emailInput.value = defaultFormData.email;
+            if (firstNameInput && !firstNameInput.value) firstNameInput.value = defaultFormData.firstName;
+            if (lastNameInput && !lastNameInput.value) lastNameInput.value = defaultFormData.lastName;
+            if (bioInput && !bioInput.value) bioInput.value = defaultFormData.bio;
+            if (dailyGoalSelect && !dailyGoalSelect.value) dailyGoalSelect.value = defaultFormData.dailyGoal;
+            if (learningModeSelect && !learningModeSelect.value) learningModeSelect.value = defaultFormData.learningMode;
             if (enableSpeechCheckbox) enableSpeechCheckbox.checked = defaultFormData.enableSpeech;
             if (showPinyinCheckbox) showPinyinCheckbox.checked = defaultFormData.showPinyin;
 
             // Store original form data for reset functionality
-            originalFormData = { ...defaultFormData };
+            originalFormData = getFormData();
 
             // Add input listeners for real-time validation
             if (usernameInput) usernameInput.addEventListener('input', validateUsername);
@@ -738,68 +791,40 @@
             console.log('Form initialized successfully');
         }
 
-        // Load user profile data from server
-        function loadUserProfile() {
-            if (!isUserAuthenticated) {
-                console.log('Skipping profile load - user not authenticated');
-                return;
-            }
-
-            console.log('Loading user profile data...');
+        // Populate form with user data
+        function populateForm(userData) {
+            console.log('Populating form with:', userData);
             
-            // First try to get existing profile data
-            fetch('/api/profile/stats')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Profile stats loaded:', data);
-                    if (data.success) {
-                        // If you have existing profile data, you can pre-fill the form here
-                        // For now, we'll just log that stats were loaded
-                        console.log('User stats available');
-                    } else {
-                        console.warn('Profile stats load warning:', data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading profile stats:', error);
-                });
+            if (usernameInput && userData.username) usernameInput.value = userData.username;
+            if (emailInput && userData.email) emailInput.value = userData.email;
+            if (firstNameInput && userData.firstName) firstNameInput.value = userData.firstName;
+            if (lastNameInput && userData.lastName) lastNameInput.value = userData.lastName;
+            if (bioInput && userData.bio) bioInput.value = userData.bio;
+            if (dailyGoalSelect && userData.dailyGoal) dailyGoalSelect.value = userData.dailyGoal;
+            if (learningModeSelect && userData.learningMode) learningModeSelect.value = userData.learningMode;
+            if (enableSpeechCheckbox && userData.enableSpeech !== undefined) enableSpeechCheckbox.checked = userData.enableSpeech;
+            if (showPinyinCheckbox && userData.showPinyin !== undefined) showPinyinCheckbox.checked = userData.showPinyin;
+
+            // Update original form data
+            originalFormData = getFormData();
+            
+            calculateCompletionPercentage();
         }
 
-        // Load user statistics
-        function loadUserStats() {
-            if (!isUserAuthenticated) {
-                console.log('Skipping stats load - user not authenticated');
-                return;
-            }
-
-            console.log('Loading user statistics...');
-            
-            fetch('/api/profile/stats')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Stats response:', data);
-                    if (data.success && data.stats) {
-                        updateStatsDisplay(data.stats);
-                        console.log('Statistics displayed successfully');
-                    } else {
-                        console.warn('Failed to load statistics:', data.message);
-                        showError('Failed to load statistics: ' + (data.message || 'Unknown error'));
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading stats:', error);
-                    showError('Unable to load statistics. Please check your connection.');
-                });
+        // Get current form data
+        function getFormData() {
+            return {
+                username: usernameInput ? usernameInput.value : '',
+                email: emailInput ? emailInput.value : '',
+                firstName: firstNameInput ? firstNameInput.value : '',
+                lastName: lastNameInput ? lastNameInput.value : '',
+                bio: bioInput ? bioInput.value : '',
+                dailyGoal: dailyGoalSelect ? dailyGoalSelect.value : '20',
+                learningMode: learningModeSelect ? learningModeSelect.value : 'both',
+                enableSpeech: enableSpeechCheckbox ? enableSpeechCheckbox.checked : false,
+                showPinyin: showPinyinCheckbox ? showPinyinCheckbox.checked : true,
+                lastUpdated: new Date().toISOString()
+            };
         }
 
         // Update statistics display
@@ -808,19 +833,15 @@
             
             if (totalWordsElement) {
                 totalWordsElement.textContent = stats.totalWords || 0;
-                console.log('Updated total words:', stats.totalWords || 0);
             }
             if (totalSentencesElement) {
                 totalSentencesElement.textContent = stats.totalSentences || 0;
-                console.log('Updated total sentences:', stats.totalSentences || 0);
             }
             if (streakDaysElement) {
                 streakDaysElement.textContent = stats.streakDays || 0;
-                console.log('Updated streak days:', stats.streakDays || 0);
             }
             if (accuracyRateElement) {
                 accuracyRateElement.textContent = (stats.accuracyRate || 0) + '%';
-                console.log('Updated accuracy rate:', stats.accuracyRate || 0);
             }
         }
 
@@ -853,8 +874,10 @@
                         avatarPreview.classList.remove('hidden');
                         avatarPlaceholder.classList.add('hidden');
                         
-                        // Upload avatar to server
-                        uploadAvatar(e.target.result);
+                        // Save avatar to user data
+                        const formData = getFormData();
+                        formData.avatar = e.target.result;
+                        saveUserDataToFirebase(formData);
                     };
                     
                     reader.onerror = function(error) {
@@ -864,42 +887,6 @@
                     
                     reader.readAsDataURL(file);
                 }
-            });
-        }
-
-        // Upload avatar to server
-        function uploadAvatar(avatarData) {
-            if (!isUserAuthenticated) {
-                showError('Please log in to upload avatar');
-                return;
-            }
-
-            console.log('Uploading avatar...');
-            
-            fetch('/api/profile/upload-avatar', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ avatar: avatarData })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Avatar upload response:', data);
-                if (data.success) {
-                    showSuccess('Avatar updated successfully!');
-                } else {
-                    showError('Failed to upload avatar: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error uploading avatar:', error);
-                showError('Failed to upload avatar. Please try again.');
             });
         }
 
@@ -971,8 +958,8 @@
             
             if (!emailError && email) {
                 const errorElement = document.createElement('div');
-                errorElement.id = 'email-error';
-                errorElement.className = 'text-red-400 text-sm mt-1';
+                element.id = 'email-error';
+                element.className = 'text-red-400 text-sm mt-1';
                 emailInput.parentNode.appendChild(errorElement);
                 emailError = errorElement;
             }
@@ -1009,12 +996,6 @@
         function saveProfile() {
             console.log('Save profile initiated...');
             
-            // Check authentication
-            if (!isUserAuthenticated) {
-                showError('Please log in to save your profile');
-                return;
-            }
-
             // Validate required fields
             if (!validateUsername()) {
                 showError('Please fix the username errors before saving.');
@@ -1026,17 +1007,7 @@
                 return;
             }
 
-            const profileData = {
-                username: usernameInput ? usernameInput.value.trim() : '',
-                email: emailInput ? emailInput.value.trim() : '',
-                firstName: firstNameInput ? firstNameInput.value.trim() : '',
-                lastName: lastNameInput ? lastNameInput.value.trim() : '',
-                bio: bioInput ? bioInput.value.trim() : '',
-                dailyGoal: dailyGoalSelect ? dailyGoalSelect.value : '20',
-                learningMode: learningModeSelect ? learningModeSelect.value : 'both',
-                enableSpeech: enableSpeechCheckbox ? enableSpeechCheckbox.checked : false,
-                showPinyin: showPinyinCheckbox ? showPinyinCheckbox.checked : true
-            };
+            const profileData = getFormData();
 
             console.log('Saving profile data:', profileData);
 
@@ -1046,109 +1017,93 @@
             saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
             saveButton.disabled = true;
 
-            // First test with a simple request to see if endpoint is reachable
-            fetch('/api/profile/save', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                'Accept': 'application/json'
-                },
-                body: JSON.stringify(profileData)
-            })
-            .then(response => {
-                console.log('Save response status:', response.status);
-                console.log('Save response headers:', response.headers);
-                
-                if (!response.ok) {
-                    // Get more details about the error
-                    return response.text().then(text => {
-                        console.error('Server response text:', text);
-                        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Save response data:', data);
-                
-                if (data.success) {
+            // Save to Firebase
+            saveUserDataToFirebase(profileData)
+                .then(() => {
                     showSuccess('Profile saved successfully! Your progress will now appear on the leaderboard.');
                     
                     // Update original form data
                     originalFormData = { ...profileData };
                     
-                    // Sync to Firebase for leaderboard
-                    syncToFirebase();
+                    // Sync to leaderboard
+                    syncToLeaderboard();
                     
                     // Update completion percentage
                     calculateCompletionPercentage();
                     
                     console.log('Profile saved successfully');
-                    
-                } else {
-                    throw new Error(data.message || 'Server returned success: false');
+                })
+                .catch((error) => {
+                    console.error('Save error:', error);
+                    showError('Failed to save profile: ' + error.message);
+                })
+                .finally(() => {
+                    // Restore button
+                    saveButton.innerHTML = originalText;
+                    saveButton.disabled = false;
+                });
+        }
+
+        // Save user data to Firebase
+        function saveUserDataToFirebase(userData) {
+            return new Promise((resolve, reject) => {
+                if (!currentUserId) {
+                    reject(new Error('No user ID available'));
+                    return;
                 }
-            })
-            .catch(error => {
-                console.error('Save error details:', error);
+
+                const userRef = database.ref('users/' + currentUserId);
                 
-                // More specific error messages
-                if (error.message.includes('Failed to fetch')) {
-                    showError('Network error: Cannot connect to server. Please check your internet connection.');
-                } else if (error.message.includes('401')) {
-                    showError('Session expired. Please log in again.');
-                } else if (error.message.includes('404')) {
-                    showError('Server endpoint not found. Please contact support.');
-                } else if (error.message.includes('500')) {
-                    showError('Server error. Please try again later.');
-                } else {
-                    showError('Save failed: ' + error.message);
-                }
-            })
-            .finally(() => {
-                // Restore button
-                saveButton.innerHTML = originalText;
-                saveButton.disabled = false;
-                console.log('Save process completed');
+                userRef.set(userData)
+                    .then(() => {
+                        console.log('User data saved to Firebase');
+                        resolve();
+                    })
+                    .catch((error) => {
+                        console.error('Error saving to Firebase:', error);
+                        reject(error);
+                    });
             });
         }
 
-        // Sync profile to Firebase for leaderboard
-        function syncToFirebase() {
-            if (!isUserAuthenticated) {
-                console.log('Skipping Firebase sync - user not authenticated');
+        // Sync to leaderboard
+        function syncToLeaderboard() {
+            if (!currentUserId) {
+                console.log('No user ID available for leaderboard sync');
                 return;
             }
 
-            console.log('Syncing to Firebase...');
+            const formData = getFormData();
+            const username = formData.username || 'Anonymous Learner';
             
-            fetch('/api/profile/sync-to-firebase', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                'Accept': 'application/json'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Firebase sync response:', data);
-                if (data.success) {
+            // Calculate leaderboard points based on your scoring system
+            const leaderboardPoints = (
+                (userStats.totalWords || 0) * 10 +
+                (userStats.totalSentences || 0) * 20 +
+                (userStats.quizzesCompleted || 0) * 5 +
+                (userStats.streakDays || 0) * 3
+            );
+
+            const leaderboardData = {
+                username: username,
+                totalPoints: leaderboardPoints,
+                wordsMastered: userStats.totalWords || 0,
+                sentencesMastered: userStats.totalSentences || 0,
+                streakDays: userStats.streakDays || 0,
+                totalQuizzes: userStats.quizzesCompleted || 0,
+                lastUpdated: new Date().toISOString(),
+                profileComplete: calculateCompletionPercentage() >= 50
+            };
+
+            const leaderboardRef = database.ref('leaderboard/' + currentUserId);
+            
+            leaderboardRef.set(leaderboardData)
+                .then(() => {
                     console.log('Successfully synced to leaderboard');
-                } else {
-                    console.warn('Firebase sync warning:', data.message);
-                // Don't show error to user for Firebase sync failures
-                // It's not critical for the main profile save
-                }
-            })
-            .catch(error => {
-                console.error('Firebase sync error:', error);
-                // Don't show error to user for Firebase sync failures
-            });
+                })
+                .catch((error) => {
+                    console.error('Error syncing to leaderboard:', error);
+                });
         }
 
         // Reset profile to original values
@@ -1180,55 +1135,27 @@
 
         // Export user data
         function exportData() {
-            if (!isUserAuthenticated) {
-                showError('Please log in to export your data');
-                return;
-            }
-
             console.log('Exporting user data...');
             
-            // Show loading state
-            const exportButton = document.querySelector('button[onclick="exportData()"]');
-            const originalText = exportButton.innerHTML;
-            exportButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Exporting...';
-            exportButton.disabled = true;
+            const userData = {
+                profile: getFormData(),
+                statistics: userStats,
+                exportDate: new Date().toISOString()
+            };
 
-            fetch('/api/profile/export-data')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Export response:', data);
-                    if (data.success) {
-                        // Create and download JSON file
-                        const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `redcharger-data-${new Date().toISOString().split('T')[0]}.json`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        
-                        showSuccess('Data exported successfully!');
-                        console.log('Data export completed');
-                    } else {
-                        throw new Error(data.message || 'Export failed');
-                    }
-                })
-                .catch(error => {
-                    console.error('Export error:', error);
-                    showError('Failed to export data: ' + error.message);
-                })
-                .finally(() => {
-                    // Restore button
-                    exportButton.innerHTML = originalText;
-                    exportButton.disabled = false;
-                });
+            // Create and download JSON file
+            const blob = new Blob([JSON.stringify(userData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `redcharger-profile-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showSuccess('Data exported successfully!');
+            console.log('Data export completed');
         }
 
         // View leaderboard
@@ -1256,7 +1183,6 @@
         // Show error message
         function showError(message) {
             console.error('Error:', message);
-            // Create a temporary error display if none exists
             alert('Error: ' + message);
         }
 
@@ -1267,24 +1193,10 @@
             }
         }
 
-        // Auto-save when leaving page (optional)
+        // Auto-save when leaving page
         window.addEventListener('beforeunload', function(e) {
-            // Check if form has unsaved changes
-            const currentData = {
-                username: usernameInput ? usernameInput.value : '',
-                email: emailInput ? emailInput.value : '',
-                firstName: firstNameInput ? firstNameInput.value : '',
-                lastName: lastNameInput ? lastNameInput.value : '',
-                bio: bioInput ? bioInput.value : ''
-            };
-
-            const hasUnsavedChanges = JSON.stringify(currentData) !== JSON.stringify({
-                username: originalFormData.username || '',
-                email: originalFormData.email || '',
-                firstName: originalFormData.firstName || '',
-                lastName: originalFormData.lastName || '',
-                bio: originalFormData.bio || ''
-            });
+            const currentData = getFormData();
+            const hasUnsavedChanges = JSON.stringify(currentData) !== JSON.stringify(originalFormData);
             
             if (hasUnsavedChanges) {
                 e.preventDefault();
@@ -1306,14 +1218,6 @@
                 resetProfile();
             }
         });
-
-        // Periodic stats refresh (every 2 minutes)
-        setInterval(() => {
-            if (isUserAuthenticated) {
-                console.log('Refreshing statistics...');
-                loadUserStats();
-            }
-        }, 120000);
 
         // Initialize completion percentage on load
         calculateCompletionPercentage();
