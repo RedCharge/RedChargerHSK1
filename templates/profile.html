@@ -551,7 +551,7 @@
         <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
     </footer>
 
-            <!-- Profile Logic -->
+            <    <!-- Profile Logic -->
     <script>
         // DOM Elements
         const mobileMenuButton = document.getElementById('mobile-menu-button');
@@ -559,17 +559,40 @@
         const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
         const successMessage = document.getElementById('success-message');
         const successText = document.getElementById('success-text');
+
+        // Stats elements
+        const totalWordsElement = document.getElementById('total-words');
+        const totalSentencesElement = document.getElementById('total-sentences');
+        const streakDaysElement = document.getElementById('streak-days');
+        const accuracyRateElement = document.getElementById('accuracy-rate');
+        const completionPercentage = document.getElementById('completion-percentage');
+
+        // Form elements
+        const usernameInput = document.getElementById('username');
+        const emailInput = document.getElementById('email');
+        const firstNameInput = document.getElementById('firstName');
+        const lastNameInput = document.getElementById('lastName');
+        const bioInput = document.getElementById('bio');
+        const dailyGoalSelect = document.getElementById('dailyGoal');
+        const learningModeSelect = document.getElementById('learningMode');
+        const enableSpeechCheckbox = document.getElementById('enableSpeech');
+        const showPinyinCheckbox = document.getElementById('showPinyin');
+        const avatarInput = document.getElementById('avatar-input');
+        const avatarPreview = document.getElementById('avatar-preview');
+        const avatarPlaceholder = document.getElementById('avatar-placeholder');
+
+        // Global state
         let isMenuOpen = false;
+        let originalFormData = {};
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             initializeMobileMenu();
-            loadProfile();
-            updateStats();
-            updateCompletion();
-            
-            // Update stats every 5 seconds for real-time data
-            setInterval(updateStats, 5000);
+            initializeForm();
+            loadUserProfile();
+            loadUserStats();
+            setupAvatarUpload();
+            calculateCompletionPercentage();
         });
 
         // Initialize Mobile Menu
@@ -637,456 +660,460 @@
             });
         }
 
-        // Avatar Upload Handling
-        document.getElementById('avatar-input').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    const avatarPreview = document.getElementById('avatar-preview');
-                    const avatarPlaceholder = document.getElementById('avatar-placeholder');
-                    
-                    avatarPreview.src = e.target.result;
-                    avatarPreview.classList.remove('hidden');
-                    avatarPlaceholder.classList.add('hidden');
-                    
-                    // Save to localStorage
-                    const profile = getProfile();
-                    profile.avatar = e.target.result;
-                    localStorage.setItem('userProfile', JSON.stringify(profile));
-                    
+        // Initialize form with default values and event listeners
+        function initializeForm() {
+            // Store original form data for reset functionality
+            originalFormData = {
+                username: usernameInput.value,
+                email: emailInput.value,
+                firstName: firstNameInput.value,
+                lastName: lastNameInput.value,
+                bio: bioInput.value,
+                dailyGoal: dailyGoalSelect.value,
+                learningMode: learningModeSelect.value,
+                enableSpeech: enableSpeechCheckbox.checked,
+                showPinyin: showPinyinCheckbox.checked
+            };
+
+            // Add input listeners for real-time validation
+            usernameInput.addEventListener('input', validateUsername);
+            emailInput.addEventListener('input', validateEmail);
+            
+            // Add form change listener for completion percentage
+            const formElements = [usernameInput, emailInput, firstNameInput, lastNameInput, bioInput, dailyGoalSelect, learningModeSelect];
+            formElements.forEach(element => {
+                element.addEventListener('input', calculateCompletionPercentage);
+                element.addEventListener('change', calculateCompletionPercentage);
+            });
+        }
+
+        // Load user profile data from server
+        function loadUserProfile() {
+            fetch('/api/profile/stats')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        // If you have a dedicated profile endpoint, use it here
+                        // For now, we'll use the stats to infer some profile data
+                        console.log('Profile stats loaded:', data.stats);
+                    } else {
+                        showError('Failed to load profile data: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading profile:', error);
+                    showError('Unable to load profile data. Please refresh the page.');
+                });
+        }
+
+        // Load user statistics
+        function loadUserStats() {
+            fetch('/api/profile/stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.stats) {
+                        updateStatsDisplay(data.stats);
+                    } else {
+                        showError('Failed to load statistics: ' + (data.message || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading stats:', error);
+                    showError('Unable to load statistics. Please check your connection.');
+                });
+        }
+
+        // Update statistics display
+        function updateStatsDisplay(stats) {
+            if (totalWordsElement) totalWordsElement.textContent = stats.totalWords || 0;
+            if (totalSentencesElement) totalSentencesElement.textContent = stats.totalSentences || 0;
+            if (streakDaysElement) streakDaysElement.textContent = stats.streakDays || 0;
+            if (accuracyRateElement) accuracyRateElement.textContent = (stats.accuracyRate || 0) + '%';
+        }
+
+        // Setup avatar upload functionality
+        function setupAvatarUpload() {
+            avatarInput.addEventListener('change', function(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                        showError('Image size must be less than 5MB');
+                        return;
+                    }
+
+                    if (!file.type.startsWith('image/')) {
+                        showError('Please select a valid image file');
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        avatarPreview.src = e.target.result;
+                        avatarPreview.classList.remove('hidden');
+                        avatarPlaceholder.classList.add('hidden');
+                        
+                        // Upload avatar to server
+                        uploadAvatar(e.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+
+        // Upload avatar to server
+        function uploadAvatar(avatarData) {
+            fetch('/api/profile/upload-avatar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ avatar: avatarData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
                     showSuccess('Avatar updated successfully!');
-                    updateCompletion();
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        // Profile Management
-        function getProfile() {
-            const defaultProfile = {
-                username: '',
-                email: '',
-                firstName: '',
-                lastName: '',
-                bio: '',
-                avatar: '',
-                dailyGoal: '20',
-                learningMode: 'both',
-                enableSpeech: true,
-                showPinyin: true,
-                memberSince: new Date().toISOString(),
-                stats: {
-                    totalWords: 0,
-                    totalSentences: 0,
-                    streakDays: 0,
-                    accuracyRate: 0,
-                    totalQuizzes: 0,
-                    wordsMastered: 0,
-                    sentencesMastered: 0
-                }
-            };
-            
-            const saved = localStorage.getItem('userProfile');
-            return saved ? { ...defaultProfile, ...JSON.parse(saved) } : defaultProfile;
-        }
-
-        function saveProfile() {
-            const profile = {
-                username: document.getElementById('username').value,
-                email: document.getElementById('email').value,
-                firstName: document.getElementById('firstName').value,
-                lastName: document.getElementById('lastName').value,
-                bio: document.getElementById('bio').value,
-                dailyGoal: document.getElementById('dailyGoal').value,
-                learningMode: document.getElementById('learningMode').value,
-                enableSpeech: document.getElementById('enableSpeech').checked,
-                showPinyin: document.getElementById('showPinyin').checked,
-                memberSince: getProfile().memberSince,
-                stats: getProfile().stats
-            };
-
-            // Save avatar if exists
-            const avatarPreview = document.getElementById('avatar-preview');
-            if (avatarPreview.src && !avatarPreview.classList.contains('hidden')) {
-                profile.avatar = avatarPreview.src;
-            }
-
-            localStorage.setItem('userProfile', JSON.stringify(profile));
-            showSuccess('Profile saved successfully!');
-            updateCompletion();
-        }
-
-        function loadProfile() {
-            const profile = getProfile();
-            
-            document.getElementById('username').value = profile.username || '';
-            document.getElementById('email').value = profile.email || '';
-            document.getElementById('firstName').value = profile.firstName || '';
-            document.getElementById('lastName').value = profile.lastName || '';
-            document.getElementById('bio').value = profile.bio || '';
-            document.getElementById('dailyGoal').value = profile.dailyGoal || '20';
-            document.getElementById('learningMode').value = profile.learningMode || 'both';
-            document.getElementById('enableSpeech').checked = profile.enableSpeech !== false;
-            document.getElementById('showPinyin').checked = profile.showPinyin !== false;
-
-            // Load avatar
-            if (profile.avatar) {
-                const avatarPreview = document.getElementById('avatar-preview');
-                const avatarPlaceholder = document.getElementById('avatar-placeholder');
-                
-                avatarPreview.src = profile.avatar;
-                avatarPreview.classList.remove('hidden');
-                avatarPlaceholder.classList.add('hidden');
-            }
-
-            // Load member since
-            if (profile.memberSince) {
-                const date = new Date(profile.memberSince);
-                document.getElementById('member-since').textContent = date.toLocaleDateString();
-            }
-        }
-
-        function resetProfile() {
-            if (confirm('Are you sure you want to reset your profile to default values? This will clear all your personal information.')) {
-                localStorage.removeItem('userProfile');
-                loadProfile();
-                showSuccess('Profile reset to defaults!');
-            }
-        }
-
-        // UPDATED: Get real statistics from quiz results (integrated with result.html data)
-        function updateStats() {
-            const stats = calculateUserStats();
-            
-            document.getElementById('total-words').textContent = stats.totalWords;
-            document.getElementById('total-sentences').textContent = stats.totalSentences;
-            document.getElementById('streak-days').textContent = stats.streakDays;
-            document.getElementById('accuracy-rate').textContent = stats.accuracyRate + '%';
-            
-            // Update profile with new stats
-            const profile = getProfile();
-            profile.stats = stats;
-            localStorage.setItem('userProfile', JSON.stringify(profile));
-        }
-
-        // UPDATED: Calculate real statistics from result.html data
-        function calculateUserStats() {
-            // Get data from localStorage (same storage as result.html)
-            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
-            const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{"words":{},"sentences":{}}');
-            
-            let totalWords = 0;
-            let totalSentences = 0;
-            let totalCorrect = 0;
-            let totalQuestions = 0;
-            let streakDays = 0;
-            let wordsMastered = 0;
-            let sentencesMastered = 0;
-            
-            // Calculate from quiz history
-            quizHistory.forEach(quiz => {
-                const correct = quiz.correct_answers || quiz.correct || 0;
-                const total = quiz.total_questions || quiz.total || 0;
-                
-                totalCorrect += correct;
-                totalQuestions += total;
-                
-                // Count words vs sentences based on quiz type
-                if (quiz.quiz_type === 'words') {
-                    totalWords += correct;
-                } else if (quiz.quiz_type === 'sentences') {
-                    totalSentences += correct;
-                }
-            });
-            
-            // Calculate mastered items from performance data
-            if (performanceData.words) {
-                Object.values(performanceData.words).forEach(word => {
-                    const totalAttempts = word.correct + (word.incorrect || 0);
-                    const accuracy = totalAttempts > 0 ? (word.correct / totalAttempts) * 100 : 0;
-                    if (accuracy >= 70) { // Consider mastered if 70%+ accuracy
-                        wordsMastered++;
-                    }
-                });
-                totalWords = Math.max(totalWords, Object.keys(performanceData.words).length);
-            }
-            
-            if (performanceData.sentences) {
-                Object.values(performanceData.sentences).forEach(sentence => {
-                    const totalAttempts = sentence.correct + (sentence.incorrect || 0);
-                    const accuracy = totalAttempts > 0 ? (sentence.correct / totalAttempts) * 100 : 0;
-                    if (accuracy >= 70) { // Consider mastered if 70%+ accuracy
-                        sentencesMastered++;
-                    }
-                });
-                totalSentences = Math.max(totalSentences, Object.keys(performanceData.sentences).length);
-            }
-            
-            // Calculate streak (improved calculation)
-            streakDays = calculateStudyStreak(quizHistory);
-            
-            // Calculate accuracy rate
-            const accuracyRate = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
-            
-            return {
-                totalWords: totalWords,
-                totalSentences: totalSentences,
-                streakDays: streakDays,
-                accuracyRate: accuracyRate,
-                totalQuizzes: quizHistory.length,
-                wordsMastered: wordsMastered,
-                sentencesMastered: sentencesMastered
-            };
-        }
-
-        // NEW: Calculate study streak (same as result.html)
-        function calculateStudyStreak(quizHistory) {
-            if (quizHistory.length === 0) return 0;
-            
-            // Sort quizzes by date (newest first)
-            const sortedQuizzes = [...quizHistory].sort((a, b) => 
-                new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date)
-            );
-            
-            let streak = 0;
-            let currentDate = new Date();
-            
-            // Check if there was a quiz today
-            const today = new Date().toDateString();
-            const hasQuizToday = sortedQuizzes.some(quiz => {
-                const quizDate = new Date(quiz.timestamp || quiz.date).toDateString();
-                return quizDate === today;
-            });
-            
-            if (hasQuizToday) {
-                streak = 1;
-                currentDate.setDate(currentDate.getDate() - 1);
-            }
-            
-            // Check consecutive days
-            for (let i = 0; i < sortedQuizzes.length; i++) {
-                const quizDate = new Date(sortedQuizzes[i].timestamp || sortedQuizzes[i].date).toDateString();
-                const expectedDate = currentDate.toDateString();
-                
-                if (quizDate === expectedDate) {
-                    streak++;
-                    currentDate.setDate(currentDate.getDate() - 1);
-                } else if (quizDate < expectedDate) {
-                    // Skip to the next relevant date
-                    continue;
                 } else {
-                    break;
+                    showError('Failed to upload avatar: ' + data.message);
                 }
-            }
-            
-            return streak;
+            })
+            .catch(error => {
+                console.error('Error uploading avatar:', error);
+                showError('Failed to upload avatar. Please try again.');
+            });
         }
 
-        // NEW: Get learning progress from HSK1 data
-        function getLearningProgress() {
-            const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{"words":{},"sentences":{}}');
-            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
-            
-            // Count mastered words (words with high accuracy)
-            const masteredWords = Object.values(performanceData.words || {}).filter(word => {
-                const totalAttempts = word.correct + (word.incorrect || 0);
-                const accuracy = totalAttempts > 0 ? (word.correct / totalAttempts) * 100 : 0;
-                return accuracy >= 70;
-            }).length;
-            
-            // Count mastered sentences
-            const masteredSentences = Object.values(performanceData.sentences || {}).filter(sentence => {
-                const totalAttempts = sentence.correct + (sentence.incorrect || 0);
-                const accuracy = totalAttempts > 0 ? (sentence.correct / totalAttempts) * 100 : 0;
-                return accuracy >= 70;
-            }).length;
-            
-            return {
-                masteredWords,
-                masteredSentences,
-                totalWords: Object.keys(performanceData.words || {}).length,
-                totalSentences: Object.keys(performanceData.sentences || {}).length,
-                totalQuizzes: quizHistory.length
-            };
-        }
-
-        function updateCompletion() {
-            const profile = getProfile();
+        // Calculate profile completion percentage
+        function calculateCompletionPercentage() {
             let completedFields = 0;
-            const totalFields = 6; // username, email, firstName, lastName, bio, avatar
-            
-            if (profile.username) completedFields++;
-            if (profile.email) completedFields++;
-            if (profile.firstName) completedFields++;
-            if (profile.lastName) completedFields++;
-            if (profile.bio) completedFields++;
-            if (profile.avatar) completedFields++;
-            
+            const totalFields = 7; // username, email, firstName, lastName, bio, dailyGoal, learningMode
+
+            if (usernameInput.value.trim()) completedFields++;
+            if (emailInput.value.trim()) completedFields++;
+            if (firstNameInput.value.trim()) completedFields++;
+            if (lastNameInput.value.trim()) completedFields++;
+            if (bioInput.value.trim()) completedFields++;
+            if (dailyGoalSelect.value) completedFields++;
+            if (learningModeSelect.value) completedFields++;
+
             const percentage = Math.round((completedFields / totalFields) * 100);
-            document.getElementById('completion-percentage').textContent = percentage + '%';
-            document.getElementById('completion-bar').style.width = percentage + '%';
+            
+            if (completionPercentage) {
+                completionPercentage.textContent = percentage + '%';
+            }
+
+            return percentage;
         }
 
-        function exportData() {
-            const profile = getProfile();
-            const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
-            const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+        // Validate username
+        function validateUsername() {
+            const username = usernameInput.value.trim();
+            const usernameError = document.getElementById('username-error');
             
-            const exportData = {
-                profile: profile,
-                quizHistory: quizHistory,
-                performanceData: performanceData,
-                learningProgress: getLearningProgress(),
-                exportDate: new Date().toISOString(),
-                version: '2.0'
-            };
-            
-            const dataStr = JSON.stringify(exportData, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            link.download = `redcharger-profile-data-${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            
-            showSuccess('All learning data exported successfully!');
+            if (!usernameError) {
+                // Create error element if it doesn't exist
+                const errorElement = document.createElement('div');
+                errorElement.id = 'username-error';
+                errorElement.className = 'text-red-400 text-sm mt-1';
+                usernameInput.parentNode.appendChild(errorElement);
+            }
+
+            if (username.length < 3) {
+                showFieldError('username-error', 'Username must be at least 3 characters long');
+                return false;
+            }
+
+            if (username.length > 20) {
+                showFieldError('username-error', 'Username must be less than 20 characters');
+                return false;
+            }
+
+            if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+                showFieldError('username-error', 'Username can only contain letters, numbers, and underscores');
+                return false;
+            }
+
+            hideFieldError('username-error');
+            return true;
         }
 
-        function clearData() {
-            if (confirm('Are you sure you want to clear ALL your data? This includes your profile, learning progress, quiz history and cannot be undone.')) {
-                // Clear all app data but keep profile
-                const profile = getProfile();
-                localStorage.clear();
-                localStorage.setItem('userProfile', JSON.stringify({
-                    ...profile,
-                    stats: {
-                        totalWords: 0,
-                        totalSentences: 0,
-                        streakDays: 0,
-                        accuracyRate: 0,
-                        totalQuizzes: 0,
-                        wordsMastered: 0,
-                        sentencesMastered: 0
-                    }
-                }));
-                loadProfile();
-                updateStats();
-                showSuccess('All learning data cleared successfully! Profile kept intact.');
+        // Validate email
+        function validateEmail() {
+            const email = emailInput.value.trim();
+            const emailError = document.getElementById('email-error');
+            
+            if (!emailError && email) {
+                const errorElement = document.createElement('div');
+                errorElement.id = 'email-error';
+                errorElement.className = 'text-red-400 text-sm mt-1';
+                emailInput.parentNode.appendChild(errorElement);
+            }
+
+            if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                showFieldError('email-error', 'Please enter a valid email address');
+                return false;
+            }
+
+            if (emailError) {
+                hideFieldError('email-error');
+            }
+            return true;
+        }
+
+        // Show field error
+        function showFieldError(fieldId, message) {
+            const errorElement = document.getElementById(fieldId);
+            if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.classList.remove('hidden');
             }
         }
 
+        // Hide field error
+        function hideFieldError(fieldId) {
+            const errorElement = document.getElementById(fieldId);
+            if (errorElement) {
+                errorElement.classList.add('hidden');
+            }
+        }
+
+        // Main save profile function
+        function saveProfile() {
+            // Validate required fields
+            if (!validateUsername()) {
+                showError('Please fix the username errors before saving.');
+                return;
+            }
+
+            if (!validateEmail()) {
+                showError('Please fix the email errors before saving.');
+                return;
+            }
+
+            const profileData = {
+                username: usernameInput.value.trim(),
+                email: emailInput.value.trim(),
+                firstName: firstNameInput.value.trim(),
+                lastName: lastNameInput.value.trim(),
+                bio: bioInput.value.trim(),
+                dailyGoal: dailyGoalSelect.value,
+                learningMode: learningModeSelect.value,
+                enableSpeech: enableSpeechCheckbox.checked,
+                showPinyin: showPinyinCheckbox.checked
+            };
+
+            // Show loading state
+            const saveButton = document.querySelector('button[onclick="saveProfile()"]');
+            const originalText = saveButton.innerHTML;
+            saveButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
+            saveButton.disabled = true;
+
+            fetch('/api/profile/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken() // If you're using CSRF protection
+                },
+                body: JSON.stringify(profileData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    showSuccess('Profile saved successfully! Your progress will now appear on the leaderboard.');
+                    
+                    // Update original form data
+                    originalFormData = { ...profileData };
+                    
+                    // Sync to Firebase for leaderboard
+                    syncToFirebase();
+                    
+                    // Update completion percentage
+                    calculateCompletionPercentage();
+                    
+                } else {
+                    showError(data.message || 'Failed to save profile. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Save error:', error);
+                showError('Network error. Please check your connection and try again.');
+            })
+            .finally(() => {
+                // Restore button
+                saveButton.innerHTML = originalText;
+                saveButton.disabled = false;
+            });
+        }
+
+        // Sync profile to Firebase for leaderboard
+        function syncToFirebase() {
+            fetch('/api/profile/sync-to-firebase', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Successfully synced to leaderboard');
+                } else {
+                    console.warn('Firebase sync warning:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Firebase sync error:', error);
+            });
+        }
+
+        // Reset profile to original values
+        function resetProfile() {
+            if (confirm('Are you sure you want to reset all changes? This will restore your original profile data.')) {
+                usernameInput.value = originalFormData.username || '';
+                emailInput.value = originalFormData.email || '';
+                firstNameInput.value = originalFormData.firstName || '';
+                lastNameInput.value = originalFormData.lastName || '';
+                bioInput.value = originalFormData.bio || '';
+                dailyGoalSelect.value = originalFormData.dailyGoal || '20';
+                learningModeSelect.value = originalFormData.learningMode || 'both';
+                enableSpeechCheckbox.checked = originalFormData.enableSpeech || false;
+                showPinyinCheckbox.checked = originalFormData.showPinyin !== undefined ? originalFormData.showPinyin : true;
+                
+                // Clear validation errors
+                hideFieldError('username-error');
+                hideFieldError('email-error');
+                
+                // Update completion percentage
+                calculateCompletionPercentage();
+                
+                showSuccess('Profile reset to original values.');
+            }
+        }
+
+        // Export user data
+        function exportData() {
+            // Show loading state
+            const exportButton = document.querySelector('button[onclick="exportData()"]');
+            const originalText = exportButton.innerHTML;
+            exportButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Exporting...';
+            exportButton.disabled = true;
+
+            fetch('/api/profile/export-data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Create and download JSON file
+                        const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `redcharger-data-${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        
+                        showSuccess('Data exported successfully!');
+                    } else {
+                        showError('Failed to export data: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Export error:', error);
+                    showError('Failed to export data. Please try again.');
+                })
+                .finally(() => {
+                    // Restore button
+                    exportButton.innerHTML = originalText;
+                    exportButton.disabled = false;
+                });
+        }
+
+        // View leaderboard
+        function viewLeaderboard() {
+            window.location.href = '/leaderboard';
+        }
+
+        // Get CSRF token (if using Flask-WTF or similar)
+        function getCSRFToken() {
+            const metaTag = document.querySelector('meta[name="csrf-token"]');
+            return metaTag ? metaTag.getAttribute('content') : '';
+        }
+
+        // Show success message
         function showSuccess(message) {
             successText.textContent = message;
             successMessage.classList.remove('hidden');
-            setTimeout(hideSuccessMessage, 5000);
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                hideSuccessMessage();
+            }, 5000);
         }
 
+        // Show error message (using alert for simplicity, you can create a proper error display)
+        function showError(message) {
+            // You can replace this with a proper error display component
+            alert('Error: ' + message);
+        }
+
+        // Hide success message
         function hideSuccessMessage() {
             successMessage.classList.add('hidden');
         }
 
-        // Auto-save when user stops typing
-        let saveTimeout;
-        const inputs = document.querySelectorAll('input, textarea, select');
-        inputs.forEach(input => {
-            input.addEventListener('input', () => {
-                clearTimeout(saveTimeout);
-                saveTimeout = setTimeout(() => {
-                    updateCompletion();
-                    // Auto-save profile if username is set
-                    const username = document.getElementById('username').value;
-                    if (username && username.length > 0) {
-                        saveProfile();
-                    }
-                }, 2000);
-            });
-        });
+        // Auto-save when leaving page (optional)
+        window.addEventListener('beforeunload', function(e) {
+            // Check if form has unsaved changes
+            const currentData = {
+                username: usernameInput.value,
+                email: emailInput.value,
+                firstName: firstNameInput.value,
+                lastName: lastNameInput.value,
+                bio: bioInput.value
+            };
 
-        // After your existing profile loading logic, add:
-function checkLeaderboardAccess() {
-    // Check if user has completed profile
-    if (userHasCompletedProfile) {  // You'll define this based on your data
-        showLeaderboard();
-        syncToFirebaseLeaderboard();
-    } else {
-        showProfileCompletionPrompt();
-    }
-}
-
-function showProfileCompletionPrompt() {
-    // Show a message like: "Complete your profile to join the leaderboard!"
-    // This motivates users to fill out their profile
-}
-
-function syncToFirebaseLeaderboard() {
-    // Call your new Flask endpoint
-    fetch('/api/profile/sync-to-leaderboard', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // Now save to Firebase
-            saveToFirebase(data.firebaseUserId, data.leaderboardData);
-        }
-    });
-}
-
-function saveToFirebase(userId, data) {
-    // Save to Firebase Realtime Database
-    leaderboardDb.ref('leaderboard/' + userId).set(data)
-    .then(() => {
-        console.log('Leaderboard data saved to Firebase!');
-    })
-    .catch(error => {
-        console.error('Error saving to Firebase:', error);
-    });
-}
-
-
-function saveProfile() {
-    const profileData = {
-        username: document.getElementById('username').value,
-        email: document.getElementById('email').value,
-        firstName: document.getElementById('firstName').value,
-        lastName: document.getElementById('lastName').value,
-        bio: document.getElementById('bio').value
-    };
-    
-    fetch('/api/profile/save', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(profileData)
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showSuccess('Profile saved and synced to leaderboard!');
-            // Force leaderboard to refresh
-            if (window.location.pathname === '/leaderboard') {
-                location.reload();
-            }
-        }
-    });
-}
-
-        // Refresh stats when page becomes visible or focused
-        document.addEventListener('visibilitychange', function() {
-            if (!document.hidden) {
-                updateStats();
+            const hasUnsavedChanges = JSON.stringify(currentData) !== JSON.stringify(originalFormData);
+            
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+                return e.returnValue;
             }
         });
 
-        window.addEventListener('focus', updateStats);
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+S or Cmd+S to save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveProfile();
+            }
+            
+            // Escape to reset
+            if (e.key === 'Escape') {
+                resetProfile();
+            }
+        });
 
-        // Also update stats when returning from other pages
-        window.addEventListener('pageshow', updateStats);
+        // Periodic stats refresh (every 2 minutes)
+        setInterval(() => {
+            loadUserStats();
+        }, 120000);
+
+        // Initialize completion percentage on load
+        calculateCompletionPercentage();
     </script>
 </body>
 </html>

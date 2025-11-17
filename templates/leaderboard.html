@@ -471,7 +471,7 @@
         const database = firebase.database();
     </script>
 
-    <!-- Leaderboard Logic -->
+        <!-- Leaderboard Logic -->
     <script>
         // DOM Elements
         const mobileMenuButton = document.getElementById('mobile-menu-button');
@@ -501,7 +501,8 @@
         // Global state
         let currentTab = 'overall';
         let isMenuOpen = false;
-        let currentUserId = null; // This would come from your Flask session
+        let currentUserId = null;
+        let currentUsername = null;
         let allUsers = [];
 
         // Initialize the application
@@ -509,52 +510,87 @@
             initializeMobileMenu();
             initializeTabs();
             loadCurrentUser();
-            initializeFirebaseListener();
         });
 
-        // Get current user from Flask session (you'll need to implement this)
+        // Get current user from Flask session
         function loadCurrentUser() {
-            // This would typically come from your Flask backend
-            // For now, we'll use a placeholder
             fetch('/api/profile/check')
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.authenticated) {
                         currentUserId = data.user_id;
+                        currentUsername = data.username;
                         checkProfileCompletion();
                     } else {
+                        // User not logged in - still show leaderboard but with login prompt
                         showLoginPrompt();
+                        initializeFirebaseListener();
                     }
                 })
                 .catch(error => {
                     console.error('Error checking user:', error);
-                    // Fallback for demo
-                    currentUserId = 'demo_user';
+                    // Fallback - show leaderboard anyway
+                    currentUserId = 'guest_user';
+                    initializeFirebaseListener();
                 });
         }
 
-        // Check if user has completed profile (Gatekeeper logic)
+        // Check if user has completed profile (for encouragement message)
         function checkProfileCompletion() {
             fetch('/api/profile/check-completion')
                 .then(response => response.json())
                 .then(data => {
                     if (!data.profileComplete) {
-                        showProfileCompletionPrompt();
+                        showProfileEncouragement();
                     }
+                    initializeFirebaseListener();
                 })
                 .catch(error => {
                     console.error('Error checking profile completion:', error);
+                    // Still show leaderboard even if check fails
+                    initializeFirebaseListener();
                 });
         }
 
-        function showProfileCompletionPrompt() {
-            // You can show a modal or notification here
-            console.log('Please complete your profile to appear on the leaderboard');
+        function showProfileEncouragement() {
+            // Add a friendly encouragement message at the top
+            const encouragementHTML = `
+                <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+                    <div class="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4 text-center">
+                        <i class="fas fa-star text-yellow-400 mr-2"></i>
+                        <span class="text-yellow-200">
+                            Complete your profile to appear on the leaderboard! 
+                            <a href="/profile" class="underline hover:text-white font-medium">Update Profile</a>
+                        </span>
+                    </div>
+                </div>
+            `;
+            
+            // Insert encouragement at the top of main content
+            const headerSection = document.querySelector('main section:first-child');
+            headerSection.insertAdjacentHTML('afterend', encouragementHTML);
         }
 
         function showLoginPrompt() {
-            // Redirect to login or show login modal
-            console.log('Please log in to view leaderboard');
+            // Add login prompt message
+            const loginHTML = `
+                <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+                    <div class="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4 text-center">
+                        <i class="fas fa-user-circle text-blue-400 mr-2"></i>
+                        <span class="text-blue-200">
+                            <a href="/login" class="underline hover:text-white font-medium">Log in</a> to track your progress and appear on the leaderboard!
+                        </span>
+                    </div>
+                </div>
+            `;
+            
+            const headerSection = document.querySelector('main section:first-child');
+            headerSection.insertAdjacentHTML('afterend', loginHTML);
         }
 
         // Initialize Firebase Real-time Listener
@@ -583,6 +619,7 @@
                 }
             }, (error) => {
                 console.error('Firebase error:', error);
+                showFirebaseError();
                 hideLoadingState();
             });
         }
@@ -595,10 +632,10 @@
             const totalWordsCount = users.reduce((sum, user) => sum + (user.wordsMastered || 0), 0);
             const totalSentencesCount = users.reduce((sum, user) => sum + (user.sentencesMastered || 0), 0);
             
-            totalLearners.textContent = users.length;
-            totalQuizzes.textContent = totalQuizzesCount;
-            totalWords.textContent = totalWordsCount;
-            totalSentences.textContent = totalSentencesCount;
+            totalLearners.textContent = users.length.toLocaleString();
+            totalQuizzes.textContent = totalQuizzesCount.toLocaleString();
+            totalWords.textContent = totalWordsCount.toLocaleString();
+            totalSentences.textContent = totalSentencesCount.toLocaleString();
         }
 
         // Display leaderboard based on current tab
@@ -612,6 +649,7 @@
             const sortedUsers = sortUsersByCriteria(users, currentTab);
             renderLeaderboardList(sortedUsers);
             updateCurrentUserRank(sortedUsers);
+            loadAchievements();
         }
 
         // Sort users based on current tab criteria
@@ -638,7 +676,9 @@
             
             users.forEach((user, index) => {
                 const rank = index + 1;
-                const isCurrentUser = user.id === currentUserId;
+                const isCurrentUser = user.id === currentUserId || 
+                                    (currentUsername && user.username === currentUsername) ||
+                                    (user.username && user.username.includes(currentUserId));
                 
                 const leaderboardItem = createLeaderboardItem(user, rank, isCurrentUser);
                 leaderboardList.appendChild(leaderboardItem);
@@ -658,6 +698,7 @@
             const words = user.wordsMastered || 0;
             const sentences = user.sentencesMastered || 0;
             const streak = user.streakDays || 0;
+            const quizzes = user.totalQuizzes || 0;
             
             item.innerHTML = `
                 <div class="flex items-center justify-between">
@@ -670,19 +711,19 @@
                         </div>
                         <div class="flex-1">
                             <div class="flex items-center space-x-2">
-                                <div class="font-semibold text-text-light">${user.username || 'Anonymous'}</div>
-                                ${isCurrentUser ? '<span class="px-2 py-1 bg-secondary-cyan text-main-bg text-xs rounded-full">You</span>' : ''}
+                                <div class="font-semibold text-text-light">${user.username || 'Anonymous Learner'}</div>
+                                ${isCurrentUser ? '<span class="px-2 py-1 bg-secondary-cyan text-main-bg text-xs rounded-full font-bold">You</span>' : ''}
                             </div>
                             <div class="flex items-center space-x-4 mt-1 text-sm text-text-muted">
-                                <span><i class="fas fa-star text-yellow-400 mr-1"></i> ${points} pts</span>
-                                <span><i class="fas fa-font text-primary-blue mr-1"></i> ${words} words</span>
-                                <span><i class="fas fa-comment text-secondary-cyan mr-1"></i> ${sentences} sentences</span>
+                                <span><i class="fas fa-star text-yellow-400 mr-1"></i> ${points.toLocaleString()} pts</span>
+                                <span><i class="fas fa-font text-primary-blue mr-1"></i> ${words.toLocaleString()} words</span>
+                                <span><i class="fas fa-comment text-secondary-cyan mr-1"></i> ${sentences.toLocaleString()} sentences</span>
                             </div>
                         </div>
                     </div>
                     <div class="text-right">
                         <div class="text-lg font-bold text-text-light">
-                            ${getScoreByTab(user, currentTab)}
+                            ${getScoreByTab(user, currentTab).toLocaleString()}
                         </div>
                         <div class="text-sm text-text-muted">
                             ${getScoreLabel(currentTab)}
@@ -726,7 +767,16 @@
 
         // Update current user's rank display
         function updateCurrentUserRank(users) {
-            const currentUserIndex = users.findIndex(user => user.id === currentUserId);
+            let currentUserIndex = -1;
+            
+            // Try multiple ways to find current user
+            if (currentUserId) {
+                currentUserIndex = users.findIndex(user => 
+                    user.id === currentUserId || 
+                    (currentUsername && user.username === currentUsername) ||
+                    (user.username && user.username.includes(currentUserId))
+                );
+            }
             
             if (currentUserIndex !== -1) {
                 const currentUser = users[currentUserIndex];
@@ -735,15 +785,15 @@
                 currentUserStats.innerHTML = `
                     <div class="text-4xl font-bold text-secondary-cyan mb-2">#${rank}</div>
                     <div class="text-lg text-text-light mb-1">${currentUser.username || 'You'}</div>
-                    <div class="text-text-muted mb-4">${currentUser.totalPoints || 0} Total Points</div>
+                    <div class="text-text-muted mb-4">${(currentUser.totalPoints || 0).toLocaleString()} Total Points</div>
                     
                     <div class="grid grid-cols-2 gap-4 text-sm">
                         <div class="text-center p-2 bg-card-bg/50 rounded">
-                            <div class="font-bold text-primary-blue">${currentUser.wordsMastered || 0}</div>
+                            <div class="font-bold text-primary-blue">${(currentUser.wordsMastered || 0).toLocaleString()}</div>
                             <div class="text-text-muted">Words</div>
                         </div>
                         <div class="text-center p-2 bg-card-bg/50 rounded">
-                            <div class="font-bold text-secondary-cyan">${currentUser.sentencesMastered || 0}</div>
+                            <div class="font-bold text-secondary-cyan">${(currentUser.sentencesMastered || 0).toLocaleString()}</div>
                             <div class="text-text-muted">Sentences</div>
                         </div>
                         <div class="text-center p-2 bg-card-bg/50 rounded">
@@ -765,10 +815,79 @@
             }
         }
 
+        // Load user achievements
+        function loadAchievements() {
+            // Only load achievements if user is logged in
+            if (!currentUserId || currentUserId === 'guest_user') {
+                noAchievements.classList.remove('hidden');
+                achievementsList.classList.add('hidden');
+                return;
+            }
+            
+            fetch('/api/profile/achievements')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.achievements && data.achievements.length > 0) {
+                        displayAchievements(data.achievements);
+                    } else {
+                        noAchievements.classList.remove('hidden');
+                        achievementsList.classList.add('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading achievements:', error);
+                    noAchievements.classList.remove('hidden');
+                    achievementsList.classList.add('hidden');
+                });
+        }
+
+        function displayAchievements(achievements) {
+            achievementsList.innerHTML = '';
+            const unlockedAchievements = achievements.filter(ach => ach.unlocked).slice(0, 3); // Show max 3
+            
+            if (unlockedAchievements.length === 0) {
+                noAchievements.classList.remove('hidden');
+                achievementsList.classList.add('hidden');
+                return;
+            }
+            
+            unlockedAchievements.forEach(achievement => {
+                const achievementElement = document.createElement('div');
+                achievementElement.className = 'flex items-center space-x-3 p-3 bg-card-bg/50 rounded-lg';
+                achievementElement.innerHTML = `
+                    <div class="text-yellow-400 text-xl">
+                        <i class="${achievement.icon}"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-medium text-text-light">${achievement.name}</div>
+                        <div class="text-sm text-text-muted">${achievement.description}</div>
+                    </div>
+                    <div class="text-green-400">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                `;
+                achievementsList.appendChild(achievementElement);
+            });
+            
+            noAchievements.classList.add('hidden');
+            achievementsList.classList.remove('hidden');
+        }
+
         // UI State Management
         function showNoData() {
             noData.classList.remove('hidden');
             leaderboardList.innerHTML = '';
+        }
+
+        function showFirebaseError() {
+            leaderboardList.innerHTML = `
+                <div class="text-center py-8 text-red-400">
+                    <i class="fas fa-exclamation-triangle text-4xl mb-3"></i>
+                    <p class="text-lg mb-2">Unable to load leaderboard</p>
+                    <p class="text-text-muted">Please check your connection and try again</p>
+                </div>
+            `;
+            noData.classList.add('hidden');
         }
 
         function hideLoadingState() {
@@ -887,6 +1006,15 @@
                 updateCurrentUserRank(sortedUsers);
             }
         }
+
+        // Auto-refresh leaderboard every 30 seconds for real-time updates
+        setInterval(() => {
+            if (allUsers.length > 0) {
+                const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
+                renderLeaderboardList(sortedUsers);
+                updateCurrentUserRank(sortedUsers);
+            }
+        }, 30000);
     </script>
 </body>
 </html>

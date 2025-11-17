@@ -105,23 +105,32 @@ def save_profile():
                 'message': 'User not found'
             }), 404
         
-        # Update user profile data
+        # Update user profile data with all fields from your form
         if 'username' in profile_data:
             user.username = profile_data['username']
+        if 'email' in profile_data:
+            user.email = profile_data['email']
+        if 'firstName' in profile_data:
+            user.first_name = profile_data['firstName']
+        if 'lastName' in profile_data:
+            user.last_name = profile_data['lastName']
+        if 'bio' in profile_data:
+            user.bio = profile_data['bio']
         if 'avatar_color' in profile_data:
             user.avatar_color = profile_data['avatar_color']
-        if 'learningPreferences' in profile_data:
-            # Store learning preferences if you add that field to User model
-            pass
         
         db.session.commit()
         
-        # Auto-sync to leaderboard after profile save
-        sync_response = sync_to_firebase()
+        # Auto-sync to Firebase after profile save
+        try:
+            sync_to_firebase()
+        except Exception as firebase_error:
+            print(f"Firebase sync warning: {firebase_error}")
+            # Don't fail the entire save if Firebase sync fails
         
         return jsonify({
             'success': True,
-            'message': 'Profile saved successfully'
+            'message': 'Profile saved successfully!'
         })
         
     except Exception as e:
