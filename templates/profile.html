@@ -1047,6 +1047,35 @@ function saveToFirebase(userId, data) {
     });
 }
 
+
+function saveProfile() {
+    const profileData = {
+        username: document.getElementById('username').value,
+        email: document.getElementById('email').value,
+        firstName: document.getElementById('firstName').value,
+        lastName: document.getElementById('lastName').value,
+        bio: document.getElementById('bio').value
+    };
+    
+    fetch('/api/profile/save', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profileData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showSuccess('Profile saved and synced to leaderboard!');
+            // Force leaderboard to refresh
+            if (window.location.pathname === '/leaderboard') {
+                location.reload();
+            }
+        }
+    });
+}
+
         // Refresh stats when page becomes visible or focused
         document.addEventListener('visibilitychange', function() {
             if (!document.hidden) {

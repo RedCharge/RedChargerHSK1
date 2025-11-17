@@ -10,7 +10,74 @@ def profile_page():
     """Serve the profile.html page"""
     return render_template('profile.html')
 
+@profile_bp.route('/leaderboard')
+def leaderboard_page():
+    """Serve the leaderboard.html page"""
+    return render_template('leaderboard.html')
 
+@profile_bp.route('/api/profile/check')
+def check_auth():
+    """Check if user is authenticated and get basic info"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({
+                'authenticated': False,
+                'message': 'User not authenticated'
+            }), 401
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({
+                'authenticated': False,
+                'message': 'User not found'
+            }), 404
+        
+        return jsonify({
+            'authenticated': True,
+            'user_id': user_id,
+            'username': user.username,
+            'has_profile': bool(user.username)  # Basic profile completion check
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'authenticated': False,
+            'message': f'Error checking auth: {str(e)}'
+        }), 500
+
+@profile_bp.route('/api/profile/check-completion')
+def check_profile_completion():
+    """Check if user profile is complete enough for leaderboard"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({
+                'profileComplete': False,
+                'message': 'User not authenticated'
+            }), 401
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({
+                'profileComplete': False,
+                'message': 'User not found'
+            }), 404
+        
+        # Define what constitutes a "complete" profile - at least username is set
+        profile_complete = bool(user.username)
+        
+        return jsonify({
+            'profileComplete': profile_complete,
+            'missingFields': [] if profile_complete else ['username'],
+            'username': user.username
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'profileComplete': False,
+            'message': f'Error checking profile: {str(e)}'
+        }), 500
 
 @profile_bp.route('/api/profile/save', methods=['POST'])
 def save_profile():
@@ -49,6 +116,9 @@ def save_profile():
         
         db.session.commit()
         
+        # Auto-sync to leaderboard after profile save
+        sync_response = sync_to_firebase()
+        
         return jsonify({
             'success': True,
             'message': 'Profile saved successfully'
@@ -59,6 +129,61 @@ def save_profile():
         return jsonify({
             'success': False,
             'message': f'Error saving profile: {str(e)}'
+        }), 500
+
+@profile_bp.route('/api/profile/sync-to-firebase', methods=['POST'])
+def sync_to_firebase():
+    """Sync user data to Firebase for leaderboard"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({
+                'success': False,
+                'message': 'User not authenticated'
+            }), 401
+        
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({
+                'success': False,
+                'message': 'User not found'
+            }), 404
+        
+        # Get user stats from your database
+        quiz_results = QuizResult.query.filter_by(user_id=user_id).all()
+        total_quizzes = len(quiz_results)
+        
+        # Calculate total points for leaderboard
+        total_points = (
+            (user.words_mastered or 0) * 10 + 
+            (user.sentences_mastered or 0) * 20 +
+            total_quizzes * 5 +
+            (user.current_streak or 0) * 3
+        )
+        
+        # Prepare data for Firebase
+        firebase_data = {
+            'username': user.username or f'User{user_id}',
+            'totalPoints': total_points,
+            'wordsMastered': user.words_mastered or 0,
+            'sentencesMastered': user.sentences_mastered or 0,
+            'streakDays': user.current_streak or 0,
+            'totalQuizzes': total_quizzes,
+            'lastUpdated': datetime.utcnow().isoformat(),
+            'profileComplete': bool(user.username)
+        }
+        
+        return jsonify({
+            'success': True,
+            'firebaseData': firebase_data,
+            'firebaseUserId': f'user_{user_id}',
+            'message': 'Ready to sync with leaderboard'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error syncing to Firebase: {str(e)}'
         }), 500
 
 @profile_bp.route('/api/profile/stats')
@@ -379,6 +504,9 @@ def update_progress():
         user.last_activity_date = datetime.utcnow()
         db.session.commit()
         
+        # Auto-sync to leaderboard after progress update
+        sync_response = sync_to_firebase()
+        
         return jsonify({
             'success': True,
             'message': 'Progress updated successfully'
@@ -391,7 +519,6 @@ def update_progress():
             'message': f'Error updating progress: {str(e)}'
         }), 500
 
-# Keep your existing upload-avatar and delete-account routes
 @profile_bp.route('/api/profile/upload-avatar', methods=['POST'])
 def upload_avatar():
     """API endpoint to handle avatar uploads"""
@@ -456,7 +583,6 @@ def delete_account():
             'message': f'Error deleting account: {str(e)}'
         }), 500
         
-        
 @profile_bp.route('/api/profile/sync-to-leaderboard', methods=['POST'])
 def sync_to_leaderboard():
     """Sync user stats to Firebase for leaderboard"""
@@ -498,8 +624,6 @@ def sync_to_leaderboard():
             'lastUpdated': datetime.utcnow().isoformat()
         }
         
-        # Here you would send this data to Firebase
-        # For now, return the data - we'll add Firebase API call later
         return jsonify({
             'success': True,
             'message': 'Ready to sync with leaderboard',
@@ -511,4 +635,4 @@ def sync_to_leaderboard():
         return jsonify({
             'success': False,
             'message': f'Error syncing to leaderboard: {str(e)}'
-        }), 500        
+        }), 500
