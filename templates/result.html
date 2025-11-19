@@ -556,8 +556,8 @@
     </script>
 
     <!-- Results Logic -->
-        <script>
-        // DOM elements
+<script>
+// DOM elements
 const loadingState = document.getElementById('loading-state');
 const resultsHeader = document.getElementById('results-header');
 const overallStats = document.getElementById('overall-stats');
@@ -576,12 +576,14 @@ const mobileExportDropdownBtn = document.getElementById('mobile-export-dropdown'
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Results page initialized');
     initializeMobileMenu();
     loadResultsData();
     
-    exportDataBtn.addEventListener('click', exportUserData);
-    mobileExportBtn.addEventListener('click', exportUserData);
-    mobileExportDropdownBtn.addEventListener('click', exportUserData);
+    // Add event listeners
+    if (exportDataBtn) exportDataBtn.addEventListener('click', exportUserData);
+    if (mobileExportBtn) mobileExportBtn.addEventListener('click', exportUserData);
+    if (mobileExportDropdownBtn) mobileExportDropdownBtn.addEventListener('click', exportUserData);
     
     // Auto-refresh weaknesses/strengths every 5 minutes
     setInterval(refreshPerformanceData, 300000);
@@ -593,21 +595,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Load adaptive learning data
 function loadAdaptiveLearningData() {
-    const wordMastery = JSON.parse(localStorage.getItem('wordMastery') || '{}');
-    const sentenceMastery = JSON.parse(localStorage.getItem('sentenceMastery') || '{}');
-    const masteredWords = new Set(JSON.parse(localStorage.getItem('masteredWords') || '[]'));
-    const masteredSentences = new Set(JSON.parse(localStorage.getItem('masteredSentences') || '[]'));
-    const reviewWords = JSON.parse(localStorage.getItem('reviewWords') || '[]');
-    const reviewSentences = JSON.parse(localStorage.getItem('reviewSentences') || '[]');
-    
-    return {
-        wordMastery,
-        sentenceMastery,
-        masteredWords,
-        masteredSentences,
-        reviewWords,
-        reviewSentences
-    };
+    try {
+        const wordMastery = JSON.parse(localStorage.getItem('wordMastery') || '{}');
+        const sentenceMastery = JSON.parse(localStorage.getItem('sentenceMastery') || '{}');
+        const masteredWords = new Set(JSON.parse(localStorage.getItem('masteredWords') || '[]'));
+        const masteredSentences = new Set(JSON.parse(localStorage.getItem('masteredSentences') || '[]'));
+        const reviewWords = JSON.parse(localStorage.getItem('reviewWords') || '[]');
+        const reviewSentences = JSON.parse(localStorage.getItem('reviewSentences') || '[]');
+        
+        return {
+            wordMastery,
+            sentenceMastery,
+            masteredWords,
+            masteredSentences,
+            reviewWords,
+            reviewSentences
+        };
+    } catch (error) {
+        console.error('Error loading adaptive learning data:', error);
+        return {
+            wordMastery: {},
+            sentenceMastery: {},
+            masteredWords: new Set(),
+            masteredSentences: new Set(),
+            reviewWords: [],
+            reviewSentences: []
+        };
+    }
 }
 
 // Calculate mastery levels with adaptive learning data
@@ -672,6 +686,11 @@ function getAdaptiveLearningInsights(adaptiveData) {
 function initializeMobileMenu() {
     let isMenuOpen = false;
 
+    if (!mobileMenuButton || !mobileDropdownMenu || !mobileDropdownBackdrop) {
+        console.log('Mobile menu elements not found');
+        return;
+    }
+
     mobileMenuButton.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleMobileMenu();
@@ -723,7 +742,7 @@ function generateMockData() {
     const quizHistory = [];
     const today = new Date();
     
-    for (let i = 0; i < 25; i++) { // Increased to 25 for more horizontal data
+    for (let i = 0; i < 25; i++) {
         const date = new Date();
         date.setDate(today.getDate() - i);
         
@@ -838,20 +857,62 @@ function generateMockData() {
     };
 }
 
-// Load and process results data with adaptive learning integration
+// Enhanced data loading with better error handling and legacy support
 function loadResultsData() {
+    console.log('Loading results data...');
+    
+    // Debug: Check what's actually in storage
+    console.log('sessionStorage quizResults:', sessionStorage.getItem('quizResults'));
+    console.log('localStorage hsk1QuizHistory:', localStorage.getItem('hsk1QuizHistory'));
+    console.log('localStorage hsk1PerformanceData:', localStorage.getItem('hsk1PerformanceData'));
+    
+    // Try multiple possible storage keys for backward compatibility
     const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
-    let quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
-    let performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+    
+    let quizHistory = [];
+    let performanceData = {};
+    
+    // Try multiple possible keys for quiz history
+    const possibleHistoryKeys = ['hsk1QuizHistory', 'userQuizHistory', 'quizHistory', 'redcharger_quiz_history'];
+    for (const key of possibleHistoryKeys) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            try {
+                quizHistory = JSON.parse(stored);
+                console.log(`Found quiz history in key: ${key}`, quizHistory.length, 'items');
+                break;
+            } catch (e) {
+                console.error(`Error parsing ${key}:`, e);
+            }
+        }
+    }
+    
+    // Try multiple possible keys for performance data
+    const possiblePerformanceKeys = ['hsk1PerformanceData', 'userPerformance', 'performanceData', 'redcharger_performance_data'];
+    for (const key of possiblePerformanceKeys) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            try {
+                performanceData = JSON.parse(stored);
+                console.log(`Found performance data in key: ${key}`, Object.keys(performanceData).length, 'items');
+                break;
+            } catch (e) {
+                console.error(`Error parsing ${key}:`, e);
+            }
+        }
+    }
     
     // Load adaptive learning data
     const adaptiveData = loadAdaptiveLearningData();
     
-    if (quizHistory.length === 0 && Object.keys(performanceData).length === 0) {
+    // If no data found anywhere, use mock data for demonstration
+    if (quizHistory.length === 0 && Object.keys(performanceData).length === 0 && !currentQuiz) {
+        console.log('No data found, generating mock data for demonstration');
         const mockData = generateMockData();
         quizHistory = mockData.quizHistory;
         performanceData = mockData.performanceData;
         
+        // Save mock data for future use
         localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
         localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
     }
@@ -860,21 +921,120 @@ function loadResultsData() {
     
     if (hasData) {
         displayResults(currentQuiz, quizHistory, performanceData, adaptiveData);
+        
+        // Auto-save to leaderboard if we have valid data
+        setTimeout(() => {
+            autoSaveToLeaderboard(quizHistory, performanceData, adaptiveData);
+        }, 1000);
     } else {
         showNoDataState();
     }
 }
 
+// Auto-save user data to leaderboard
+function autoSaveToLeaderboard(quizHistory, performanceData, adaptiveData) {
+    try {
+        const userId = localStorage.getItem('redcharger_user_id');
+        if (!userId) {
+            console.log('No user ID found for leaderboard');
+            return;
+        }
+
+        // Calculate user stats from existing data
+        const userStats = calculateUserStats(quizHistory, performanceData, adaptiveData);
+        
+        // Get username from profile or use default
+        const userProfile = JSON.parse(localStorage.getItem('redcharger_user_profile') || '{}');
+        const username = userProfile.username || `Learner${userId.slice(-4)}`;
+        
+        // Calculate leaderboard points
+        const leaderboardPoints = calculateLeaderboardPoints(userStats);
+        
+        // Prepare leaderboard data
+        const leaderboardData = {
+            username: username,
+            totalPoints: leaderboardPoints,
+            wordsMastered: userStats.totalWords || 0,
+            sentencesMastered: userStats.totalSentences || 0,
+            streakDays: userStats.streakDays || 0,
+            totalQuizzes: userStats.quizzesCompleted || 0,
+            accuracyRate: userStats.accuracyRate || 0,
+            lastUpdated: new Date().toISOString(),
+            profileComplete: true
+        };
+
+        // Save to Firebase
+        const leaderboardRef = database.ref('leaderboard/' + userId);
+        leaderboardRef.set(leaderboardData)
+            .then(() => {
+                console.log('Auto-saved to leaderboard:', leaderboardData);
+            })
+            .catch((error) => {
+                console.error('Error auto-saving to leaderboard:', error);
+            });
+            
+    } catch (error) {
+        console.error('Error in autoSaveToLeaderboard:', error);
+    }
+}
+
+// Calculate user stats from existing data
+function calculateUserStats(quizHistory, performanceData, adaptiveData) {
+    const stats = {
+        totalWords: 0,
+        totalSentences: 0,
+        streakDays: 0,
+        accuracyRate: 0,
+        quizzesCompleted: 0,
+        totalStudyTime: 0
+    };
+    
+    // Calculate from quiz history
+    stats.quizzesCompleted = quizHistory.length;
+    
+    let totalAccuracy = 0;
+    quizHistory.forEach(quiz => {
+        if (quiz.quiz_type === 'words') {
+            stats.totalWords += quiz.correct_answers || 0;
+        } else if (quiz.quiz_type === 'sentences') {
+            stats.totalSentences += quiz.correct_answers || 0;
+        }
+        totalAccuracy += quiz.percentage || 0;
+    });
+    
+    // Calculate average accuracy
+    if (stats.quizzesCompleted > 0) {
+        stats.accuracyRate = Math.round(totalAccuracy / stats.quizzesCompleted);
+    }
+    
+    // Calculate streak from quiz history
+    stats.streakDays = calculateStudyStreak(quizHistory);
+    
+    return stats;
+}
+
+// Calculate leaderboard points
+function calculateLeaderboardPoints(stats) {
+    return (
+        (stats.totalWords || 0) * 10 +
+        (stats.totalSentences || 0) * 20 +
+        (stats.quizzesCompleted || 0) * 5 +
+        (stats.streakDays || 0) * 3
+    );
+}
+
 // Display results with adaptive learning insights
 function displayResults(currentQuiz, quizHistory, performanceData, adaptiveData) {
-    loadingState.classList.add('hidden');
-    resultsHeader.classList.remove('hidden');
-    overallStats.classList.remove('hidden');
-    progressCharts.classList.remove('hidden');
-    weaknessesSection.classList.remove('hidden');
-    strengthsSection.classList.remove('hidden');
-    quizHistorySection.classList.remove('hidden');
-    difficultySection.classList.remove('hidden');
+    console.log('Displaying results...');
+    
+    if (loadingState) loadingState.classList.add('hidden');
+    if (resultsHeader) resultsHeader.classList.remove('hidden');
+    if (overallStats) overallStats.classList.remove('hidden');
+    if (progressCharts) progressCharts.classList.remove('hidden');
+    if (weaknessesSection) weaknessesSection.classList.remove('hidden');
+    if (strengthsSection) strengthsSection.classList.remove('hidden');
+    if (quizHistorySection) quizHistorySection.classList.remove('hidden');
+    if (difficultySection) difficultySection.classList.remove('hidden');
     
     updateOverallStats(quizHistory, performanceData, adaptiveData);
     updateCharts(quizHistory, performanceData, adaptiveData);
@@ -885,56 +1045,92 @@ function displayResults(currentQuiz, quizHistory, performanceData, adaptiveData)
 
 // Show no data state
 function showNoDataState() {
-    loadingState.classList.add('hidden');
-    noDataState.classList.remove('hidden');
+    console.log('Showing no data state');
+    if (loadingState) loadingState.classList.add('hidden');
+    if (noDataState) noDataState.classList.remove('hidden');
 }
 
 // Update overall statistics with adaptive learning data
 function updateOverallStats(quizHistory, performanceData, adaptiveData) {
+    console.log('Updating overall stats...');
+    
+    if (!overallStats) return;
+    
     const totalQuizzes = quizHistory.length;
-    document.getElementById('total-quizzes').textContent = totalQuizzes;
+    if (document.getElementById('total-quizzes')) {
+        document.getElementById('total-quizzes').textContent = totalQuizzes;
+    }
     
-    const wordsQuizzes = quizHistory.filter(q => q.quiz_type === 'words').length;
-    const sentencesQuizzes = quizHistory.filter(q => q.quiz_type === 'sentences').length;
+    const wordsQuizzes = quizHistory.filter(q => q && q.quiz_type === 'words').length;
+    const sentencesQuizzes = quizHistory.filter(q => q && q.quiz_type === 'sentences').length;
     
-    document.getElementById('words-quizzes').textContent = `${wordsQuizzes} words`;
-    document.getElementById('sentences-quizzes').textContent = `${sentencesQuizzes} sentences`;
+    if (document.getElementById('words-quizzes')) {
+        document.getElementById('words-quizzes').textContent = `${wordsQuizzes} words`;
+    }
+    if (document.getElementById('sentences-quizzes')) {
+        document.getElementById('sentences-quizzes').textContent = `${sentencesQuizzes} sentences`;
+    }
     
     let totalScore = 0;
-    quizHistory.forEach(quiz => {
-        totalScore += quiz.percentage;
-    });
-    const avgScore = totalQuizzes > 0 ? Math.round(totalScore / totalQuizzes) : 0;
-    
-    let wordsTotalScore = 0;
-    let sentencesTotalScore = 0;
+    let validQuizzes = 0;
     
     quizHistory.forEach(quiz => {
-        if (quiz.quiz_type === 'words') {
-            wordsTotalScore += quiz.percentage;
-        } else {
-            sentencesTotalScore += quiz.percentage;
+        if (quiz && typeof quiz.percentage === 'number') {
+            totalScore += quiz.percentage;
+            validQuizzes++;
         }
     });
     
-    const wordsAvgScore = wordsQuizzes > 0 ? Math.round(wordsTotalScore / wordsQuizzes) : 0;
-    const sentencesAvgScore = sentencesQuizzes > 0 ? Math.round(sentencesTotalScore / sentencesQuizzes) : 0;
+    const avgScore = validQuizzes > 0 ? Math.round(totalScore / validQuizzes) : 0;
     
-    document.getElementById('avg-score').textContent = `${avgScore}%`;
-    document.getElementById('words-score').textContent = `${wordsAvgScore}% words`;
-    document.getElementById('sentences-score').textContent = `${sentencesAvgScore}% sentences`;
+    if (document.getElementById('avg-score')) {
+        document.getElementById('avg-score').textContent = `${avgScore}%`;
+    }
+    
+    let wordsTotalScore = 0;
+    let sentencesTotalScore = 0;
+    let wordsValidQuizzes = 0;
+    let sentencesValidQuizzes = 0;
+    
+    quizHistory.forEach(quiz => {
+        if (quiz && quiz.quiz_type === 'words' && typeof quiz.percentage === 'number') {
+            wordsTotalScore += quiz.percentage;
+            wordsValidQuizzes++;
+        } else if (quiz && quiz.quiz_type === 'sentences' && typeof quiz.percentage === 'number') {
+            sentencesTotalScore += quiz.percentage;
+            sentencesValidQuizzes++;
+        }
+    });
+    
+    const wordsAvgScore = wordsValidQuizzes > 0 ? Math.round(wordsTotalScore / wordsValidQuizzes) : 0;
+    const sentencesAvgScore = sentencesValidQuizzes > 0 ? Math.round(sentencesTotalScore / sentencesValidQuizzes) : 0;
+    
+    if (document.getElementById('words-score')) {
+        document.getElementById('words-score').textContent = `${wordsAvgScore}% words`;
+    }
+    if (document.getElementById('sentences-score')) {
+        document.getElementById('sentences-score').textContent = `${sentencesAvgScore}% sentences`;
+    }
     
     // Use adaptive learning data for items learned
     const adaptiveInsights = getAdaptiveLearningInsights(adaptiveData);
     const wordsLearned = adaptiveInsights.totalWordsTracked;
     const sentencesLearned = adaptiveInsights.totalSentencesTracked;
     
-    document.getElementById('items-learned').textContent = wordsLearned + sentencesLearned;
-    document.getElementById('words-learned').textContent = `${wordsLearned} words`;
-    document.getElementById('sentences-learned').textContent = `${sentencesLearned} sentences`;
+    if (document.getElementById('items-learned')) {
+        document.getElementById('items-learned').textContent = wordsLearned + sentencesLearned;
+    }
+    if (document.getElementById('words-learned')) {
+        document.getElementById('words-learned').textContent = `${wordsLearned} words`;
+    }
+    if (document.getElementById('sentences-learned')) {
+        document.getElementById('sentences-learned').textContent = `${sentencesLearned} sentences`;
+    }
     
     const streak = calculateStudyStreak(quizHistory);
-    document.getElementById('study-streak').textContent = streak;
+    if (document.getElementById('study-streak')) {
+        document.getElementById('study-streak').textContent = streak;
+    }
     
     // Add adaptive learning progress indicator
     addAdaptiveProgressIndicator(adaptiveInsights);
@@ -942,7 +1138,7 @@ function updateOverallStats(quizHistory, performanceData, adaptiveData) {
 
 // Add adaptive learning progress indicator
 function addAdaptiveProgressIndicator(adaptiveInsights) {
-    const overallStats = document.getElementById('overall-stats');
+    if (!overallStats) return;
     
     // Remove existing adaptive progress if present
     const existingProgress = document.getElementById('adaptive-progress');
@@ -981,16 +1177,21 @@ function addAdaptiveProgressIndicator(adaptiveInsights) {
 function calculateStudyStreak(quizHistory) {
     if (quizHistory.length === 0) return 0;
     
-    const sortedQuizzes = [...quizHistory].sort((a, b) => 
-        new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date)
-    );
+    // Sort quizzes by date (newest first)
+    const sortedQuizzes = [...quizHistory].sort((a, b) => {
+        const dateA = new Date(a.timestamp || a.date || 0);
+        const dateB = new Date(b.timestamp || b.date || 0);
+        return dateB - dateA;
+    });
     
     let streak = 0;
     let currentDate = new Date();
+    currentDate.setHours(23, 59, 59, 999); // End of today
     
+    // Check if there's a quiz today
     const today = new Date().toDateString();
     const hasQuizToday = sortedQuizzes.some(quiz => {
-        const quizDate = new Date(quiz.timestamp || quiz.date).toDateString();
+        const quizDate = new Date(quiz.timestamp || quiz.date || 0).toDateString();
         return quizDate === today;
     });
     
@@ -999,16 +1200,19 @@ function calculateStudyStreak(quizHistory) {
         currentDate.setDate(currentDate.getDate() - 1);
     }
     
+    // Check consecutive days
     for (let i = 0; i < sortedQuizzes.length; i++) {
-        const quizDate = new Date(sortedQuizzes[i].timestamp || sortedQuizzes[i].date).toDateString();
-        const expectedDate = currentDate.toDateString();
+        const quizDate = new Date(sortedQuizzes[i].timestamp || sortedQuizzes[i].date || 0);
+        const expectedDate = new Date(currentDate);
         
-        if (quizDate === expectedDate) {
+        if (quizDate.toDateString() === expectedDate.toDateString()) {
             streak++;
             currentDate.setDate(currentDate.getDate() - 1);
         } else if (quizDate < expectedDate) {
+            // Quiz is from before our expected date, continue checking
             continue;
         } else {
+            // Gap found, break the streak
             break;
         }
     }
@@ -1018,41 +1222,55 @@ function calculateStudyStreak(quizHistory) {
 
 // Update progress charts with compact vertical height and horizontal scroll
 function updateCharts(quizHistory, performanceData, adaptiveData) {
-    // Score Progress Chart - Compact height, horizontal scroll
-    const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+    console.log('Updating charts...');
     
-    const sortedQuizzes = [...quizHistory].sort((a, b) => 
-        new Date(a.timestamp || a.date) - new Date(b.timestamp || b.date)
-    );
+    // Score Progress Chart
+    const scoreCanvas = document.getElementById('scoreChart');
+    if (!scoreCanvas) return;
+    
+    const scoreCtx = scoreCanvas.getContext('2d');
+    
+    const sortedQuizzes = [...quizHistory].sort((a, b) => {
+        const dateA = new Date(a.timestamp || a.date || 0);
+        const dateB = new Date(b.timestamp || b.date || 0);
+        return dateA - dateB;
+    });
     
     // Create detailed labels for horizontal scrolling
     const labels = sortedQuizzes.map((quiz, index) => {
-        const date = new Date(quiz.timestamp || quiz.date);
+        const date = new Date(quiz.timestamp || quiz.date || new Date());
         return `${date.getMonth()+1}/${date.getDate()} ${quiz.quiz_type === 'words' ? 'W' : 'S'}`;
     });
     
-    const scores = sortedQuizzes.map(quiz => quiz.percentage);
+    const scores = sortedQuizzes.map(quiz => quiz.percentage || 0);
     const backgroundColors = sortedQuizzes.map(quiz => 
         quiz.quiz_type === 'words' ? 'rgba(92, 124, 250, 0.8)' : 'rgba(51, 240, 232, 0.8)'
     );
     
     // Calculate chart width based on number of data points
-    const minWidth = 800; // Minimum width for good visibility
-    const pointWidth = 60; // Width per data point
+    const minWidth = 800;
+    const pointWidth = 60;
     const chartWidth = Math.max(minWidth, labels.length * pointWidth);
     
     // Set compact height and enable horizontal scrolling
-    const chartContainer = document.getElementById('scoreChart').parentElement;
-    chartContainer.style.overflowX = 'auto';
-    chartContainer.style.overflowY = 'hidden';
-    chartContainer.style.height = '200px'; // Compact vertical height
-    chartContainer.style.position = 'relative';
+    const chartContainer = scoreCanvas.parentElement;
+    if (chartContainer) {
+        chartContainer.style.overflowX = 'auto';
+        chartContainer.style.overflowY = 'hidden';
+        chartContainer.style.height = '200px';
+        chartContainer.style.position = 'relative';
+    }
     
     // Set canvas dimensions
-    document.getElementById('scoreChart').width = chartWidth;
-    document.getElementById('scoreChart').height = 180; // Compact height
+    scoreCanvas.width = chartWidth;
+    scoreCanvas.height = 180;
     
-    new Chart(scoreCtx, {
+    // Destroy existing chart if it exists
+    if (scoreCanvas.chart) {
+        scoreCanvas.chart.destroy();
+    }
+    
+    scoreCanvas.chart = new Chart(scoreCtx, {
         type: 'line',
         data: {
             labels: labels,
@@ -1126,12 +1344,19 @@ function updateCharts(quizHistory, performanceData, adaptiveData) {
         }
     });
     
-    // Comparison Chart - Keep original size
-    const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
+    // Comparison Chart
+    const comparisonCanvas = document.getElementById('comparisonChart');
+    if (!comparisonCanvas) return;
     
+    const comparisonCtx = comparisonCanvas.getContext('2d');
     const adaptiveInsights = getAdaptiveLearningInsights(adaptiveData);
     
-    new Chart(comparisonCtx, {
+    // Destroy existing chart if it exists
+    if (comparisonCanvas.chart) {
+        comparisonCanvas.chart.destroy();
+    }
+    
+    comparisonCanvas.chart = new Chart(comparisonCtx, {
         type: 'bar',
         data: {
             labels: ['Mastered', 'In Review', 'Learning', 'New'],
@@ -1142,7 +1367,7 @@ function updateCharts(quizHistory, performanceData, adaptiveData) {
                         adaptiveInsights.wordsMastered,
                         adaptiveInsights.wordsInReview,
                         Math.max(0, adaptiveInsights.totalWordsTracked - adaptiveInsights.wordsMastered - adaptiveInsights.wordsInReview),
-                        0 // New words (not tracked yet)
+                        0
                     ],
                     backgroundColor: 'rgba(92, 124, 250, 0.8)',
                     borderColor: 'rgba(92, 124, 250, 1)',
@@ -1154,7 +1379,7 @@ function updateCharts(quizHistory, performanceData, adaptiveData) {
                         adaptiveInsights.sentencesMastered,
                         adaptiveInsights.sentencesInReview,
                         Math.max(0, adaptiveInsights.totalSentencesTracked - adaptiveInsights.sentencesMastered - adaptiveInsights.sentencesInReview),
-                        0 // New sentences (not tracked yet)
+                        0
                     ],
                     backgroundColor: 'rgba(51, 240, 232, 0.8)',
                     borderColor: 'rgba(51, 240, 232, 1)',
@@ -1208,13 +1433,17 @@ function updatePerformanceSection(type, performance, masteryData, masteredItems,
     const noWeaknesses = document.getElementById(`no-${type}-weaknesses`);
     const noStrengths = document.getElementById(`no-${type}-strengths`);
     
+    if (!weaknessList || !strengthList || !noWeaknesses || !noStrengths) return;
+    
     // Get review items (weaknesses from adaptive learning)
     const weaknesses = reviewItems.slice(0, 5).map(item => {
-        const stats = performance[item[type === 'words' ? 'word' : 'sentence']] || {};
-        const mastery = masteryData[item[type === 'words' ? 'word' : 'sentence']] || { correct: 0, incorrect: 0 };
+        const itemKey = type === 'words' ? 'word' : 'sentence';
+        const itemValue = item[itemKey] || item;
+        const stats = performance[itemValue] || {};
+        const mastery = masteryData[itemValue] || { correct: 0, incorrect: 0 };
         
         return {
-            item: item[type === 'words' ? 'word' : 'sentence'],
+            item: itemValue,
             pinyin: item.pinyin || stats.pinyin || '',
             meaning: item.meaning || stats.meaning || '',
             accuracy: mastery.correct + mastery.incorrect > 0 ? 
@@ -1293,14 +1522,33 @@ function updatePerformanceSection(type, performance, masteryData, masteredItems,
 
 // Refresh performance data (simulates real-time updates)
 function refreshPerformanceData() {
-    const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+    console.log('Refreshing performance data...');
+    
+    // Try multiple possible storage keys
+    let performanceData = {};
+    const possiblePerformanceKeys = ['hsk1PerformanceData', 'userPerformance', 'performanceData', 'redcharger_performance_data'];
+    
+    for (const key of possiblePerformanceKeys) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            try {
+                performanceData = JSON.parse(stored);
+                break;
+            } catch (e) {
+                console.error(`Error parsing ${key}:`, e);
+            }
+        }
+    }
+    
     const adaptiveData = loadAdaptiveLearningData();
     
     // Simulate some data changes for demonstration
     const updatedPerformanceData = simulateDataUpdates(performanceData);
     
-    // Update localStorage with new data
-    localStorage.setItem('hsk1PerformanceData', JSON.stringify(updatedPerformanceData));
+    // Update localStorage with new data (using the first found key)
+    if (possiblePerformanceKeys[0]) {
+        localStorage.setItem(possiblePerformanceKeys[0], JSON.stringify(updatedPerformanceData));
+    }
     
     // Update the UI
     updateWeaknessesAndStrengths(updatedPerformanceData, adaptiveData);
@@ -1342,8 +1590,13 @@ function simulateDataUpdates(performanceData) {
 
 // Show refresh indicator
 function showRefreshIndicator() {
+    const existingIndicator = document.querySelector('.refresh-indicator');
+    if (existingIndicator) {
+        existingIndicator.remove();
+    }
+    
     const indicator = document.createElement('div');
-    indicator.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-3 py-2 rounded-lg text-sm shadow-lg';
+    indicator.className = 'refresh-indicator fixed bottom-4 right-4 bg-green-500 text-white px-3 py-2 rounded-lg text-sm shadow-lg animate-fadeInUp';
     indicator.innerHTML = '<i class="fas fa-sync-alt mr-2"></i> Data Updated';
     document.body.appendChild(indicator);
     
@@ -1356,6 +1609,8 @@ function showRefreshIndicator() {
 function updateQuizHistory(quizHistory, currentQuiz) {
     const historyContainer = document.getElementById('quiz-history');
     const noHistory = document.getElementById('no-history');
+    
+    if (!historyContainer || !noHistory) return;
     
     let allQuizzes = [...quizHistory];
     
@@ -1476,15 +1731,33 @@ function updateDifficultyAnalysis(performanceData, adaptiveData) {
     const wordsMastery = calculateMasteryLevelsWithAdaptive(performanceData.words || {}, adaptiveData.wordMastery, adaptiveData.masteredWords);
     const sentencesMastery = calculateMasteryLevelsWithAdaptive(performanceData.sentences || {}, adaptiveData.sentenceMastery, adaptiveData.masteredSentences);
     
-    document.getElementById('words-mastered-count').textContent = wordsMastery.mastered;
-    document.getElementById('words-easy-count').textContent = wordsMastery.easy;
-    document.getElementById('words-medium-count').textContent = wordsMastery.medium;
-    document.getElementById('words-hard-count').textContent = wordsMastery.hard;
+    // Update word counts
+    if (document.getElementById('words-mastered-count')) {
+        document.getElementById('words-mastered-count').textContent = wordsMastery.mastered;
+    }
+    if (document.getElementById('words-easy-count')) {
+        document.getElementById('words-easy-count').textContent = wordsMastery.easy;
+    }
+    if (document.getElementById('words-medium-count')) {
+        document.getElementById('words-medium-count').textContent = wordsMastery.medium;
+    }
+    if (document.getElementById('words-hard-count')) {
+        document.getElementById('words-hard-count').textContent = wordsMastery.hard;
+    }
     
-    document.getElementById('sentences-mastered-count').textContent = sentencesMastery.mastered;
-    document.getElementById('sentences-easy-count').textContent = sentencesMastery.easy;
-    document.getElementById('sentences-medium-count').textContent = sentencesMastery.medium;
-    document.getElementById('sentences-hard-count').textContent = sentencesMastery.hard;
+    // Update sentence counts
+    if (document.getElementById('sentences-mastered-count')) {
+        document.getElementById('sentences-mastered-count').textContent = sentencesMastery.mastered;
+    }
+    if (document.getElementById('sentences-easy-count')) {
+        document.getElementById('sentences-easy-count').textContent = sentencesMastery.easy;
+    }
+    if (document.getElementById('sentences-medium-count')) {
+        document.getElementById('sentences-medium-count').textContent = sentencesMastery.medium;
+    }
+    if (document.getElementById('sentences-hard-count')) {
+        document.getElementById('sentences-hard-count').textContent = sentencesMastery.hard;
+    }
     
     updateMasteryList('words', performanceData.words || {}, adaptiveData.wordMastery, adaptiveData.masteredWords);
     updateMasteryList('sentences', performanceData.sentences || {}, adaptiveData.sentenceMastery, adaptiveData.masteredSentences);
@@ -1493,6 +1766,7 @@ function updateDifficultyAnalysis(performanceData, adaptiveData) {
 // Update mastery list with adaptive learning data
 function updateMasteryList(type, performance, masteryData, masteredItems) {
     const difficultyList = document.getElementById(`${type}-difficulty-list`);
+    if (!difficultyList) return;
     
     const items = Object.entries(performance).map(([item, stats]) => ({
         item,
@@ -1544,8 +1818,38 @@ function updateMasteryList(type, performance, masteryData, masteredItems) {
 
 // Export user data including adaptive learning data
 function exportUserData() {
-    const quizHistory = JSON.parse(localStorage.getItem('hsk1QuizHistory') || '[]');
-    const performanceData = JSON.parse(localStorage.getItem('hsk1PerformanceData') || '{}');
+    console.log('Exporting user data...');
+    
+    // Try multiple possible storage keys
+    let quizHistory = [];
+    let performanceData = {};
+    
+    const possibleHistoryKeys = ['hsk1QuizHistory', 'userQuizHistory', 'quizHistory', 'redcharger_quiz_history'];
+    for (const key of possibleHistoryKeys) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            try {
+                quizHistory = JSON.parse(stored);
+                break;
+            } catch (e) {
+                console.error(`Error parsing ${key}:`, e);
+            }
+        }
+    }
+    
+    const possiblePerformanceKeys = ['hsk1PerformanceData', 'userPerformance', 'performanceData', 'redcharger_performance_data'];
+    for (const key of possiblePerformanceKeys) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            try {
+                performanceData = JSON.parse(stored);
+                break;
+            } catch (e) {
+                console.error(`Error parsing ${key}:`, e);
+            }
+        }
+    }
+    
     const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
     const adaptiveData = loadAdaptiveLearningData();
     
@@ -1570,245 +1874,55 @@ function exportUserData() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     
-    alert('Your complete learning data has been exported successfully!');
+    // Show success message
+    showRefreshIndicator();
+    setTimeout(() => {
+        alert('Your complete learning data has been exported successfully!');
+    }, 100);
 }
 
-// After your existing result.html JavaScript, add this:
-
-// Save quiz results and update leaderboard immediately
-function saveQuizResults(quizData) {
-    const userId = localStorage.getItem('redcharger_user_id');
-    if (!userId) {
-        console.log('No user ID found, creating new one');
-        const newUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('redcharger_user_id', newUserId);
-        userId = newUserId;
-    }
-
-    // Get current user data
-    const userRef = database.ref('users/' + userId);
-    userRef.once('value').then((snapshot) => {
-        const userData = snapshot.val() || {};
-        
-        // Update user stats based on quiz results
-        const updatedStats = updateUserStats(userData, quizData);
-        
-        // Save updated user data
-        userRef.set({
-            ...userData,
-            ...updatedStats,
-            lastQuiz: quizData,
-            lastUpdated: new Date().toISOString()
-        }).then(() => {
-            console.log('Quiz results saved to user profile');
-            // Immediately sync to leaderboard
-            syncToLeaderboard(userId, userData.username || 'Anonymous Learner', updatedStats);
-        });
-    });
-}
-
-// Update user statistics based on quiz results
-function updateUserStats(userData, quizData) {
-    const currentStats = userData.stats || {
-        totalWords: 0,
-        totalSentences: 0,
-        streakDays: 0,
-        accuracyRate: 0,
-        quizzesCompleted: 0,
-        totalStudyTime: 0
-    };
-
-    // Update based on quiz type
-    if (quizData.quizType === 'words') {
-        currentStats.totalWords += quizData.correctAnswers || 0;
-    } else if (quizData.quizType === 'sentences') {
-        currentStats.totalSentences += quizData.correctAnswers || 0;
-    }
-
-    // Update quizzes completed
-    currentStats.quizzesCompleted += 1;
+// Add this function to handle quiz completion from other pages
+function handleQuizCompletion(quizData) {
+    console.log('Handling quiz completion:', quizData);
     
-    // Update streak (simplified - you can enhance this)
-    const lastActivity = userData.lastActivity ? new Date(userData.lastActivity) : null;
-    const today = new Date();
-    if (lastActivity && isSameDay(lastActivity, today)) {
-        // Already logged today, maintain streak
-    } else if (lastActivity && isConsecutiveDay(lastActivity, today)) {
-        currentStats.streakDays += 1;
-    } else {
-        currentStats.streakDays = 1;
-    }
-
-    // Update accuracy
-    const totalQuestions = quizData.totalQuestions || 1;
-    const accuracy = ((quizData.correctAnswers || 0) / totalQuestions) * 100;
-    currentStats.accuracyRate = Math.round(
-        (currentStats.accuracyRate * (currentStats.quizzesCompleted - 1) + accuracy) / currentStats.quizzesCompleted
-    );
-
-    return {
-        stats: currentStats,
-        lastActivity: new Date().toISOString()
-    };
-}
-
-// Sync to leaderboard immediately
-function syncToLeaderboard(userId, username, stats) {
-    const leaderboardPoints = calculateLeaderboardPoints(stats);
+    // Save to session storage for immediate display
+    sessionStorage.setItem('quizResults', JSON.stringify(quizData));
     
-    const leaderboardData = {
-        username: username,
-        totalPoints: leaderboardPoints,
-        wordsMastered: stats.totalWords || 0,
-        sentencesMastered: stats.totalSentences || 0,
-        streakDays: stats.streakDays || 0,
-        totalQuizzes: stats.quizzesCompleted || 0,
-        accuracyRate: stats.accuracyRate || 0,
-        lastUpdated: new Date().toISOString(),
-        profileComplete: true // Since they're taking quizzes, consider profile complete
-    };
-
-    const leaderboardRef = database.ref('leaderboard/' + userId);
-    leaderboardRef.set(leaderboardData)
-        .then(() => {
-            console.log('Immediately synced to leaderboard!', leaderboardData);
-            showLeaderboardSuccess();
-        })
-        .catch((error) => {
-            console.error('Error syncing to leaderboard:', error);
-        });
-}
-
-// Calculate points using your scoring system
-function calculateLeaderboardPoints(stats) {
-    return (
-        (stats.totalWords || 0) * 10 +
-        (stats.totalSentences || 0) * 20 +
-        (stats.quizzesCompleted || 0) * 5 +
-        (stats.streakDays || 0) * 3
-    );
-}
-
-// Helper functions
-function isSameDay(date1, date2) {
-    return date1.toDateString() === date2.toDateString();
-}
-
-function isConsecutiveDay(date1, date2) {
-    const oneDay = 24 * 60 * 60 * 1000;
-    const diffDays = Math.round(Math.abs((date1 - date2) / oneDay));
-    return diffDays === 1;
-}
-
-function showLeaderboardSuccess() {
-    // Show a success message that they're now on the leaderboard
-    const existingMessage = document.getElementById('leaderboard-success');
-    if (existingMessage) existingMessage.remove();
-    
-    const successHTML = `
-        <div id="leaderboard-success" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-            <div class="bg-green-500/20 border border-green-500/30 rounded-lg p-4 text-center animate-fadeInUp">
-                <i class="fas fa-trophy text-green-400 mr-2"></i>
-                <span class="text-green-200">
-                    Your results have been saved! You're now on the 
-                    <a href="/leaderboard" class="underline hover:text-white font-medium">leaderboard</a>.
-                </span>
-            </div>
-        </div>
-    `;
-    
-    const headerSection = document.querySelector('main section:first-child');
-    headerSection.insertAdjacentHTML('afterend', successHTML);
-}
-
-// Call this when quiz is completed (you'll need to integrate with your quiz system)
-function onQuizCompleted(quizData) {
-    console.log('Quiz completed:', quizData);
-    saveQuizResults(quizData);
-    
-    // Update the results page display with new data
-    updateResultsDisplay(quizData);
-}
-
-// Example quiz data structure:
-const exampleQuizData = {
-    quizType: 'words', // or 'sentences'
-    correctAnswers: 8,
-    totalQuestions: 10,
-    score: 80,
-    timeSpent: 120, // seconds
-    date: new Date().toISOString()
-};
-
-// Initialize and load existing data
-document.addEventListener('DOMContentLoaded', function() {
-    // Load existing user stats and display them
-    loadAndDisplayUserStats();
-});
-
-// Load and display user stats on results page
-function loadAndDisplayUserStats() {
-    const userId = localStorage.getItem('redcharger_user_id');
-    if (!userId) {
-        showNoDataState();
-        return;
-    }
-
-    const userRef = database.ref('users/' + userId);
-    userRef.once('value').then((snapshot) => {
-        const userData = snapshot.val();
-        if (userData && userData.stats) {
-            displayUserStats(userData.stats);
-            hideLoadingState();
-        } else {
-            showNoDataState();
+    // Also save to local storage for history
+    let quizHistory = [];
+    const storedHistory = localStorage.getItem('hsk1QuizHistory');
+    if (storedHistory) {
+        try {
+            quizHistory = JSON.parse(storedHistory);
+        } catch (e) {
+            console.error('Error parsing quiz history:', e);
         }
-    }).catch((error) => {
-        console.error('Error loading user stats:', error);
-        showNoDataState();
+    }
+    
+    // Add new quiz to history
+    quizHistory.unshift({
+        ...quizData,
+        timestamp: new Date().toISOString(),
+        id: `quiz-${Date.now()}`
     });
+    
+    // Keep only last 100 quizzes
+    if (quizHistory.length > 100) {
+        quizHistory = quizHistory.slice(0, 100);
+    }
+    
+    localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
+    
+    // Reload the results page to show updated data
+    if (window.location.pathname.includes('/result')) {
+        loadResultsData();
+    }
 }
 
-// Display user stats on results page
-function displayUserStats(stats) {
-    // Update the stats cards
-    if (document.getElementById('total-quizzes')) {
-        document.getElementById('total-quizzes').textContent = stats.quizzesCompleted || 0;
-    }
-    if (document.getElementById('words-learned')) {
-        document.getElementById('words-learned').textContent = (stats.totalWords || 0) + ' words';
-    }
-    if (document.getElementById('sentences-learned')) {
-        document.getElementById('sentences-learned').textContent = (stats.totalSentences || 0) + ' sentences';
-    }
-    if (document.getElementById('study-streak')) {
-        document.getElementById('study-streak').textContent = stats.streakDays || 0;
-    }
-    if (document.getElementById('avg-score')) {
-        document.getElementById('avg-score').textContent = (stats.accuracyRate || 0) + '%';
-    }
+// Make the function globally available
+window.handleQuizCompletion = handleQuizCompletion;
 
-    // Show all sections
-    showElement(resultsHeader);
-    showElement(overallStats);
-    // ... show other sections as needed
-}
-
-function showElement(element) {
-    if (element) element.classList.remove('hidden');
-}
-
-function hideLoadingState() {
-    if (loadingState) loadingState.style.display = 'none';
-}
-
-function showNoDataState() {
-    hideLoadingState();
-    if (noDataState) noDataState.classList.remove('hidden');
-}
-
-
-
-    </script>
+console.log('Results page JavaScript loaded successfully');
+</script>
 </body>
 </html>

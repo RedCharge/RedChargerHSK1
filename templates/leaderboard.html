@@ -141,17 +141,25 @@
             color: #fff;
         }
 
-        .progress-bar {
-            height: 8px;
-            background-color: #334155;
-            border-radius: 4px;
-            overflow: hidden;
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid;
         }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #5c7cfa, #33f0e8);
-            transition: width 0.5s ease;
+
+        .avatar-placeholder {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #5c7cfa, #33f0e8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            border: 2px solid;
         }
 
         /* Mobile dropdown menu styles */
@@ -209,6 +217,35 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile responsive improvements */
+        @media (max-width: 768px) {
+            .leaderboard-item {
+                padding: 0.75rem;
+            }
+            
+            .user-avatar, .avatar-placeholder {
+                width: 32px;
+                height: 32px;
+                font-size: 0.75rem;
+            }
+            
+            .medal {
+                width: 32px;
+                height: 32px;
+                font-size: 0.875rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .leaderboard-item .flex.items-center.space-x-4 {
+                space-x: 0.5rem;
+            }
+            
+            .leaderboard-item .text-sm {
+                font-size: 0.75rem;
+            }
         }
     </style>
 </head>
@@ -303,48 +340,26 @@
                     Learning <span class="text-secondary-cyan">Leaderboard</span>
                 </h1>
                 <p class="text-xl text-text-muted max-w-2xl mx-auto">
-                    Compete with other learners and track your progress in real-time
+                    See where you stand among Chinese learners worldwide
                 </p>
-            </div>
-        </section>
-
-        <!-- Stats Overview -->
-        <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="sophisticated-card p-4 text-center">
-                    <div class="text-2xl font-bold text-secondary-cyan" id="total-learners">0</div>
-                    <div class="text-text-muted text-sm">Active Learners</div>
-                </div>
-                <div class="sophisticated-card p-4 text-center">
-                    <div class="text-2xl font-bold text-primary-blue" id="total-quizzes">0</div>
-                    <div class="text-text-muted text-sm">Quizzes Completed</div>
-                </div>
-                <div class="sophisticated-card p-4 text-center">
-                    <div class="text-2xl font-bold text-green-400" id="total-words">0</div>
-                    <div class="text-text-muted text-sm">Words Mastered</div>
-                </div>
-                <div class="sophisticated-card p-4 text-center">
-                    <div class="text-2xl font-bold text-yellow-400" id="total-sentences">0</div>
-                    <div class="text-text-muted text-sm">Sentences Learned</div>
-                </div>
             </div>
         </section>
 
         <!-- Leaderboard Tabs -->
         <section class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
             <div class="sophisticated-card p-2">
-                <div class="flex space-x-1">
-                    <button id="tab-overall" class="flex-1 py-3 px-4 rounded-lg font-medium transition duration-300 bg-secondary-cyan text-main-bg">
-                        <i class="fas fa-crown mr-2"></i>Overall Ranking
+                <div class="flex flex-wrap gap-1">
+                    <button id="tab-overall" class="flex-1 min-w-[120px] py-3 px-4 rounded-lg font-medium transition duration-300 bg-secondary-cyan text-main-bg">
+                        <i class="fas fa-crown mr-2"></i>Overall
                     </button>
-                    <button id="tab-words" class="flex-1 py-3 px-4 rounded-lg font-medium transition duration-300 text-text-muted hover:text-text-light hover:bg-card-bg/50">
-                        <i class="fas fa-font mr-2"></i>Words Mastery
+                    <button id="tab-words" class="flex-1 min-w-[120px] py-3 px-4 rounded-lg font-medium transition duration-300 text-text-muted hover:text-text-light hover:bg-card-bg/50">
+                        <i class="fas fa-font mr-2"></i>Words
                     </button>
-                    <button id="tab-sentences" class="flex-1 py-3 px-4 rounded-lg font-medium transition duration-300 text-text-muted hover:text-text-light hover:bg-card-bg/50">
-                        <i class="fas fa-comment-alt mr-2"></i>Sentences Mastery
+                    <button id="tab-sentences" class="flex-1 min-w-[120px] py-3 px-4 rounded-lg font-medium transition duration-300 text-text-muted hover:text-text-light hover:bg-card-bg/50">
+                        <i class="fas fa-comment-alt mr-2"></i>Sentences
                     </button>
-                    <button id="tab-streak" class="flex-1 py-3 px-4 rounded-lg font-medium transition duration-300 text-text-muted hover:text-text-light hover:bg-card-bg/50">
-                        <i class="fas fa-fire mr-2"></i>Study Streak
+                    <button id="tab-streak" class="flex-1 min-w-[120px] py-3 px-4 rounded-lg font-medium transition duration-300 text-text-muted hover:text-text-light hover:bg-card-bg/50">
+                        <i class="fas fa-fire mr-2"></i>Streak
                     </button>
                 </div>
             </div>
@@ -357,7 +372,7 @@
                 <div class="lg:col-span-2">
                     <div class="sophisticated-card p-6">
                         <h2 class="text-2xl font-bold text-text-light mb-6" id="leaderboard-title">
-                            Overall Leaderboard
+                            Top 10 Learners
                         </h2>
                         
                         <!-- Loading State -->
@@ -373,15 +388,15 @@
                         <div id="no-data" class="text-center py-12 text-text-muted hidden">
                             <i class="fas fa-trophy text-6xl mb-4"></i>
                             <p class="text-xl mb-4">No learners yet</p>
-                            <p class="text-text-muted mb-6">Complete your profile and first quiz to appear on the leaderboard!</p>
-                            <a href="/profile" class="inline-block py-3 px-6 rounded-lg bg-gradient-to-r from-primary-blue to-secondary-cyan text-white font-medium hover:shadow-lg transition duration-300">
-                                <i class="fas fa-user mr-2"></i> Complete Profile
+                            <p class="text-text-muted mb-6">Be the first to complete a quiz and appear on the leaderboard!</p>
+                            <a href="/words/quiz" class="inline-block py-3 px-6 rounded-lg bg-gradient-to-r from-primary-blue to-secondary-cyan text-white font-medium hover:shadow-lg transition duration-300">
+                                <i class="fas fa-play mr-2"></i> Start Learning
                             </a>
                         </div>
                     </div>
                 </div>
 
-                <!-- Current User Stats & Recent Activity -->
+                <!-- Current User Stats & Sidebar -->
                 <div class="space-y-6">
                     <!-- Current User Card -->
                     <div class="sophisticated-card p-6">
@@ -390,15 +405,15 @@
                             Your Ranking
                         </h2>
                         
-                        <div id="current-user-stats" class="text-center py-8">
+                        <div id="current-user-stats" class="space-y-4">
                             <!-- Current user stats will be populated here -->
                         </div>
 
                         <div id="no-user-data" class="text-center py-4 text-text-muted">
                             <i class="fas fa-user-slash text-4xl mb-3"></i>
-                            <p>Complete your profile to see your ranking</p>
-                            <a href="/profile" class="inline-block mt-3 py-2 px-4 rounded-lg bg-primary-blue text-white text-sm hover:shadow-lg transition duration-300">
-                                Complete Profile
+                            <p class="mb-3">Complete your first quiz to see your ranking</p>
+                            <a href="/words/quiz" class="inline-block py-2 px-4 rounded-lg bg-primary-blue text-white text-sm hover:shadow-lg transition duration-300">
+                                Start Learning
                             </a>
                         </div>
                     </div>
@@ -407,7 +422,7 @@
                     <div class="sophisticated-card p-6">
                         <h2 class="text-xl font-bold text-text-light mb-4 flex items-center">
                             <i class="fas fa-award mr-2 text-yellow-400"></i>
-                            Recent Achievements
+                            Your Achievements
                         </h2>
                         
                         <div id="achievements-list" class="space-y-3">
@@ -435,7 +450,7 @@
                                 <i class="fas fa-comments mr-2"></i> Take Sentences Quiz
                             </a>
                             <a href="/profile" class="w-full block py-3 px-4 rounded-lg bg-card-bg border border-text-muted/30 text-text-light font-medium text-center hover:bg-text-muted/10 transition duration-300">
-                                <i class="fas fa-chart-line mr-2"></i> View Your Progress
+                                <i class="fas fa-user-edit mr-2"></i> Update Profile
                             </a>
                         </div>
                     </div>
@@ -471,7 +486,7 @@
         const database = firebase.database();
     </script>
 
-        <!-- Leaderboard Logic -->
+    <!-- Leaderboard Logic -->
     <script>
         // DOM Elements
         const mobileMenuButton = document.getElementById('mobile-menu-button');
@@ -486,12 +501,6 @@
         const leaderboardTitle = document.getElementById('leaderboard-title');
         const loadingState = document.getElementById('loading-state');
         
-        // Global stats elements
-        const totalLearners = document.getElementById('total-learners');
-        const totalQuizzes = document.getElementById('total-quizzes');
-        const totalWords = document.getElementById('total-words');
-        const totalSentences = document.getElementById('total-sentences');
-        
         // Tab elements
         const tabOverall = document.getElementById('tab-overall');
         const tabWords = document.getElementById('tab-words');
@@ -504,6 +513,7 @@
         let currentUserId = null;
         let currentUsername = null;
         let allUsers = [];
+        let currentUserGlobalRank = null;
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
@@ -512,85 +522,20 @@
             loadCurrentUser();
         });
 
-        // Get current user from Flask session
+        // Get current user from localStorage
         function loadCurrentUser() {
-            fetch('/api/profile/check')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.authenticated) {
-                        currentUserId = data.user_id;
-                        currentUsername = data.username;
-                        checkProfileCompletion();
-                    } else {
-                        // User not logged in - still show leaderboard but with login prompt
-                        showLoginPrompt();
-                        initializeFirebaseListener();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking user:', error);
-                    // Fallback - show leaderboard anyway
-                    currentUserId = 'guest_user';
-                    initializeFirebaseListener();
-                });
-        }
-
-        // Check if user has completed profile (for encouragement message)
-        function checkProfileCompletion() {
-            fetch('/api/profile/check-completion')
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.profileComplete) {
-                        showProfileEncouragement();
-                    }
-                    initializeFirebaseListener();
-                })
-                .catch(error => {
-                    console.error('Error checking profile completion:', error);
-                    // Still show leaderboard even if check fails
-                    initializeFirebaseListener();
-                });
-        }
-
-        function showProfileEncouragement() {
-            // Add a friendly encouragement message at the top
-            const encouragementHTML = `
-                <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-                    <div class="bg-yellow-500/20 border border-yellow-500/30 rounded-lg p-4 text-center">
-                        <i class="fas fa-star text-yellow-400 mr-2"></i>
-                        <span class="text-yellow-200">
-                            Complete your profile to appear on the leaderboard! 
-                            <a href="/profile" class="underline hover:text-white font-medium">Update Profile</a>
-                        </span>
-                    </div>
-                </div>
-            `;
+            currentUserId = localStorage.getItem('redcharger_user_id');
+            const userProfile = JSON.parse(localStorage.getItem('redcharger_user_profile') || '{}');
+            currentUsername = userProfile.username;
             
-            // Insert encouragement at the top of main content
-            const headerSection = document.querySelector('main section:first-child');
-            headerSection.insertAdjacentHTML('afterend', encouragementHTML);
-        }
-
-        function showLoginPrompt() {
-            // Add login prompt message
-            const loginHTML = `
-                <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-                    <div class="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4 text-center">
-                        <i class="fas fa-user-circle text-blue-400 mr-2"></i>
-                        <span class="text-blue-200">
-                            <a href="/login" class="underline hover:text-white font-medium">Log in</a> to track your progress and appear on the leaderboard!
-                        </span>
-                    </div>
-                </div>
-            `;
-            
-            const headerSection = document.querySelector('main section:first-child');
-            headerSection.insertAdjacentHTML('afterend', loginHTML);
+            if (currentUserId) {
+                console.log('Current user loaded:', currentUserId);
+                initializeFirebaseListener();
+            } else {
+                console.log('No user ID found');
+                // Still show leaderboard for guests
+                initializeFirebaseListener();
+            }
         }
 
         // Initialize Firebase Real-time Listener
@@ -610,7 +555,6 @@
                         });
                     });
                     
-                    updateGlobalStats(allUsers);
                     displayLeaderboard(allUsers);
                     hideLoadingState();
                 } else {
@@ -624,20 +568,6 @@
             });
         }
 
-        // Update global statistics
-        function updateGlobalStats(users) {
-            if (users.length === 0) return;
-            
-            const totalQuizzesCount = users.reduce((sum, user) => sum + (user.totalQuizzes || 0), 0);
-            const totalWordsCount = users.reduce((sum, user) => sum + (user.wordsMastered || 0), 0);
-            const totalSentencesCount = users.reduce((sum, user) => sum + (user.sentencesMastered || 0), 0);
-            
-            totalLearners.textContent = users.length.toLocaleString();
-            totalQuizzes.textContent = totalQuizzesCount.toLocaleString();
-            totalWords.textContent = totalWordsCount.toLocaleString();
-            totalSentences.textContent = totalSentencesCount.toLocaleString();
-        }
-
         // Display leaderboard based on current tab
         function displayLeaderboard(users) {
             if (users.length === 0) {
@@ -647,8 +577,14 @@
             
             // Sort users based on current tab
             const sortedUsers = sortUsersByCriteria(users, currentTab);
-            renderLeaderboardList(sortedUsers);
+            
+            // Show top 10
+            const top10Users = sortedUsers.slice(0, 10);
+            renderLeaderboardList(top10Users);
+            
+            // Update current user rank (even if not in top 10)
             updateCurrentUserRank(sortedUsers);
+            
             loadAchievements();
         }
 
@@ -670,15 +606,13 @@
             });
         }
 
-        // Render leaderboard list
+        // Render leaderboard list (Top 10)
         function renderLeaderboardList(users) {
             leaderboardList.innerHTML = '';
             
             users.forEach((user, index) => {
                 const rank = index + 1;
-                const isCurrentUser = user.id === currentUserId || 
-                                    (currentUsername && user.username === currentUsername) ||
-                                    (user.username && user.username.includes(currentUserId));
+                const isCurrentUser = user.id === currentUserId;
                 
                 const leaderboardItem = createLeaderboardItem(user, rank, isCurrentUser);
                 leaderboardList.appendChild(leaderboardItem);
@@ -687,7 +621,7 @@
             noData.classList.add('hidden');
         }
 
-        // Create individual leaderboard item
+        // Create individual leaderboard item with profile picture
         function createLeaderboardItem(user, rank, isCurrentUser) {
             const item = document.createElement('div');
             item.className = `leaderboard-item p-4 rounded-lg ${
@@ -698,7 +632,13 @@
             const words = user.wordsMastered || 0;
             const sentences = user.sentencesMastered || 0;
             const streak = user.streakDays || 0;
-            const quizzes = user.totalQuizzes || 0;
+            
+            // Create avatar or placeholder
+            const avatarHTML = user.avatar ? 
+                `<img src="${user.avatar}" alt="${user.username}" class="user-avatar border-${rank <= 3 ? getMedalColor(rank) : 'primary-blue'}">` :
+                `<div class="avatar-placeholder border-${rank <= 3 ? getMedalColor(rank) : 'primary-blue'}">
+                    <i class="fas fa-user"></i>
+                </div>`;
             
             item.innerHTML = `
                 <div class="flex items-center justify-between">
@@ -706,18 +646,21 @@
                         <div class="flex items-center justify-center w-10">
                             ${rank <= 3 ? 
                                 `<div class="medal medal-${getMedalClass(rank)}">${rank}</div>` :
-                                `<div class="text-lg font-bold text-text-muted">${rank}</div>`
+                                `<div class="text-lg font-bold ${rank <= 10 ? 'text-text-light' : 'text-text-muted'}">${rank}</div>`
                             }
                         </div>
-                        <div class="flex-1">
-                            <div class="flex items-center space-x-2">
-                                <div class="font-semibold text-text-light">${user.username || 'Anonymous Learner'}</div>
-                                ${isCurrentUser ? '<span class="px-2 py-1 bg-secondary-cyan text-main-bg text-xs rounded-full font-bold">You</span>' : ''}
-                            </div>
-                            <div class="flex items-center space-x-4 mt-1 text-sm text-text-muted">
-                                <span><i class="fas fa-star text-yellow-400 mr-1"></i> ${points.toLocaleString()} pts</span>
-                                <span><i class="fas fa-font text-primary-blue mr-1"></i> ${words.toLocaleString()} words</span>
-                                <span><i class="fas fa-comment text-secondary-cyan mr-1"></i> ${sentences.toLocaleString()} sentences</span>
+                        <div class="flex items-center space-x-3">
+                            ${avatarHTML}
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2">
+                                    <div class="font-semibold text-text-light">${user.username || 'Anonymous Learner'}</div>
+                                    ${isCurrentUser ? '<span class="px-2 py-1 bg-secondary-cyan text-main-bg text-xs rounded-full font-bold">You</span>' : ''}
+                                </div>
+                                <div class="flex items-center space-x-3 mt-1 text-xs text-text-muted">
+                                    <span><i class="fas fa-star text-yellow-400 mr-1"></i> ${points.toLocaleString()}</span>
+                                    <span><i class="fas fa-font text-primary-blue mr-1"></i> ${words.toLocaleString()}</span>
+                                    <span><i class="fas fa-comment text-secondary-cyan mr-1"></i> ${sentences.toLocaleString()}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -745,6 +688,15 @@
             }
         }
 
+        function getMedalColor(rank) {
+            switch(rank) {
+                case 1: return 'gold';
+                case 2: return 'silver';
+                case 3: return 'bronze';
+                default: return 'primary-blue';
+            }
+        }
+
         function getScoreByTab(user, tab) {
             switch(tab) {
                 case 'overall': return user.totalPoints || 0;
@@ -765,46 +717,65 @@
             }
         }
 
-        // Update current user's rank display
+        // Update current user's rank display (shows rank even if not in top 10)
         function updateCurrentUserRank(users) {
             let currentUserIndex = -1;
+            let currentUser = null;
             
-            // Try multiple ways to find current user
+            // Find current user in sorted list
             if (currentUserId) {
-                currentUserIndex = users.findIndex(user => 
-                    user.id === currentUserId || 
-                    (currentUsername && user.username === currentUsername) ||
-                    (user.username && user.username.includes(currentUserId))
-                );
+                currentUserIndex = users.findIndex(user => user.id === currentUserId);
+                if (currentUserIndex !== -1) {
+                    currentUser = users[currentUserIndex];
+                    currentUserGlobalRank = currentUserIndex + 1;
+                }
             }
             
-            if (currentUserIndex !== -1) {
-                const currentUser = users[currentUserIndex];
-                const rank = currentUserIndex + 1;
+            if (currentUser) {
+                const rank = currentUserGlobalRank;
+                const userProfile = JSON.parse(localStorage.getItem('redcharger_user_profile') || '{}');
+                const userAvatar = userProfile.avatar || localStorage.getItem('redcharger_avatar');
+                
+                // Create avatar or placeholder for current user
+                const avatarHTML = userAvatar ? 
+                    `<img src="${userAvatar}" alt="${currentUser.username}" class="user-avatar border-secondary-cyan mx-auto mb-3">` :
+                    `<div class="avatar-placeholder border-secondary-cyan mx-auto mb-3">
+                        <i class="fas fa-user"></i>
+                    </div>`;
                 
                 currentUserStats.innerHTML = `
-                    <div class="text-4xl font-bold text-secondary-cyan mb-2">#${rank}</div>
-                    <div class="text-lg text-text-light mb-1">${currentUser.username || 'You'}</div>
-                    <div class="text-text-muted mb-4">${(currentUser.totalPoints || 0).toLocaleString()} Total Points</div>
+                    ${avatarHTML}
+                    <div class="text-center mb-4">
+                        <div class="text-3xl font-bold text-secondary-cyan mb-1">#${rank}</div>
+                        <div class="text-lg text-text-light mb-1">${currentUser.username || 'You'}</div>
+                        <div class="text-text-muted">${(currentUser.totalPoints || 0).toLocaleString()} Total Points</div>
+                    </div>
                     
-                    <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div class="grid grid-cols-2 gap-3 text-sm">
                         <div class="text-center p-2 bg-card-bg/50 rounded">
-                            <div class="font-bold text-primary-blue">${(currentUser.wordsMastered || 0).toLocaleString()}</div>
-                            <div class="text-text-muted">Words</div>
+                            <div class="font-bold text-primary-blue text-lg">${(currentUser.wordsMastered || 0).toLocaleString()}</div>
+                            <div class="text-text-muted text-xs">Words</div>
                         </div>
                         <div class="text-center p-2 bg-card-bg/50 rounded">
-                            <div class="font-bold text-secondary-cyan">${(currentUser.sentencesMastered || 0).toLocaleString()}</div>
-                            <div class="text-text-muted">Sentences</div>
+                            <div class="font-bold text-secondary-cyan text-lg">${(currentUser.sentencesMastered || 0).toLocaleString()}</div>
+                            <div class="text-text-muted text-xs">Sentences</div>
                         </div>
                         <div class="text-center p-2 bg-card-bg/50 rounded">
-                            <div class="font-bold text-yellow-400">${currentUser.streakDays || 0}</div>
-                            <div class="text-text-muted">Day Streak</div>
+                            <div class="font-bold text-yellow-400 text-lg">${currentUser.streakDays || 0}</div>
+                            <div class="text-text-muted text-xs">Day Streak</div>
                         </div>
                         <div class="text-center p-2 bg-card-bg/50 rounded">
-                            <div class="font-bold text-green-400">${currentUser.totalQuizzes || 0}</div>
-                            <div class="text-text-muted">Quizzes</div>
+                            <div class="font-bold text-green-400 text-lg">${currentUser.totalQuizzes || 0}</div>
+                            <div class="text-text-muted text-xs">Quizzes</div>
                         </div>
                     </div>
+                    
+                    ${rank > 10 ? `
+                        <div class="mt-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-center">
+                            <i class="fas fa-trophy text-yellow-400 mr-2"></i>
+                            <span class="text-yellow-200 text-sm">You're #${rank}. Keep going to reach the top 10!</span>
+                        </div>
+                    ` : ''}
                 `;
                 
                 noUserData.classList.add('hidden');
@@ -818,32 +789,25 @@
         // Load user achievements
         function loadAchievements() {
             // Only load achievements if user is logged in
-            if (!currentUserId || currentUserId === 'guest_user') {
+            if (!currentUserId) {
                 noAchievements.classList.remove('hidden');
                 achievementsList.classList.add('hidden');
                 return;
             }
             
-            fetch('/api/profile/achievements')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.achievements && data.achievements.length > 0) {
-                        displayAchievements(data.achievements);
-                    } else {
-                        noAchievements.classList.remove('hidden');
-                        achievementsList.classList.add('hidden');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading achievements:', error);
-                    noAchievements.classList.remove('hidden');
-                    achievementsList.classList.add('hidden');
-                });
+            // Mock achievements for demonstration
+            const mockAchievements = [
+                { name: 'First Steps', description: 'Complete your first quiz', icon: 'fas fa-footsteps', unlocked: true },
+                { name: 'Word Collector', description: 'Master 50 words', icon: 'fas fa-font', unlocked: true },
+                { name: 'Sentence Master', description: 'Master 25 sentences', icon: 'fas fa-comment-alt', unlocked: false }
+            ];
+            
+            displayAchievements(mockAchievements);
         }
 
         function displayAchievements(achievements) {
             achievementsList.innerHTML = '';
-            const unlockedAchievements = achievements.filter(ach => ach.unlocked).slice(0, 3); // Show max 3
+            const unlockedAchievements = achievements.filter(ach => ach.unlocked).slice(0, 3);
             
             if (unlockedAchievements.length === 0) {
                 noAchievements.classList.remove('hidden');
@@ -859,8 +823,8 @@
                         <i class="${achievement.icon}"></i>
                     </div>
                     <div class="flex-1">
-                        <div class="font-medium text-text-light">${achievement.name}</div>
-                        <div class="text-sm text-text-muted">${achievement.description}</div>
+                        <div class="font-medium text-text-light text-sm">${achievement.name}</div>
+                        <div class="text-xs text-text-muted">${achievement.description}</div>
                     </div>
                     <div class="text-green-400">
                         <i class="fas fa-check-circle"></i>
@@ -980,29 +944,30 @@
                 case 'overall':
                     tabOverall.classList.add('bg-secondary-cyan', 'text-main-bg');
                     tabOverall.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
-                    leaderboardTitle.textContent = 'Overall Leaderboard';
+                    leaderboardTitle.textContent = 'Top 10 Learners - Overall';
                     break;
                 case 'words':
                     tabWords.classList.add('bg-secondary-cyan', 'text-main-bg');
                     tabWords.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
-                    leaderboardTitle.textContent = 'Words Mastery Leaderboard';
+                    leaderboardTitle.textContent = 'Top 10 Learners - Words Mastery';
                     break;
                 case 'sentences':
                     tabSentences.classList.add('bg-secondary-cyan', 'text-main-bg');
                     tabSentences.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
-                    leaderboardTitle.textContent = 'Sentences Mastery Leaderboard';
+                    leaderboardTitle.textContent = 'Top 10 Learners - Sentences Mastery';
                     break;
                 case 'streak':
                     tabStreak.classList.add('bg-secondary-cyan', 'text-main-bg');
                     tabStreak.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
-                    leaderboardTitle.textContent = 'Study Streak Leaderboard';
+                    leaderboardTitle.textContent = 'Top 10 Learners - Study Streak';
                     break;
             }
             
             // Re-sort and display based on new tab
             if (allUsers.length > 0) {
                 const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
-                renderLeaderboardList(sortedUsers);
+                const top10Users = sortedUsers.slice(0, 10);
+                renderLeaderboardList(top10Users);
                 updateCurrentUserRank(sortedUsers);
             }
         }
@@ -1011,7 +976,8 @@
         setInterval(() => {
             if (allUsers.length > 0) {
                 const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
-                renderLeaderboardList(sortedUsers);
+                const top10Users = sortedUsers.slice(0, 10);
+                renderLeaderboardList(top10Users);
                 updateCurrentUserRank(sortedUsers);
             }
         }, 30000);
