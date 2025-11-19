@@ -523,36 +523,110 @@
         loadCurrentUser();
     });
 
-    // Get current user from localStorage and check profile completion
+    // Get current user from localStorage and check profile completion - IMPROVED FOR MOBILE
     function loadCurrentUser() {
-        currentUserId = localStorage.getItem('redcharger_user_id');
-        const userProfile = JSON.parse(localStorage.getItem('redcharger_user_profile') || '{}');
-        currentUsername = userProfile.username;
+        console.log('Loading current user data...');
         
-        // Check if profile is complete (username is required)
-        userProfileComplete = !!(currentUsername && currentUsername.trim().length > 0);
+        // Try multiple times to get user data (for mobile compatibility)
+        let attempts = 0;
+        const maxAttempts = 5;
         
-        console.log('Current user loaded:', currentUserId);
-        console.log('Profile complete:', userProfileComplete);
-        console.log('Username:', currentUsername);
-        
-        if (currentUserId) {
-            initializeFirebaseListener();
+        const tryLoadUser = () => {
+            currentUserId = localStorage.getItem('redcharger_user_id');
+            console.log('User ID found:', currentUserId);
             
-            // Show profile completion prompt if needed
-            if (!userProfileComplete) {
-                showProfileCompletionPrompt();
+            if (currentUserId) {
+                // Try multiple ways to get profile data
+                const profileData = getProfileData();
+                currentUsername = profileData.username;
+                
+                // Check if profile is complete (username is required)
+                userProfileComplete = !!(currentUsername && currentUsername.trim().length > 0);
+                
+                console.log('Profile data loaded:', profileData);
+                console.log('Username:', currentUsername);
+                console.log('Profile complete:', userProfileComplete);
+                
+                initializeFirebaseListener();
+                
+                // Show profile completion prompt if needed
+                if (!userProfileComplete) {
+                    console.log('Profile incomplete, showing prompt');
+                    setTimeout(() => {
+                        showProfileCompletionPrompt();
+                    }, 1000);
+                } else {
+                    console.log('Profile complete, hiding any prompts');
+                    hideProfilePrompt();
+                }
+            } else {
+                attempts++;
+                if (attempts < maxAttempts) {
+                    console.log(`No user ID found, retrying... (${attempts}/${maxAttempts})`);
+                    setTimeout(tryLoadUser, 500);
+                } else {
+                    console.log('No user ID found after retries, proceeding as guest');
+                    showProfileCompletionPrompt();
+                    initializeFirebaseListener();
+                }
             }
-        } else {
-            console.log('No user ID found');
-            // Still show leaderboard for guests, but prompt for profile
-            showProfileCompletionPrompt();
-            initializeFirebaseListener();
-        }
+        };
+        
+        tryLoadUser();
     }
 
-    // Show profile completion prompt
+    // Get profile data from multiple possible sources (mobile compatible)
+    function getProfileData() {
+        let profileData = {};
+        
+        // Try localStorage first
+        try {
+            const storedProfile = localStorage.getItem('redcharger_user_profile');
+            if (storedProfile) {
+                profileData = JSON.parse(storedProfile);
+                console.log('Profile data from localStorage:', profileData);
+                return profileData;
+            }
+        } catch (e) {
+            console.error('Error parsing profile from localStorage:', e);
+        }
+        
+        // Try Firebase data if available
+        try {
+            const firebaseProfile = localStorage.getItem('firebase_profile_data');
+            if (firebaseProfile) {
+                profileData = JSON.parse(firebaseProfile);
+                console.log('Profile data from Firebase cache:', profileData);
+                return profileData;
+            }
+        } catch (e) {
+            console.error('Error parsing profile from Firebase cache:', e);
+        }
+        
+        // Try form fields as last resort (if user is currently on profile page)
+        if (typeof usernameInput !== 'undefined' && usernameInput && usernameInput.value) {
+            profileData.username = usernameInput.value;
+            console.log('Profile data from form fields:', profileData);
+        }
+        
+        return profileData;
+    }
+
+    // Show profile completion prompt ONLY if profile is incomplete
     function showProfileCompletionPrompt() {
+        // Double-check that profile is actually incomplete
+        const currentProfile = getProfileData();
+        const hasUsername = !!(currentProfile.username && currentProfile.username.trim().length > 0);
+        
+        if (hasUsername) {
+            console.log('Profile actually has username, not showing prompt');
+            userProfileComplete = true;
+            hideProfilePrompt();
+            return;
+        }
+        
+        console.log('Profile incomplete, showing prompt');
+        
         const existingPrompt = document.querySelector('.profile-completion-prompt');
         if (existingPrompt) {
             existingPrompt.remove();
@@ -584,7 +658,9 @@
         
         // Insert prompt after the header
         const headerSection = document.querySelector('main section:first-child');
-        headerSection.insertAdjacentHTML('afterend', promptHTML);
+        if (headerSection) {
+            headerSection.insertAdjacentHTML('afterend', promptHTML);
+        }
     }
 
     // Hide profile prompt
@@ -599,17 +675,50 @@
         }
     }
 
-    // Check profile completion status
+    // Check profile completion status - IMPROVED
     function checkProfileCompletion() {
-        const userProfile = JSON.parse(localStorage.getItem('redcharger_user_profile') || '{}');
-        const hasUsername = !!(userProfile.username && userProfile.username.trim().length > 0);
+        const currentProfile = getProfileData();
+        const hasUsername = !!(currentProfile.username && currentProfile.username.trim().length > 0);
+        
+        console.log('Checking profile completion:', { hasUsername, username: currentProfile.username });
         
         if (!hasUsername && !document.querySelector('.profile-completion-prompt')) {
+            console.log('Profile incomplete, showing prompt');
             showProfileCompletionPrompt();
+        } else if (hasUsername) {
+            console.log('Profile complete, ensuring prompt is hidden');
+            hideProfilePrompt();
         }
         
+        userProfileComplete = hasUsername;
         return hasUsername;
     }
+
+    // Re-check profile when page becomes visible (for mobile)
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            console.log('Page visible, re-checking profile completion');
+            setTimeout(() => {
+                userProfileComplete = checkProfileCompletion();
+                if (userProfileComplete && allUsers.length > 0) {
+                    const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
+                    updateCurrentUserRank(sortedUsers);
+                }
+            }, 1000);
+        }
+    });
+
+    // Also check when page gains focus
+    window.addEventListener('focus', function() {
+        console.log('Page focused, re-checking profile completion');
+        setTimeout(() => {
+            userProfileComplete = checkProfileCompletion();
+            if (userProfileComplete && allUsers.length > 0) {
+                const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
+                updateCurrentUserRank(sortedUsers);
+            }
+        }, 500);
+    });
 
     // Initialize Firebase Real-time Listener
     function initializeFirebaseListener() {
@@ -660,8 +769,10 @@
         
         // Update current user rank (only if profile is complete)
         if (userProfileComplete) {
+            console.log('Profile complete, showing user rank');
             updateCurrentUserRank(sortedUsers);
         } else {
+            console.log('Profile incomplete, showing completion message');
             showProfileIncompleteMessage();
         }
         
@@ -813,7 +924,7 @@
         
         if (currentUser) {
             const rank = currentUserGlobalRank;
-            const userProfile = JSON.parse(localStorage.getItem('redcharger_user_profile') || '{}');
+            const userProfile = getProfileData();
             const userAvatar = userProfile.avatar || localStorage.getItem('redcharger_avatar');
             
             // Create avatar or placeholder for current user
