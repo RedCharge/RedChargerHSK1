@@ -626,7 +626,7 @@
             calculateCompletionPercentage();
         });
 
-        // Initialize user session - create if doesn't exist
+        // Initialize user session - preserve existing data
         function initializeUserSession() {
             // Check if we have a user ID in localStorage
             currentUserId = localStorage.getItem('redcharger_user_id');
@@ -636,21 +636,166 @@
                 currentUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                 localStorage.setItem('redcharger_user_id', currentUserId);
                 console.log('Created new user ID:', currentUserId);
-                
-                // Initialize with empty data
-                const initialData = getFormData();
-                saveUserDataToFirebase(initialData);
             } else {
                 console.log('Found existing user ID:', currentUserId);
             }
 
-            // Load user data from Firebase
+            // Load user data from Firebase first
             loadUserData();
-            loadUserStats();
+            
+            // Then load existing results data from localStorage
+            loadExistingResultsData();
+        }
+
+        // Load existing results data from localStorage (your old data)
+        function loadExistingResultsData() {
+            console.log('Loading existing results data from localStorage...');
+            
+            // Try to get existing results from localStorage
+            const existingResults = localStorage.getItem('redcharger_quiz_results');
+            const existingStats = localStorage.getItem('redcharger_user_stats');
+            
+            if (existingStats) {
+                try {
+                    const parsedStats = JSON.parse(existingStats);
+                    console.log('Found existing stats in localStorage:', parsedStats);
+                    
+                    // Merge with current stats (preserve Firebase data if it exists)
+                    userStats = {
+                        ...userStats,
+                        ...parsedStats
+                    };
+                    
+                    updateStatsDisplay(userStats);
+                    
+                    // Sync these stats to Firebase
+                    syncExistingStatsToFirebase();
+                    
+                } catch (error) {
+                    console.error('Error parsing existing stats:', error);
+                }
+            }
+            
+            if (existingResults) {
+                try {
+                    const parsedResults = JSON.parse(existingResults);
+                    console.log('Found existing quiz results in localStorage:', parsedResults);
+                    
+                    // You can process these results if needed
+                    processExistingQuizResults(parsedResults);
+                    
+                } catch (error) {
+                    console.error('Error parsing existing results:', error);
+                }
+            }
+        }
+
+        // Sync existing stats to Firebase
+        function syncExistingStatsToFirebase() {
+            if (!currentUserId) return;
+            
+            const userRef = database.ref('users/' + currentUserId);
+            
+            userRef.once('value')
+                .then((snapshot) => {
+                    const existingUserData = snapshot.val() || {};
+                    
+                    // Merge existing Firebase data with our local stats
+                    const updatedUserData = {
+                        ...existingUserData,
+                        stats: {
+                            ...(existingUserData.stats || {}),
+                            ...userStats
+                        },
+                        lastUpdated: new Date().toISOString()
+                    };
+                    
+                    // Save merged data back to Firebase
+                    return userRef.set(updatedUserData);
+                })
+                .then(() => {
+                    console.log('Existing stats synced to Firebase');
+                    // Now sync to leaderboard
+                    syncToLeaderboard();
+                })
+                .catch((error) => {
+                    console.error('Error syncing existing stats to Firebase:', error);
+                });
+        }
+
+        // Process existing quiz results to update stats
+        function processExistingQuizResults(quizResults) {
+            if (!Array.isArray(quizResults)) return;
+            
+            console.log('Processing existing quiz results:', quizResults.length, 'quizzes');
+            
+            // Reset stats to calculate from scratch
+            const newStats = {
+                totalWords: 0,
+                totalSentences: 0,
+                streakDays: 0,
+                accuracyRate: 0,
+                quizzesCompleted: 0,
+                totalStudyTime: 0
+            };
+            
+            let totalAccuracy = 0;
+            let lastQuizDate = null;
+            let currentStreak = 0;
+            
+            // Process each quiz result
+            quizResults.forEach((quiz, index) => {
+                if (quiz.quizType === 'words') {
+                    newStats.totalWords += quiz.correctAnswers || 0;
+                } else if (quiz.quizType === 'sentences') {
+                    newStats.totalSentences += quiz.correctAnswers || 0;
+                }
+                
+                newStats.quizzesCompleted++;
+                newStats.totalStudyTime += quiz.timeSpent || 0;
+                
+                // Calculate accuracy
+                const totalQuestions = quiz.totalQuestions || 1;
+                const accuracy = ((quiz.correctAnswers || 0) / totalQuestions) * 100;
+                totalAccuracy += accuracy;
+                
+                // Calculate streak (simplified)
+                const quizDate = quiz.date ? new Date(quiz.date) : new Date();
+                if (lastQuizDate) {
+                    const diffTime = Math.abs(quizDate - lastQuizDate);
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    if (diffDays === 1) {
+                        currentStreak++;
+                    } else if (diffDays > 1) {
+                        currentStreak = 1;
+                    }
+                } else {
+                    currentStreak = 1;
+                }
+                lastQuizDate = quizDate;
+            });
+            
+            // Calculate average accuracy
+            if (newStats.quizzesCompleted > 0) {
+                newStats.accuracyRate = Math.round(totalAccuracy / newStats.quizzesCompleted);
+            }
+            
+            newStats.streakDays = currentStreak;
+            
+            // Update stats
+            userStats = newStats;
+            updateStatsDisplay(userStats);
+            
+            console.log('Processed existing results into stats:', userStats);
+            
+            // Sync to Firebase
+            syncExistingStatsToFirebase();
         }
 
         // Load user data from Firebase
         function loadUserData() {
+            if (!currentUserId) return;
+            
             const userRef = database.ref('users/' + currentUserId);
             
             userRef.once('value')
@@ -660,9 +805,12 @@
                         console.log('Loaded user data from Firebase:', userData);
                         populateForm(userData);
                         
-                        // Load stats if they exist
+                        // Load stats from Firebase if they exist
                         if (userData.stats) {
-                            userStats = userData.stats;
+                            userStats = {
+                                ...userStats,
+                                ...userData.stats
+                            };
                             updateStatsDisplay(userStats);
                         }
                     } else {
@@ -671,41 +819,6 @@
                 })
                 .catch((error) => {
                     console.error('Error loading user data:', error);
-                });
-        }
-
-        // Load user stats from Firebase
-        function loadUserStats() {
-            if (!currentUserId) {
-                console.log('No user ID available for loading stats');
-                return;
-            }
-
-            const userRef = database.ref('users/' + currentUserId);
-            
-            userRef.once('value')
-                .then((snapshot) => {
-                    const userData = snapshot.val();
-                    if (userData && userData.stats) {
-                        userStats = userData.stats;
-                        updateStatsDisplay(userStats);
-                        console.log('User stats loaded from Firebase:', userStats);
-                    } else {
-                        // Initialize with default stats
-                        userStats = {
-                            totalWords: 0,
-                            totalSentences: 0,
-                            streakDays: 0,
-                            accuracyRate: 0,
-                            quizzesCompleted: 0,
-                            totalStudyTime: 0
-                        };
-                        updateStatsDisplay(userStats);
-                        console.log('No stats found, using defaults');
-                    }
-                })
-                .catch((error) => {
-                    console.error('Error loading user stats:', error);
                 });
         }
 
@@ -778,7 +891,7 @@
         function initializeForm() {
             console.log('Initializing form...');
             
-            // Set default values
+            // Set default values only if fields are empty
             const defaultFormData = {
                 username: '',
                 email: '',
@@ -799,8 +912,8 @@
             if (bioInput && !bioInput.value) bioInput.value = defaultFormData.bio;
             if (dailyGoalSelect && !dailyGoalSelect.value) dailyGoalSelect.value = defaultFormData.dailyGoal;
             if (learningModeSelect && !learningModeSelect.value) learningModeSelect.value = defaultFormData.learningMode;
-            if (enableSpeechCheckbox) enableSpeechCheckbox.checked = defaultFormData.enableSpeech;
-            if (showPinyinCheckbox) showPinyinCheckbox.checked = defaultFormData.showPinyin;
+            if (enableSpeechCheckbox && !enableSpeechCheckbox.checked) enableSpeechCheckbox.checked = defaultFormData.enableSpeech;
+            if (showPinyinCheckbox && !showPinyinCheckbox.checked) showPinyinCheckbox.checked = defaultFormData.showPinyin;
 
             // Store original form data for reset functionality
             originalFormData = getFormData();
@@ -892,7 +1005,7 @@
                 if (file) {
                     console.log('Avatar file selected:', file.name, file.size, file.type);
                     
-                    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                    if (file.size > 5 * 1024 * 1024) {
                         showError('Image size must be less than 5MB');
                         return;
                     }
@@ -934,7 +1047,7 @@
         // Calculate profile completion percentage
         function calculateCompletionPercentage() {
             let completedFields = 0;
-            const totalFields = 7; // username, email, firstName, lastName, bio, dailyGoal, learningMode
+            const totalFields = 7;
 
             if (usernameInput && usernameInput.value.trim()) completedFields++;
             if (emailInput && emailInput.value.trim()) completedFields++;
@@ -945,8 +1058,6 @@
             if (learningModeSelect && learningModeSelect.value) completedFields++;
 
             const percentage = Math.round((completedFields / totalFields) * 100);
-            
-            console.log('Profile completion:', percentage + '% (' + completedFields + '/' + totalFields + ' fields)');
             
             if (completionPercentage) {
                 completionPercentage.textContent = percentage + '%';
@@ -963,7 +1074,6 @@
             let usernameError = document.getElementById('username-error');
             
             if (!usernameError) {
-                // Create error element if it doesn't exist
                 const errorElement = document.createElement('div');
                 errorElement.id = 'username-error';
                 errorElement.className = 'text-red-400 text-sm mt-1';
@@ -1037,7 +1147,6 @@
         function saveProfile() {
             console.log('Save profile initiated...');
             
-            // Validate required fields
             if (!validateUsername()) {
                 showError('Please fix the username errors before saving.');
                 return;
@@ -1050,8 +1159,6 @@
 
             const profileData = getFormData();
 
-            console.log('Saving profile data:', profileData);
-
             // Show loading state
             const saveButton = document.querySelector('button[onclick="saveProfile()"]');
             const originalText = saveButton.innerHTML;
@@ -1063,23 +1170,15 @@
                 .then(() => {
                     showSuccess('Profile saved successfully! Your progress will now appear on the leaderboard.');
                     
-                    // Update original form data
                     originalFormData = { ...profileData };
-                    
-                    // Sync to leaderboard
                     syncToLeaderboard();
-                    
-                    // Update completion percentage
                     calculateCompletionPercentage();
-                    
-                    console.log('Profile saved successfully');
                 })
                 .catch((error) => {
                     console.error('Save error:', error);
                     showError('Failed to save profile: ' + error.message);
                 })
                 .finally(() => {
-                    // Restore button
                     saveButton.innerHTML = originalText;
                     saveButton.disabled = false;
                 });
@@ -1095,7 +1194,6 @@
 
                 const userRef = database.ref('users/' + currentUserId);
                 
-                // Include stats in the user data
                 const completeUserData = {
                     ...userData,
                     stats: userStats,
@@ -1117,15 +1215,11 @@
 
         // Sync to leaderboard with current stats
         function syncToLeaderboard() {
-            if (!currentUserId) {
-                console.log('No user ID available for leaderboard sync');
-                return;
-            }
+            if (!currentUserId) return;
 
             const formData = getFormData();
             const username = formData.username || 'Anonymous Learner';
             
-            // Calculate leaderboard points using your scoring system
             const leaderboardPoints = (
                 (userStats.totalWords || 0) * 10 +
                 (userStats.totalSentences || 0) * 20 +
@@ -1149,9 +1243,7 @@
             
             leaderboardRef.set(leaderboardData)
                 .then(() => {
-                    console.log('Successfully synced to leaderboard:', leaderboardData);
-                // Don't show another success message here to avoid duplicate messages
-                // The main save function already shows a success message
+                    console.log('Successfully synced to leaderboard with existing data:', leaderboardData);
                 })
                 .catch((error) => {
                     console.error('Error syncing to leaderboard:', error);
@@ -1161,8 +1253,6 @@
         // Reset profile to original values
         function resetProfile() {
             if (confirm('Are you sure you want to reset all changes? This will restore your original profile data.')) {
-                console.log('Resetting profile form...');
-                
                 if (usernameInput) usernameInput.value = originalFormData.username || '';
                 if (emailInput) emailInput.value = originalFormData.email || '';
                 if (firstNameInput) firstNameInput.value = originalFormData.firstName || '';
@@ -1173,22 +1263,16 @@
                 if (enableSpeechCheckbox) enableSpeechCheckbox.checked = originalFormData.enableSpeech || false;
                 if (showPinyinCheckbox) showPinyinCheckbox.checked = originalFormData.showPinyin !== undefined ? originalFormData.showPinyin : true;
                 
-                // Clear validation errors
                 hideFieldError('username-error');
                 hideFieldError('email-error');
-                
-                // Update completion percentage
                 calculateCompletionPercentage();
                 
                 showSuccess('Profile reset to original values.');
-                console.log('Profile reset completed');
             }
         }
 
         // Export user data
         function exportData() {
-            console.log('Exporting user data...');
-            
             const userData = {
                 profile: getFormData(),
                 statistics: userStats,
@@ -1196,7 +1280,6 @@
                 userId: currentUserId
             };
 
-            // Create and download JSON file
             const blob = new Blob([JSON.stringify(userData, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1208,23 +1291,18 @@
             URL.revokeObjectURL(url);
             
             showSuccess('Data exported successfully!');
-            console.log('Data export completed');
         }
 
         // View leaderboard
         function viewLeaderboard() {
-            console.log('Navigating to leaderboard...');
             window.location.href = '/leaderboard';
         }
 
         // Show success message
         function showSuccess(message) {
-            console.log('Success:', message);
             if (successText && successMessage) {
                 successText.textContent = message;
                 successMessage.classList.remove('hidden');
-                
-                // Auto-hide after 5 seconds
                 setTimeout(() => {
                     hideSuccessMessage();
                 }, 5000);
@@ -1235,7 +1313,6 @@
 
         // Show error message
         function showError(message) {
-            console.error('Error:', message);
             alert('Error: ' + message);
         }
 
@@ -1246,97 +1323,34 @@
             }
         }
 
-        // Auto-save when leaving page
-        window.addEventListener('beforeunload', function(e) {
-            const currentData = getFormData();
-            const hasUnsavedChanges = JSON.stringify(currentData) !== JSON.stringify(originalFormData);
-            
-            if (hasUnsavedChanges) {
-                e.preventDefault();
-                e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-                return e.returnValue;
-            }
-        });
-
-        // Keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
-            // Ctrl+S or Cmd+S to save
-            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                e.preventDefault();
-                saveProfile();
-            }
-            
-            // Escape to reset
-            if (e.key === 'Escape') {
-                resetProfile();
-            }
-        });
-
-        // Function to update stats from quiz results (called from result.html)
-        function updateUserStatsFromQuiz(quizData) {
-            console.log('Updating user stats from quiz:', quizData);
-            
-            // Update stats based on quiz type
-            if (quizData.quizType === 'words') {
-                userStats.totalWords += quizData.correctAnswers || 0;
-            } else if (quizData.quizType === 'sentences') {
-                userStats.totalSentences += quizData.correctAnswers || 0;
+        // Manual sync function to force sync existing data
+        function syncExistingDataToFirebase() {
+            if (!currentUserId) {
+                showError('No user ID found. Please save your profile first.');
+                return;
             }
 
-            // Update quizzes completed
-            userStats.quizzesCompleted += 1;
-            
-            // Update streak (simplified - you can enhance this)
-            const today = new Date();
-            const lastActivity = userStats.lastActivity ? new Date(userStats.lastActivity) : null;
-            
-            if (!lastActivity) {
-                userStats.streakDays = 1;
-            } else if (isConsecutiveDay(lastActivity, today)) {
-                userStats.streakDays += 1;
-            } else if (!isSameDay(lastActivity, today)) {
-                userStats.streakDays = 1;
-            }
-
-            // Update accuracy
-            const totalQuestions = quizData.totalQuestions || 1;
-            const accuracy = ((quizData.correctAnswers || 0) / totalQuestions) * 100;
-            userStats.accuracyRate = Math.round(
-                (userStats.accuracyRate * (userStats.quizzesCompleted - 1) + accuracy) / userStats.quizzesCompleted
-            );
-
-            userStats.lastActivity = new Date().toISOString();
-            userStats.totalStudyTime += quizData.timeSpent || 0;
-
-            // Update display
-            updateStatsDisplay(userStats);
-            
-            // Save updated stats
-            const formData = getFormData();
-            saveUserDataToFirebase(formData)
-                .then(() => {
-                    syncToLeaderboard();
-                    console.log('Stats updated and synced to leaderboard');
-                });
-
-            return userStats;
+            showSuccess('Syncing your existing results data to Firebase...');
+            syncExistingStatsToFirebase();
         }
 
-        // Helper functions for date calculations
-        function isSameDay(date1, date2) {
-            return date1.toDateString() === date2.toDateString();
+        // Add a button to manually sync existing data (you can add this to your HTML)
+        function addManualSyncButton() {
+            const actionsCard = document.querySelector('.space-y-4');
+            if (actionsCard) {
+                const syncButton = document.createElement('button');
+                syncButton.onclick = syncExistingDataToFirebase;
+                syncButton.className = 'w-full py-3 px-6 rounded-lg bg-purple-600 text-white font-medium hover:bg-purple-700 transition duration-300';
+                syncButton.innerHTML = '<i class="fas fa-sync-alt mr-2"></i> Sync Existing Results to Leaderboard';
+                actionsCard.appendChild(syncButton);
+            }
         }
 
-        function isConsecutiveDay(date1, date2) {
-            const oneDay = 24 * 60 * 60 * 1000;
-            const diffDays = Math.round(Math.abs((date1 - date2) / oneDay));
-            return diffDays === 1;
-        }
-
-        // Initialize completion percentage on load
+        // Initialize completion percentage and add sync button
         calculateCompletionPercentage();
+        addManualSyncButton();
 
-        console.log('Profile page JavaScript loaded completely');
+        console.log('Profile page JavaScript loaded completely - will preserve existing results data');
     </script>
 </body>
 </html>
