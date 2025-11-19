@@ -551,7 +551,7 @@
         <p class="text-sm">&copy; 2025 RedCharger. Designed for effective Mandarin learning.</p>
     </footer>
 
-                <!-- Firebase Integration -->
+                   <!-- Firebase Integration -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     
@@ -636,6 +636,10 @@
                 currentUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
                 localStorage.setItem('redcharger_user_id', currentUserId);
                 console.log('Created new user ID:', currentUserId);
+                
+                // Initialize with empty data
+                const initialData = getFormData();
+                saveUserDataToFirebase(initialData);
             } else {
                 console.log('Found existing user ID:', currentUserId);
             }
@@ -655,10 +659,14 @@
                     if (userData) {
                         console.log('Loaded user data from Firebase:', userData);
                         populateForm(userData);
+                        
+                        // Load stats if they exist
+                        if (userData.stats) {
+                            userStats = userData.stats;
+                            updateStatsDisplay(userStats);
+                        }
                     } else {
                         console.log('No existing user data found in Firebase');
-                        // Initialize with empty data
-                        saveUserDataToFirebase(getFormData());
                     }
                 })
                 .catch((error) => {
@@ -666,19 +674,39 @@
                 });
         }
 
-        // Load user stats
+        // Load user stats from Firebase
         function loadUserStats() {
-            // For now, use demo stats - you can replace this with real data
-            userStats = {
-                totalWords: 45,
-                totalSentences: 23,
-                streakDays: 7,
-                accuracyRate: 85,
-                quizzesCompleted: 12,
-                totalStudyTime: 240
-            };
+            if (!currentUserId) {
+                console.log('No user ID available for loading stats');
+                return;
+            }
+
+            const userRef = database.ref('users/' + currentUserId);
             
-            updateStatsDisplay(userStats);
+            userRef.once('value')
+                .then((snapshot) => {
+                    const userData = snapshot.val();
+                    if (userData && userData.stats) {
+                        userStats = userData.stats;
+                        updateStatsDisplay(userStats);
+                        console.log('User stats loaded from Firebase:', userStats);
+                    } else {
+                        // Initialize with default stats
+                        userStats = {
+                            totalWords: 0,
+                            totalSentences: 0,
+                            streakDays: 0,
+                            accuracyRate: 0,
+                            quizzesCompleted: 0,
+                            totalStudyTime: 0
+                        };
+                        updateStatsDisplay(userStats);
+                        console.log('No stats found, using defaults');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error loading user stats:', error);
+                });
         }
 
         // Initialize Mobile Menu
@@ -805,6 +833,13 @@
             if (enableSpeechCheckbox && userData.enableSpeech !== undefined) enableSpeechCheckbox.checked = userData.enableSpeech;
             if (showPinyinCheckbox && userData.showPinyin !== undefined) showPinyinCheckbox.checked = userData.showPinyin;
 
+            // Handle avatar
+            if (userData.avatar && avatarPreview && avatarPlaceholder) {
+                avatarPreview.src = userData.avatar;
+                avatarPreview.classList.remove('hidden');
+                avatarPlaceholder.classList.add('hidden');
+            }
+
             // Update original form data
             originalFormData = getFormData();
             
@@ -877,7 +912,13 @@
                         // Save avatar to user data
                         const formData = getFormData();
                         formData.avatar = e.target.result;
-                        saveUserDataToFirebase(formData);
+                        saveUserDataToFirebase(formData)
+                            .then(() => {
+                                showSuccess('Avatar updated successfully!');
+                            })
+                            .catch((error) => {
+                                showError('Failed to save avatar: ' + error.message);
+                            });
                     };
                     
                     reader.onerror = function(error) {
@@ -958,8 +999,8 @@
             
             if (!emailError && email) {
                 const errorElement = document.createElement('div');
-                element.id = 'email-error';
-                element.className = 'text-red-400 text-sm mt-1';
+                errorElement.id = 'email-error';
+                errorElement.className = 'text-red-400 text-sm mt-1';
                 emailInput.parentNode.appendChild(errorElement);
                 emailError = errorElement;
             }
@@ -1054,7 +1095,15 @@
 
                 const userRef = database.ref('users/' + currentUserId);
                 
-                userRef.set(userData)
+                // Include stats in the user data
+                const completeUserData = {
+                    ...userData,
+                    stats: userStats,
+                    userId: currentUserId,
+                    lastUpdated: new Date().toISOString()
+                };
+                
+                userRef.set(completeUserData)
                     .then(() => {
                         console.log('User data saved to Firebase');
                         resolve();
@@ -1066,7 +1115,7 @@
             });
         }
 
-        // Sync to leaderboard
+        // Sync to leaderboard with current stats
         function syncToLeaderboard() {
             if (!currentUserId) {
                 console.log('No user ID available for leaderboard sync');
@@ -1076,7 +1125,7 @@
             const formData = getFormData();
             const username = formData.username || 'Anonymous Learner';
             
-            // Calculate leaderboard points based on your scoring system
+            // Calculate leaderboard points using your scoring system
             const leaderboardPoints = (
                 (userStats.totalWords || 0) * 10 +
                 (userStats.totalSentences || 0) * 20 +
@@ -1091,6 +1140,7 @@
                 sentencesMastered: userStats.totalSentences || 0,
                 streakDays: userStats.streakDays || 0,
                 totalQuizzes: userStats.quizzesCompleted || 0,
+                accuracyRate: userStats.accuracyRate || 0,
                 lastUpdated: new Date().toISOString(),
                 profileComplete: calculateCompletionPercentage() >= 50
             };
@@ -1099,7 +1149,9 @@
             
             leaderboardRef.set(leaderboardData)
                 .then(() => {
-                    console.log('Successfully synced to leaderboard');
+                    console.log('Successfully synced to leaderboard:', leaderboardData);
+                // Don't show another success message here to avoid duplicate messages
+                // The main save function already shows a success message
                 })
                 .catch((error) => {
                     console.error('Error syncing to leaderboard:', error);
@@ -1140,7 +1192,8 @@
             const userData = {
                 profile: getFormData(),
                 statistics: userStats,
-                exportDate: new Date().toISOString()
+                exportDate: new Date().toISOString(),
+                userId: currentUserId
             };
 
             // Create and download JSON file
@@ -1218,6 +1271,67 @@
                 resetProfile();
             }
         });
+
+        // Function to update stats from quiz results (called from result.html)
+        function updateUserStatsFromQuiz(quizData) {
+            console.log('Updating user stats from quiz:', quizData);
+            
+            // Update stats based on quiz type
+            if (quizData.quizType === 'words') {
+                userStats.totalWords += quizData.correctAnswers || 0;
+            } else if (quizData.quizType === 'sentences') {
+                userStats.totalSentences += quizData.correctAnswers || 0;
+            }
+
+            // Update quizzes completed
+            userStats.quizzesCompleted += 1;
+            
+            // Update streak (simplified - you can enhance this)
+            const today = new Date();
+            const lastActivity = userStats.lastActivity ? new Date(userStats.lastActivity) : null;
+            
+            if (!lastActivity) {
+                userStats.streakDays = 1;
+            } else if (isConsecutiveDay(lastActivity, today)) {
+                userStats.streakDays += 1;
+            } else if (!isSameDay(lastActivity, today)) {
+                userStats.streakDays = 1;
+            }
+
+            // Update accuracy
+            const totalQuestions = quizData.totalQuestions || 1;
+            const accuracy = ((quizData.correctAnswers || 0) / totalQuestions) * 100;
+            userStats.accuracyRate = Math.round(
+                (userStats.accuracyRate * (userStats.quizzesCompleted - 1) + accuracy) / userStats.quizzesCompleted
+            );
+
+            userStats.lastActivity = new Date().toISOString();
+            userStats.totalStudyTime += quizData.timeSpent || 0;
+
+            // Update display
+            updateStatsDisplay(userStats);
+            
+            // Save updated stats
+            const formData = getFormData();
+            saveUserDataToFirebase(formData)
+                .then(() => {
+                    syncToLeaderboard();
+                    console.log('Stats updated and synced to leaderboard');
+                });
+
+            return userStats;
+        }
+
+        // Helper functions for date calculations
+        function isSameDay(date1, date2) {
+            return date1.toDateString() === date2.toDateString();
+        }
+
+        function isConsecutiveDay(date1, date2) {
+            const oneDay = 24 * 60 * 60 * 1000;
+            const diffDays = Math.round(Math.abs((date1 - date2) / oneDay));
+            return diffDays === 1;
+        }
 
         // Initialize completion percentage on load
         calculateCompletionPercentage();

@@ -1572,6 +1572,243 @@ function exportUserData() {
     
     alert('Your complete learning data has been exported successfully!');
 }
+
+// After your existing result.html JavaScript, add this:
+
+// Save quiz results and update leaderboard immediately
+function saveQuizResults(quizData) {
+    const userId = localStorage.getItem('redcharger_user_id');
+    if (!userId) {
+        console.log('No user ID found, creating new one');
+        const newUserId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('redcharger_user_id', newUserId);
+        userId = newUserId;
+    }
+
+    // Get current user data
+    const userRef = database.ref('users/' + userId);
+    userRef.once('value').then((snapshot) => {
+        const userData = snapshot.val() || {};
+        
+        // Update user stats based on quiz results
+        const updatedStats = updateUserStats(userData, quizData);
+        
+        // Save updated user data
+        userRef.set({
+            ...userData,
+            ...updatedStats,
+            lastQuiz: quizData,
+            lastUpdated: new Date().toISOString()
+        }).then(() => {
+            console.log('Quiz results saved to user profile');
+            // Immediately sync to leaderboard
+            syncToLeaderboard(userId, userData.username || 'Anonymous Learner', updatedStats);
+        });
+    });
+}
+
+// Update user statistics based on quiz results
+function updateUserStats(userData, quizData) {
+    const currentStats = userData.stats || {
+        totalWords: 0,
+        totalSentences: 0,
+        streakDays: 0,
+        accuracyRate: 0,
+        quizzesCompleted: 0,
+        totalStudyTime: 0
+    };
+
+    // Update based on quiz type
+    if (quizData.quizType === 'words') {
+        currentStats.totalWords += quizData.correctAnswers || 0;
+    } else if (quizData.quizType === 'sentences') {
+        currentStats.totalSentences += quizData.correctAnswers || 0;
+    }
+
+    // Update quizzes completed
+    currentStats.quizzesCompleted += 1;
+    
+    // Update streak (simplified - you can enhance this)
+    const lastActivity = userData.lastActivity ? new Date(userData.lastActivity) : null;
+    const today = new Date();
+    if (lastActivity && isSameDay(lastActivity, today)) {
+        // Already logged today, maintain streak
+    } else if (lastActivity && isConsecutiveDay(lastActivity, today)) {
+        currentStats.streakDays += 1;
+    } else {
+        currentStats.streakDays = 1;
+    }
+
+    // Update accuracy
+    const totalQuestions = quizData.totalQuestions || 1;
+    const accuracy = ((quizData.correctAnswers || 0) / totalQuestions) * 100;
+    currentStats.accuracyRate = Math.round(
+        (currentStats.accuracyRate * (currentStats.quizzesCompleted - 1) + accuracy) / currentStats.quizzesCompleted
+    );
+
+    return {
+        stats: currentStats,
+        lastActivity: new Date().toISOString()
+    };
+}
+
+// Sync to leaderboard immediately
+function syncToLeaderboard(userId, username, stats) {
+    const leaderboardPoints = calculateLeaderboardPoints(stats);
+    
+    const leaderboardData = {
+        username: username,
+        totalPoints: leaderboardPoints,
+        wordsMastered: stats.totalWords || 0,
+        sentencesMastered: stats.totalSentences || 0,
+        streakDays: stats.streakDays || 0,
+        totalQuizzes: stats.quizzesCompleted || 0,
+        accuracyRate: stats.accuracyRate || 0,
+        lastUpdated: new Date().toISOString(),
+        profileComplete: true // Since they're taking quizzes, consider profile complete
+    };
+
+    const leaderboardRef = database.ref('leaderboard/' + userId);
+    leaderboardRef.set(leaderboardData)
+        .then(() => {
+            console.log('Immediately synced to leaderboard!', leaderboardData);
+            showLeaderboardSuccess();
+        })
+        .catch((error) => {
+            console.error('Error syncing to leaderboard:', error);
+        });
+}
+
+// Calculate points using your scoring system
+function calculateLeaderboardPoints(stats) {
+    return (
+        (stats.totalWords || 0) * 10 +
+        (stats.totalSentences || 0) * 20 +
+        (stats.quizzesCompleted || 0) * 5 +
+        (stats.streakDays || 0) * 3
+    );
+}
+
+// Helper functions
+function isSameDay(date1, date2) {
+    return date1.toDateString() === date2.toDateString();
+}
+
+function isConsecutiveDay(date1, date2) {
+    const oneDay = 24 * 60 * 60 * 1000;
+    const diffDays = Math.round(Math.abs((date1 - date2) / oneDay));
+    return diffDays === 1;
+}
+
+function showLeaderboardSuccess() {
+    // Show a success message that they're now on the leaderboard
+    const existingMessage = document.getElementById('leaderboard-success');
+    if (existingMessage) existingMessage.remove();
+    
+    const successHTML = `
+        <div id="leaderboard-success" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+            <div class="bg-green-500/20 border border-green-500/30 rounded-lg p-4 text-center animate-fadeInUp">
+                <i class="fas fa-trophy text-green-400 mr-2"></i>
+                <span class="text-green-200">
+                    Your results have been saved! You're now on the 
+                    <a href="/leaderboard" class="underline hover:text-white font-medium">leaderboard</a>.
+                </span>
+            </div>
+        </div>
+    `;
+    
+    const headerSection = document.querySelector('main section:first-child');
+    headerSection.insertAdjacentHTML('afterend', successHTML);
+}
+
+// Call this when quiz is completed (you'll need to integrate with your quiz system)
+function onQuizCompleted(quizData) {
+    console.log('Quiz completed:', quizData);
+    saveQuizResults(quizData);
+    
+    // Update the results page display with new data
+    updateResultsDisplay(quizData);
+}
+
+// Example quiz data structure:
+const exampleQuizData = {
+    quizType: 'words', // or 'sentences'
+    correctAnswers: 8,
+    totalQuestions: 10,
+    score: 80,
+    timeSpent: 120, // seconds
+    date: new Date().toISOString()
+};
+
+// Initialize and load existing data
+document.addEventListener('DOMContentLoaded', function() {
+    // Load existing user stats and display them
+    loadAndDisplayUserStats();
+});
+
+// Load and display user stats on results page
+function loadAndDisplayUserStats() {
+    const userId = localStorage.getItem('redcharger_user_id');
+    if (!userId) {
+        showNoDataState();
+        return;
+    }
+
+    const userRef = database.ref('users/' + userId);
+    userRef.once('value').then((snapshot) => {
+        const userData = snapshot.val();
+        if (userData && userData.stats) {
+            displayUserStats(userData.stats);
+            hideLoadingState();
+        } else {
+            showNoDataState();
+        }
+    }).catch((error) => {
+        console.error('Error loading user stats:', error);
+        showNoDataState();
+    });
+}
+
+// Display user stats on results page
+function displayUserStats(stats) {
+    // Update the stats cards
+    if (document.getElementById('total-quizzes')) {
+        document.getElementById('total-quizzes').textContent = stats.quizzesCompleted || 0;
+    }
+    if (document.getElementById('words-learned')) {
+        document.getElementById('words-learned').textContent = (stats.totalWords || 0) + ' words';
+    }
+    if (document.getElementById('sentences-learned')) {
+        document.getElementById('sentences-learned').textContent = (stats.totalSentences || 0) + ' sentences';
+    }
+    if (document.getElementById('study-streak')) {
+        document.getElementById('study-streak').textContent = stats.streakDays || 0;
+    }
+    if (document.getElementById('avg-score')) {
+        document.getElementById('avg-score').textContent = (stats.accuracyRate || 0) + '%';
+    }
+
+    // Show all sections
+    showElement(resultsHeader);
+    showElement(overallStats);
+    // ... show other sections as needed
+}
+
+function showElement(element) {
+    if (element) element.classList.remove('hidden');
+}
+
+function hideLoadingState() {
+    if (loadingState) loadingState.style.display = 'none';
+}
+
+function showNoDataState() {
+    hideLoadingState();
+    if (noDataState) noDataState.classList.remove('hidden');
+}
+
+
+
     </script>
 </body>
 </html>
