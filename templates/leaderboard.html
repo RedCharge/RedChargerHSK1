@@ -487,401 +487,489 @@
     </script>
 
     <!-- Leaderboard Logic -->
-    <script>
-        // DOM Elements
-        const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
-        const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
-        const leaderboardList = document.getElementById('leaderboard-list');
-        const currentUserStats = document.getElementById('current-user-stats');
-        const achievementsList = document.getElementById('achievements-list');
-        const noData = document.getElementById('no-data');
-        const noUserData = document.getElementById('no-user-data');
-        const noAchievements = document.getElementById('no-achievements');
-        const leaderboardTitle = document.getElementById('leaderboard-title');
-        const loadingState = document.getElementById('loading-state');
+<script>
+    // DOM Elements
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+    const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+    const leaderboardList = document.getElementById('leaderboard-list');
+    const currentUserStats = document.getElementById('current-user-stats');
+    const achievementsList = document.getElementById('achievements-list');
+    const noData = document.getElementById('no-data');
+    const noUserData = document.getElementById('no-user-data');
+    const noAchievements = document.getElementById('no-achievements');
+    const leaderboardTitle = document.getElementById('leaderboard-title');
+    const loadingState = document.getElementById('loading-state');
+    
+    // Tab elements
+    const tabOverall = document.getElementById('tab-overall');
+    const tabWords = document.getElementById('tab-words');
+    const tabSentences = document.getElementById('tab-sentences');
+    const tabStreak = document.getElementById('tab-streak');
+
+    // Global state
+    let currentTab = 'overall';
+    let isMenuOpen = false;
+    let currentUserId = null;
+    let currentUsername = null;
+    let allUsers = [];
+    let currentUserGlobalRank = null;
+    let userProfileComplete = false;
+
+    // Initialize the application
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeMobileMenu();
+        initializeTabs();
+        loadCurrentUser();
+    });
+
+    // Get current user from localStorage and check profile completion
+    function loadCurrentUser() {
+        currentUserId = localStorage.getItem('redcharger_user_id');
+        const userProfile = JSON.parse(localStorage.getItem('redcharger_user_profile') || '{}');
+        currentUsername = userProfile.username;
         
-        // Tab elements
-        const tabOverall = document.getElementById('tab-overall');
-        const tabWords = document.getElementById('tab-words');
-        const tabSentences = document.getElementById('tab-sentences');
-        const tabStreak = document.getElementById('tab-streak');
-
-        // Global state
-        let currentTab = 'overall';
-        let isMenuOpen = false;
-        let currentUserId = null;
-        let currentUsername = null;
-        let allUsers = [];
-        let currentUserGlobalRank = null;
-
-        // Initialize the application
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeMobileMenu();
-            initializeTabs();
-            loadCurrentUser();
-        });
-
-        // Get current user from localStorage
-        function loadCurrentUser() {
-            currentUserId = localStorage.getItem('redcharger_user_id');
-            const userProfile = JSON.parse(localStorage.getItem('redcharger_user_profile') || '{}');
-            currentUsername = userProfile.username;
+        // Check if profile is complete (username is required)
+        userProfileComplete = !!(currentUsername && currentUsername.trim().length > 0);
+        
+        console.log('Current user loaded:', currentUserId);
+        console.log('Profile complete:', userProfileComplete);
+        console.log('Username:', currentUsername);
+        
+        if (currentUserId) {
+            initializeFirebaseListener();
             
-            if (currentUserId) {
-                console.log('Current user loaded:', currentUserId);
-                initializeFirebaseListener();
-            } else {
-                console.log('No user ID found');
-                // Still show leaderboard for guests
-                initializeFirebaseListener();
+            // Show profile completion prompt if needed
+            if (!userProfileComplete) {
+                showProfileCompletionPrompt();
             }
+        } else {
+            console.log('No user ID found');
+            // Still show leaderboard for guests, but prompt for profile
+            showProfileCompletionPrompt();
+            initializeFirebaseListener();
         }
+    }
 
-        // Initialize Firebase Real-time Listener
-        function initializeFirebaseListener() {
-            const leaderboardRef = database.ref('leaderboard');
+    // Show profile completion prompt
+    function showProfileCompletionPrompt() {
+        const existingPrompt = document.querySelector('.profile-completion-prompt');
+        if (existingPrompt) {
+            existingPrompt.remove();
+        }
+        
+        const promptHTML = `
+            <div class="profile-completion-prompt max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
+                <div class="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4 text-center animate-fadeInUp">
+                    <div class="flex flex-col md:flex-row items-center justify-between">
+                        <div class="flex items-center mb-3 md:mb-0">
+                            <i class="fas fa-user-circle text-blue-400 text-2xl mr-3"></i>
+                            <div class="text-left">
+                                <div class="text-blue-200 font-semibold">Complete Your Profile</div>
+                                <div class="text-blue-300 text-sm">Add a username to appear on the leaderboard and track your progress</div>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <a href="/profile" class="inline-block py-2 px-4 rounded-lg bg-blue-500 text-white font-medium hover:bg-blue-600 transition duration-300">
+                                <i class="fas fa-user-edit mr-2"></i>Complete Profile
+                            </a>
+                            <button onclick="hideProfilePrompt()" class="inline-block py-2 px-4 rounded-lg bg-gray-600 text-gray-200 font-medium hover:bg-gray-700 transition duration-300">
+                                Later
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Insert prompt after the header
+        const headerSection = document.querySelector('main section:first-child');
+        headerSection.insertAdjacentHTML('afterend', promptHTML);
+    }
+
+    // Hide profile prompt
+    function hideProfilePrompt() {
+        const prompt = document.querySelector('.profile-completion-prompt');
+        if (prompt) {
+            prompt.style.opacity = '0';
+            prompt.style.transform = 'translateY(-10px)';
+            setTimeout(() => {
+                prompt.remove();
+            }, 300);
+        }
+    }
+
+    // Check profile completion status
+    function checkProfileCompletion() {
+        const userProfile = JSON.parse(localStorage.getItem('redcharger_user_profile') || '{}');
+        const hasUsername = !!(userProfile.username && userProfile.username.trim().length > 0);
+        
+        if (!hasUsername && !document.querySelector('.profile-completion-prompt')) {
+            showProfileCompletionPrompt();
+        }
+        
+        return hasUsername;
+    }
+
+    // Initialize Firebase Real-time Listener
+    function initializeFirebaseListener() {
+        const leaderboardRef = database.ref('leaderboard');
+        
+        leaderboardRef.on('value', (snapshot) => {
+            const data = snapshot.val();
+            allUsers = [];
             
-            leaderboardRef.on('value', (snapshot) => {
-                const data = snapshot.val();
-                allUsers = [];
-                
-                if (data) {
-                    // Convert Firebase object to array
-                    Object.keys(data).forEach(key => {
+            if (data) {
+                // Convert Firebase object to array
+                Object.keys(data).forEach(key => {
+                    // Only include users with complete profiles
+                    if (data[key].profileComplete) {
                         allUsers.push({
                             id: key,
                             ...data[key]
                         });
-                    });
-                    
-                    displayLeaderboard(allUsers);
-                    hideLoadingState();
-                } else {
-                    showNoData();
-                    hideLoadingState();
-                }
-            }, (error) => {
-                console.error('Firebase error:', error);
-                showFirebaseError();
-                hideLoadingState();
-            });
-        }
-
-        // Display leaderboard based on current tab
-        function displayLeaderboard(users) {
-            if (users.length === 0) {
-                showNoData();
-                return;
-            }
-            
-            // Sort users based on current tab
-            const sortedUsers = sortUsersByCriteria(users, currentTab);
-            
-            // Show top 10
-            const top10Users = sortedUsers.slice(0, 10);
-            renderLeaderboardList(top10Users);
-            
-            // Update current user rank (even if not in top 10)
-            updateCurrentUserRank(sortedUsers);
-            
-            loadAchievements();
-        }
-
-        // Sort users based on current tab criteria
-        function sortUsersByCriteria(users, criteria) {
-            return users.sort((a, b) => {
-                switch(criteria) {
-                    case 'overall':
-                        return (b.totalPoints || 0) - (a.totalPoints || 0);
-                    case 'words':
-                        return (b.wordsMastered || 0) - (a.wordsMastered || 0);
-                    case 'sentences':
-                        return (b.sentencesMastered || 0) - (a.sentencesMastered || 0);
-                    case 'streak':
-                        return (b.streakDays || 0) - (a.streakDays || 0);
-                    default:
-                        return (b.totalPoints || 0) - (a.totalPoints || 0);
-                }
-            });
-        }
-
-        // Render leaderboard list (Top 10)
-        function renderLeaderboardList(users) {
-            leaderboardList.innerHTML = '';
-            
-            users.forEach((user, index) => {
-                const rank = index + 1;
-                const isCurrentUser = user.id === currentUserId;
+                    }
+                });
                 
-                const leaderboardItem = createLeaderboardItem(user, rank, isCurrentUser);
-                leaderboardList.appendChild(leaderboardItem);
-            });
-            
-            noData.classList.add('hidden');
-        }
+                displayLeaderboard(allUsers);
+                hideLoadingState();
+            } else {
+                showNoData();
+                hideLoadingState();
+            }
+        }, (error) => {
+            console.error('Firebase error:', error);
+            showFirebaseError();
+            hideLoadingState();
+        });
+    }
 
-        // Create individual leaderboard item with profile picture
-        function createLeaderboardItem(user, rank, isCurrentUser) {
-            const item = document.createElement('div');
-            item.className = `leaderboard-item p-4 rounded-lg ${
-                isCurrentUser ? 'current-user' : ''
-            } ${rank <= 3 ? `rank-${rank}` : ''}`;
+    // Display leaderboard based on current tab
+    function displayLeaderboard(users) {
+        if (users.length === 0) {
+            showNoData();
+            return;
+        }
+        
+        // Sort users based on current tab
+        const sortedUsers = sortUsersByCriteria(users, currentTab);
+        
+        // Show top 10
+        const top10Users = sortedUsers.slice(0, 10);
+        renderLeaderboardList(top10Users);
+        
+        // Update current user rank (only if profile is complete)
+        if (userProfileComplete) {
+            updateCurrentUserRank(sortedUsers);
+        } else {
+            showProfileIncompleteMessage();
+        }
+        
+        loadAchievements();
+    }
+
+    // Sort users based on current tab criteria
+    function sortUsersByCriteria(users, criteria) {
+        return users.sort((a, b) => {
+            switch(criteria) {
+                case 'overall':
+                    return (b.totalPoints || 0) - (a.totalPoints || 0);
+                case 'words':
+                    return (b.wordsMastered || 0) - (a.wordsMastered || 0);
+                case 'sentences':
+                    return (b.sentencesMastered || 0) - (a.sentencesMastered || 0);
+                case 'streak':
+                    return (b.streakDays || 0) - (a.streakDays || 0);
+                default:
+                    return (b.totalPoints || 0) - (a.totalPoints || 0);
+            }
+        });
+    }
+
+    // Render leaderboard list (Top 10)
+    function renderLeaderboardList(users) {
+        leaderboardList.innerHTML = '';
+        
+        users.forEach((user, index) => {
+            const rank = index + 1;
+            const isCurrentUser = user.id === currentUserId;
             
-            const points = user.totalPoints || 0;
-            const words = user.wordsMastered || 0;
-            const sentences = user.sentencesMastered || 0;
-            const streak = user.streakDays || 0;
-            
-            // Create avatar or placeholder
-            const avatarHTML = user.avatar ? 
-                `<img src="${user.avatar}" alt="${user.username}" class="user-avatar border-${rank <= 3 ? getMedalColor(rank) : 'primary-blue'}">` :
-                `<div class="avatar-placeholder border-${rank <= 3 ? getMedalColor(rank) : 'primary-blue'}">
-                    <i class="fas fa-user"></i>
-                </div>`;
-            
-            item.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-4">
-                        <div class="flex items-center justify-center w-10">
-                            ${rank <= 3 ? 
-                                `<div class="medal medal-${getMedalClass(rank)}">${rank}</div>` :
-                                `<div class="text-lg font-bold ${rank <= 10 ? 'text-text-light' : 'text-text-muted'}">${rank}</div>`
-                            }
-                        </div>
-                        <div class="flex items-center space-x-3">
-                            ${avatarHTML}
-                            <div class="flex-1">
-                                <div class="flex items-center space-x-2">
-                                    <div class="font-semibold text-text-light">${user.username || 'Anonymous Learner'}</div>
-                                    ${isCurrentUser ? '<span class="px-2 py-1 bg-secondary-cyan text-main-bg text-xs rounded-full font-bold">You</span>' : ''}
-                                </div>
-                                <div class="flex items-center space-x-3 mt-1 text-xs text-text-muted">
-                                    <span><i class="fas fa-star text-yellow-400 mr-1"></i> ${points.toLocaleString()}</span>
-                                    <span><i class="fas fa-font text-primary-blue mr-1"></i> ${words.toLocaleString()}</span>
-                                    <span><i class="fas fa-comment text-secondary-cyan mr-1"></i> ${sentences.toLocaleString()}</span>
-                                </div>
+            const leaderboardItem = createLeaderboardItem(user, rank, isCurrentUser);
+            leaderboardList.appendChild(leaderboardItem);
+        });
+        
+        noData.classList.add('hidden');
+    }
+
+    // Create individual leaderboard item with profile picture
+    function createLeaderboardItem(user, rank, isCurrentUser) {
+        const item = document.createElement('div');
+        item.className = `leaderboard-item p-4 rounded-lg ${
+            isCurrentUser ? 'current-user' : ''
+        } ${rank <= 3 ? `rank-${rank}` : ''}`;
+        
+        const points = user.totalPoints || 0;
+        const words = user.wordsMastered || 0;
+        const sentences = user.sentencesMastered || 0;
+        const streak = user.streakDays || 0;
+        
+        // Create avatar or placeholder
+        const avatarHTML = user.avatar ? 
+            `<img src="${user.avatar}" alt="${user.username}" class="user-avatar border-${rank <= 3 ? getMedalColor(rank) : 'primary-blue'}">` :
+            `<div class="avatar-placeholder border-${rank <= 3 ? getMedalColor(rank) : 'primary-blue'}">
+                <i class="fas fa-user"></i>
+            </div>`;
+        
+        item.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center justify-center w-10">
+                        ${rank <= 3 ? 
+                            `<div class="medal medal-${getMedalClass(rank)}">${rank}</div>` :
+                            `<div class="text-lg font-bold ${rank <= 10 ? 'text-text-light' : 'text-text-muted'}">${rank}</div>`
+                        }
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        ${avatarHTML}
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2">
+                                <div class="font-semibold text-text-light">${user.username || 'Anonymous Learner'}</div>
+                                ${isCurrentUser ? '<span class="px-2 py-1 bg-secondary-cyan text-main-bg text-xs rounded-full font-bold">You</span>' : ''}
+                            </div>
+                            <div class="flex items-center space-x-3 mt-1 text-xs text-text-muted">
+                                <span><i class="fas fa-star text-yellow-400 mr-1"></i> ${points.toLocaleString()}</span>
+                                <span><i class="fas fa-font text-primary-blue mr-1"></i> ${words.toLocaleString()}</span>
+                                <span><i class="fas fa-comment text-secondary-cyan mr-1"></i> ${sentences.toLocaleString()}</span>
                             </div>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <div class="text-lg font-bold text-text-light">
-                            ${getScoreByTab(user, currentTab).toLocaleString()}
-                        </div>
-                        <div class="text-sm text-text-muted">
-                            ${getScoreLabel(currentTab)}
-                        </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-lg font-bold text-text-light">
+                        ${getScoreByTab(user, currentTab).toLocaleString()}
+                    </div>
+                    <div class="text-sm text-text-muted">
+                        ${getScoreLabel(currentTab)}
                     </div>
                 </div>
+            </div>
+        `;
+        
+        return item;
+    }
+
+    // Helper functions
+    function getMedalClass(rank) {
+        switch(rank) {
+            case 1: return 'gold';
+            case 2: return 'silver';
+            case 3: return 'bronze';
+            default: return '';
+        }
+    }
+
+    function getMedalColor(rank) {
+        switch(rank) {
+            case 1: return 'gold';
+            case 2: return 'silver';
+            case 3: return 'bronze';
+            default: return 'primary-blue';
+        }
+    }
+
+    function getScoreByTab(user, tab) {
+        switch(tab) {
+            case 'overall': return user.totalPoints || 0;
+            case 'words': return user.wordsMastered || 0;
+            case 'sentences': return user.sentencesMastered || 0;
+            case 'streak': return user.streakDays || 0;
+            default: return user.totalPoints || 0;
+        }
+    }
+
+    function getScoreLabel(tab) {
+        switch(tab) {
+            case 'overall': return 'Points';
+            case 'words': return 'Words';
+            case 'sentences': return 'Sentences';
+            case 'streak': return 'Days';
+            default: return 'Points';
+        }
+    }
+
+    // Update current user's rank display (only if profile is complete)
+    function updateCurrentUserRank(users) {
+        let currentUserIndex = -1;
+        let currentUser = null;
+        
+        // Find current user in sorted list
+        if (currentUserId && userProfileComplete) {
+            currentUserIndex = users.findIndex(user => user.id === currentUserId);
+            if (currentUserIndex !== -1) {
+                currentUser = users[currentUserIndex];
+                currentUserGlobalRank = currentUserIndex + 1;
+            }
+        }
+        
+        if (currentUser) {
+            const rank = currentUserGlobalRank;
+            const userProfile = JSON.parse(localStorage.getItem('redcharger_user_profile') || '{}');
+            const userAvatar = userProfile.avatar || localStorage.getItem('redcharger_avatar');
+            
+            // Create avatar or placeholder for current user
+            const avatarHTML = userAvatar ? 
+                `<img src="${userAvatar}" alt="${currentUser.username}" class="user-avatar border-secondary-cyan mx-auto mb-3">` :
+                `<div class="avatar-placeholder border-secondary-cyan mx-auto mb-3">
+                    <i class="fas fa-user"></i>
+                </div>`;
+            
+            currentUserStats.innerHTML = `
+                ${avatarHTML}
+                <div class="text-center mb-4">
+                    <div class="text-3xl font-bold text-secondary-cyan mb-1">#${rank}</div>
+                    <div class="text-lg text-text-light mb-1">${currentUser.username || 'You'}</div>
+                    <div class="text-text-muted">${(currentUser.totalPoints || 0).toLocaleString()} Total Points</div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div class="text-center p-2 bg-card-bg/50 rounded">
+                        <div class="font-bold text-primary-blue text-lg">${(currentUser.wordsMastered || 0).toLocaleString()}</div>
+                        <div class="text-text-muted text-xs">Words</div>
+                    </div>
+                    <div class="text-center p-2 bg-card-bg/50 rounded">
+                        <div class="font-bold text-secondary-cyan text-lg">${(currentUser.sentencesMastered || 0).toLocaleString()}</div>
+                        <div class="text-text-muted text-xs">Sentences</div>
+                    </div>
+                    <div class="text-center p-2 bg-card-bg/50 rounded">
+                        <div class="font-bold text-yellow-400 text-lg">${currentUser.streakDays || 0}</div>
+                        <div class="text-text-muted text-xs">Day Streak</div>
+                    </div>
+                    <div class="text-center p-2 bg-card-bg/50 rounded">
+                        <div class="font-bold text-green-400 text-lg">${currentUser.totalQuizzes || 0}</div>
+                        <div class="text-text-muted text-xs">Quizzes</div>
+                    </div>
+                </div>
+                
+                ${rank > 10 ? `
+                    <div class="mt-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-center">
+                        <i class="fas fa-trophy text-yellow-400 mr-2"></i>
+                        <span class="text-yellow-200 text-sm">You're #${rank}. Keep going to reach the top 10!</span>
+                    </div>
+                ` : ''}
             `;
             
-            return item;
+            noUserData.classList.add('hidden');
+            currentUserStats.classList.remove('hidden');
+        } else {
+            showProfileIncompleteMessage();
         }
+    }
 
-        // Helper functions
-        function getMedalClass(rank) {
-            switch(rank) {
-                case 1: return 'gold';
-                case 2: return 'silver';
-                case 3: return 'bronze';
-                default: return '';
-            }
+    // Show profile incomplete message
+    function showProfileIncompleteMessage() {
+        currentUserStats.innerHTML = `
+            <div class="text-center py-6">
+                <div class="text-blue-400 text-4xl mb-3">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-text-light mb-2">Complete Your Profile</h3>
+                <p class="text-text-muted text-sm mb-4">
+                    Add a username to see your ranking on the leaderboard and track your progress with other learners.
+                </p>
+                <a href="/profile" class="inline-block py-2 px-6 rounded-lg bg-gradient-to-r from-primary-blue to-secondary-cyan text-white font-medium hover:shadow-lg transition duration-300">
+                    <i class="fas fa-user-edit mr-2"></i>Complete Profile
+                </a>
+            </div>
+        `;
+        noUserData.classList.add('hidden');
+        currentUserStats.classList.remove('hidden');
+    }
+
+    // Load user achievements
+    function loadAchievements() {
+        // Only load achievements if user is logged in and profile is complete
+        if (!currentUserId || !userProfileComplete) {
+            noAchievements.classList.remove('hidden');
+            achievementsList.classList.add('hidden');
+            return;
         }
+        
+        // Mock achievements for demonstration
+        const mockAchievements = [
+            { name: 'First Steps', description: 'Complete your first quiz', icon: 'fas fa-footsteps', unlocked: true },
+            { name: 'Word Collector', description: 'Master 50 words', icon: 'fas fa-font', unlocked: userProfileComplete },
+            { name: 'Sentence Master', description: 'Master 25 sentences', icon: 'fas fa-comment-alt', unlocked: false }
+        ];
+        
+        displayAchievements(mockAchievements);
+    }
 
-        function getMedalColor(rank) {
-            switch(rank) {
-                case 1: return 'gold';
-                case 2: return 'silver';
-                case 3: return 'bronze';
-                default: return 'primary-blue';
-            }
+    function displayAchievements(achievements) {
+        achievementsList.innerHTML = '';
+        const unlockedAchievements = achievements.filter(ach => ach.unlocked).slice(0, 3);
+        
+        if (unlockedAchievements.length === 0) {
+            noAchievements.classList.remove('hidden');
+            achievementsList.classList.add('hidden');
+            return;
         }
+        
+        unlockedAchievements.forEach(achievement => {
+            const achievementElement = document.createElement('div');
+            achievementElement.className = 'flex items-center space-x-3 p-3 bg-card-bg/50 rounded-lg';
+            achievementElement.innerHTML = `
+                <div class="text-yellow-400 text-xl">
+                    <i class="${achievement.icon}"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="font-medium text-text-light text-sm">${achievement.name}</div>
+                    <div class="text-xs text-text-muted">${achievement.description}</div>
+                </div>
+                <div class="text-green-400">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+            `;
+            achievementsList.appendChild(achievementElement);
+        });
+        
+        noAchievements.classList.add('hidden');
+        achievementsList.classList.remove('hidden');
+    }
 
-        function getScoreByTab(user, tab) {
-            switch(tab) {
-                case 'overall': return user.totalPoints || 0;
-                case 'words': return user.wordsMastered || 0;
-                case 'sentences': return user.sentencesMastered || 0;
-                case 'streak': return user.streakDays || 0;
-                default: return user.totalPoints || 0;
-            }
-        }
+    // UI State Management
+    function showNoData() {
+        noData.classList.remove('hidden');
+        leaderboardList.innerHTML = '';
+    }
 
-        function getScoreLabel(tab) {
-            switch(tab) {
-                case 'overall': return 'Points';
-                case 'words': return 'Words';
-                case 'sentences': return 'Sentences';
-                case 'streak': return 'Days';
-                default: return 'Points';
-            }
-        }
+    function showFirebaseError() {
+        leaderboardList.innerHTML = `
+            <div class="text-center py-8 text-red-400">
+                <i class="fas fa-exclamation-triangle text-4xl mb-3"></i>
+                <p class="text-lg mb-2">Unable to load leaderboard</p>
+                <p class="text-text-muted">Please check your connection and try again</p>
+            </div>
+        `;
+        noData.classList.add('hidden');
+    }
 
-        // Update current user's rank display (shows rank even if not in top 10)
-        function updateCurrentUserRank(users) {
-            let currentUserIndex = -1;
-            let currentUser = null;
+    function hideLoadingState() {
+        loadingState.style.display = 'none';
+    }
+
+    // Initialize Mobile Menu
+    function initializeMobileMenu() {
+        function toggleMobileMenu() {
+            isMenuOpen = !isMenuOpen;
             
-            // Find current user in sorted list
-            if (currentUserId) {
-                currentUserIndex = users.findIndex(user => user.id === currentUserId);
-                if (currentUserIndex !== -1) {
-                    currentUser = users[currentUserIndex];
-                    currentUserGlobalRank = currentUserIndex + 1;
-                }
-            }
-            
-            if (currentUser) {
-                const rank = currentUserGlobalRank;
-                const userProfile = JSON.parse(localStorage.getItem('redcharger_user_profile') || '{}');
-                const userAvatar = userProfile.avatar || localStorage.getItem('redcharger_avatar');
-                
-                // Create avatar or placeholder for current user
-                const avatarHTML = userAvatar ? 
-                    `<img src="${userAvatar}" alt="${currentUser.username}" class="user-avatar border-secondary-cyan mx-auto mb-3">` :
-                    `<div class="avatar-placeholder border-secondary-cyan mx-auto mb-3">
-                        <i class="fas fa-user"></i>
-                    </div>`;
-                
-                currentUserStats.innerHTML = `
-                    ${avatarHTML}
-                    <div class="text-center mb-4">
-                        <div class="text-3xl font-bold text-secondary-cyan mb-1">#${rank}</div>
-                        <div class="text-lg text-text-light mb-1">${currentUser.username || 'You'}</div>
-                        <div class="text-text-muted">${(currentUser.totalPoints || 0).toLocaleString()} Total Points</div>
-                    </div>
-                    
-                    <div class="grid grid-cols-2 gap-3 text-sm">
-                        <div class="text-center p-2 bg-card-bg/50 rounded">
-                            <div class="font-bold text-primary-blue text-lg">${(currentUser.wordsMastered || 0).toLocaleString()}</div>
-                            <div class="text-text-muted text-xs">Words</div>
-                        </div>
-                        <div class="text-center p-2 bg-card-bg/50 rounded">
-                            <div class="font-bold text-secondary-cyan text-lg">${(currentUser.sentencesMastered || 0).toLocaleString()}</div>
-                            <div class="text-text-muted text-xs">Sentences</div>
-                        </div>
-                        <div class="text-center p-2 bg-card-bg/50 rounded">
-                            <div class="font-bold text-yellow-400 text-lg">${currentUser.streakDays || 0}</div>
-                            <div class="text-text-muted text-xs">Day Streak</div>
-                        </div>
-                        <div class="text-center p-2 bg-card-bg/50 rounded">
-                            <div class="font-bold text-green-400 text-lg">${currentUser.totalQuizzes || 0}</div>
-                            <div class="text-text-muted text-xs">Quizzes</div>
-                        </div>
-                    </div>
-                    
-                    ${rank > 10 ? `
-                        <div class="mt-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-center">
-                            <i class="fas fa-trophy text-yellow-400 mr-2"></i>
-                            <span class="text-yellow-200 text-sm">You're #${rank}. Keep going to reach the top 10!</span>
-                        </div>
-                    ` : ''}
-                `;
-                
-                noUserData.classList.add('hidden');
-                currentUserStats.classList.remove('hidden');
+            if (isMenuOpen) {
+                mobileDropdownMenu.classList.add('open');
+                mobileDropdownBackdrop.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+                mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+                mobileMenuButton.classList.remove('text-text-muted');
+                mobileMenuButton.classList.add('text-secondary-cyan');
             } else {
-                currentUserStats.classList.add('hidden');
-                noUserData.classList.remove('hidden');
-            }
-        }
-
-        // Load user achievements
-        function loadAchievements() {
-            // Only load achievements if user is logged in
-            if (!currentUserId) {
-                noAchievements.classList.remove('hidden');
-                achievementsList.classList.add('hidden');
-                return;
-            }
-            
-            // Mock achievements for demonstration
-            const mockAchievements = [
-                { name: 'First Steps', description: 'Complete your first quiz', icon: 'fas fa-footsteps', unlocked: true },
-                { name: 'Word Collector', description: 'Master 50 words', icon: 'fas fa-font', unlocked: true },
-                { name: 'Sentence Master', description: 'Master 25 sentences', icon: 'fas fa-comment-alt', unlocked: false }
-            ];
-            
-            displayAchievements(mockAchievements);
-        }
-
-        function displayAchievements(achievements) {
-            achievementsList.innerHTML = '';
-            const unlockedAchievements = achievements.filter(ach => ach.unlocked).slice(0, 3);
-            
-            if (unlockedAchievements.length === 0) {
-                noAchievements.classList.remove('hidden');
-                achievementsList.classList.add('hidden');
-                return;
-            }
-            
-            unlockedAchievements.forEach(achievement => {
-                const achievementElement = document.createElement('div');
-                achievementElement.className = 'flex items-center space-x-3 p-3 bg-card-bg/50 rounded-lg';
-                achievementElement.innerHTML = `
-                    <div class="text-yellow-400 text-xl">
-                        <i class="${achievement.icon}"></i>
-                    </div>
-                    <div class="flex-1">
-                        <div class="font-medium text-text-light text-sm">${achievement.name}</div>
-                        <div class="text-xs text-text-muted">${achievement.description}</div>
-                    </div>
-                    <div class="text-green-400">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                `;
-                achievementsList.appendChild(achievementElement);
-            });
-            
-            noAchievements.classList.add('hidden');
-            achievementsList.classList.remove('hidden');
-        }
-
-        // UI State Management
-        function showNoData() {
-            noData.classList.remove('hidden');
-            leaderboardList.innerHTML = '';
-        }
-
-        function showFirebaseError() {
-            leaderboardList.innerHTML = `
-                <div class="text-center py-8 text-red-400">
-                    <i class="fas fa-exclamation-triangle text-4xl mb-3"></i>
-                    <p class="text-lg mb-2">Unable to load leaderboard</p>
-                    <p class="text-text-muted">Please check your connection and try again</p>
-                </div>
-            `;
-            noData.classList.add('hidden');
-        }
-
-        function hideLoadingState() {
-            loadingState.style.display = 'none';
-        }
-
-        // Initialize Mobile Menu
-        function initializeMobileMenu() {
-            function toggleMobileMenu() {
-                isMenuOpen = !isMenuOpen;
-                
-                if (isMenuOpen) {
-                    mobileDropdownMenu.classList.add('open');
-                    mobileDropdownBackdrop.style.display = 'block';
-                    document.body.style.overflow = 'hidden';
-                    mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
-                    mobileMenuButton.classList.remove('text-text-muted');
-                    mobileMenuButton.classList.add('text-secondary-cyan');
-                } else {
-                    mobileDropdownMenu.classList.remove('open');
-                    mobileDropdownBackdrop.style.display = 'none';
-                    document.body.style.overflow = '';
-                    mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
-                    mobileMenuButton.classList.remove('text-secondary-cyan');
-                    mobileMenuButton.classList.add('text-text-muted');
-                }
-            }
-
-            function closeMobileMenu() {
-                isMenuOpen = false;
                 mobileDropdownMenu.classList.remove('open');
                 mobileDropdownBackdrop.style.display = 'none';
                 document.body.style.overflow = '';
@@ -889,98 +977,122 @@
                 mobileMenuButton.classList.remove('text-secondary-cyan');
                 mobileMenuButton.classList.add('text-text-muted');
             }
-
-            mobileMenuButton.addEventListener('click', function(e) {
-                e.stopPropagation();
-                toggleMobileMenu();
-            });
-
-            mobileDropdownBackdrop.addEventListener('click', closeMobileMenu);
-
-            const menuLinks = mobileDropdownMenu.querySelectorAll('a');
-            menuLinks.forEach(link => {
-                link.addEventListener('click', closeMobileMenu);
-            });
-
-            document.addEventListener('click', function(e) {
-                if (isMenuOpen && 
-                    !mobileDropdownMenu.contains(e.target) && 
-                    !mobileMenuButton.contains(e.target)) {
-                    closeMobileMenu();
-                }
-            });
-
-            document.addEventListener('keydown', function(e) {
-                if (isMenuOpen && e.key === 'Escape') {
-                    closeMobileMenu();
-                }
-            });
-
-            window.addEventListener('resize', function() {
-                if (window.innerWidth >= 768 && isMenuOpen) {
-                    closeMobileMenu();
-                }
-            });
         }
 
-        // Initialize Tabs
-        function initializeTabs() {
-            tabOverall.addEventListener('click', () => switchTab('overall'));
-            tabWords.addEventListener('click', () => switchTab('words'));
-            tabSentences.addEventListener('click', () => switchTab('sentences'));
-            tabStreak.addEventListener('click', () => switchTab('streak'));
+        function closeMobileMenu() {
+            isMenuOpen = false;
+            mobileDropdownMenu.classList.remove('open');
+            mobileDropdownBackdrop.style.display = 'none';
+            document.body.style.overflow = '';
+            mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+            mobileMenuButton.classList.remove('text-secondary-cyan');
+            mobileMenuButton.classList.add('text-text-muted');
         }
 
-        function switchTab(tab) {
-            currentTab = tab;
-            
-            // Update active tab styling
-            [tabOverall, tabWords, tabSentences, tabStreak].forEach(t => {
-                t.classList.remove('bg-secondary-cyan', 'text-main-bg');
-                t.classList.add('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
-            });
-            
-            switch(tab) {
-                case 'overall':
-                    tabOverall.classList.add('bg-secondary-cyan', 'text-main-bg');
-                    tabOverall.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
-                    leaderboardTitle.textContent = 'Top 10 Learners - Overall';
-                    break;
-                case 'words':
-                    tabWords.classList.add('bg-secondary-cyan', 'text-main-bg');
-                    tabWords.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
-                    leaderboardTitle.textContent = 'Top 10 Learners - Words Mastery';
-                    break;
-                case 'sentences':
-                    tabSentences.classList.add('bg-secondary-cyan', 'text-main-bg');
-                    tabSentences.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
-                    leaderboardTitle.textContent = 'Top 10 Learners - Sentences Mastery';
-                    break;
-                case 'streak':
-                    tabStreak.classList.add('bg-secondary-cyan', 'text-main-bg');
-                    tabStreak.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
-                    leaderboardTitle.textContent = 'Top 10 Learners - Study Streak';
-                    break;
+        mobileMenuButton.addEventListener('click', function(e) {
+            e.stopPropagation();
+            toggleMobileMenu();
+        });
+
+        mobileDropdownBackdrop.addEventListener('click', closeMobileMenu);
+
+        const menuLinks = mobileDropdownMenu.querySelectorAll('a');
+        menuLinks.forEach(link => {
+            link.addEventListener('click', closeMobileMenu);
+        });
+
+        document.addEventListener('click', function(e) {
+            if (isMenuOpen && 
+                !mobileDropdownMenu.contains(e.target) && 
+                !mobileMenuButton.contains(e.target)) {
+                closeMobileMenu();
             }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (isMenuOpen && e.key === 'Escape') {
+                closeMobileMenu();
+            }
+        });
+
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 768 && isMenuOpen) {
+                closeMobileMenu();
+            }
+        });
+    }
+
+    // Initialize Tabs
+    function initializeTabs() {
+        tabOverall.addEventListener('click', () => switchTab('overall'));
+        tabWords.addEventListener('click', () => switchTab('words'));
+        tabSentences.addEventListener('click', () => switchTab('sentences'));
+        tabStreak.addEventListener('click', () => switchTab('streak'));
+    }
+
+    function switchTab(tab) {
+        currentTab = tab;
+        
+        // Update active tab styling
+        [tabOverall, tabWords, tabSentences, tabStreak].forEach(t => {
+            t.classList.remove('bg-secondary-cyan', 'text-main-bg');
+            t.classList.add('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
+        });
+        
+        switch(tab) {
+            case 'overall':
+                tabOverall.classList.add('bg-secondary-cyan', 'text-main-bg');
+                tabOverall.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
+                leaderboardTitle.textContent = 'Top 10 Learners - Overall';
+                break;
+            case 'words':
+                tabWords.classList.add('bg-secondary-cyan', 'text-main-bg');
+                tabWords.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
+                leaderboardTitle.textContent = 'Top 10 Learners - Words Mastery';
+                break;
+            case 'sentences':
+                tabSentences.classList.add('bg-secondary-cyan', 'text-main-bg');
+                tabSentences.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
+                leaderboardTitle.textContent = 'Top 10 Learners - Sentences Mastery';
+                break;
+            case 'streak':
+                tabStreak.classList.add('bg-secondary-cyan', 'text-main-bg');
+                tabStreak.classList.remove('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
+                leaderboardTitle.textContent = 'Top 10 Learners - Study Streak';
+                break;
+        }
+        
+        // Re-sort and display based on new tab
+        if (allUsers.length > 0) {
+            const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
+            const top10Users = sortedUsers.slice(0, 10);
+            renderLeaderboardList(top10Users);
             
-            // Re-sort and display based on new tab
-            if (allUsers.length > 0) {
-                const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
-                const top10Users = sortedUsers.slice(0, 10);
-                renderLeaderboardList(top10Users);
+            // Update current user rank only if profile is complete
+            if (userProfileComplete) {
                 updateCurrentUserRank(sortedUsers);
             }
         }
+    }
 
-        // Auto-refresh leaderboard every 30 seconds for real-time updates
-        setInterval(() => {
-            if (allUsers.length > 0) {
-                const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
-                const top10Users = sortedUsers.slice(0, 10);
-                renderLeaderboardList(top10Users);
+    // Auto-refresh leaderboard every 30 seconds for real-time updates
+    setInterval(() => {
+        // Re-check profile completion status
+        userProfileComplete = checkProfileCompletion();
+        
+        if (allUsers.length > 0) {
+            const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
+            const top10Users = sortedUsers.slice(0, 10);
+            renderLeaderboardList(top10Users);
+            
+            if (userProfileComplete) {
                 updateCurrentUserRank(sortedUsers);
             }
-        }, 30000);
-    </script>
+        }
+    }, 30000);
+
+    // Make hideProfilePrompt globally available
+    window.hideProfilePrompt = hideProfilePrompt;
+</script>
 </body>
 </html>
