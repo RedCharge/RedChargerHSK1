@@ -523,124 +523,91 @@
         loadCurrentUser();
     });
 
-    // Get current user from localStorage and check profile completion - IMPROVED FOR MOBILE
+    // Get current user from localStorage - ULTRA SIMPLE VERSION
     function loadCurrentUser() {
-        console.log('Loading current user data...');
+        console.log('=== LEADERBOARD LOADING ===');
         
-        // Try multiple times to get user data (for mobile compatibility)
-        let attempts = 0;
-        const maxAttempts = 5;
+        // Get user ID
+        currentUserId = localStorage.getItem('redcharger_user_id');
+        console.log('User ID:', currentUserId);
         
-        const tryLoadUser = () => {
-            currentUserId = localStorage.getItem('redcharger_user_id');
-            console.log('User ID found:', currentUserId);
+        if (currentUserId) {
+            // DIRECT check - no complex logic
+            const profileData = getProfileData();
+            currentUsername = profileData.username;
             
-            if (currentUserId) {
-                // Try multiple ways to get profile data
-                const profileData = getProfileData();
-                currentUsername = profileData.username;
-                
-                // Check if profile is complete (username is required)
-                userProfileComplete = !!(currentUsername && currentUsername.trim().length > 0);
-                
-                console.log('Profile data loaded:', profileData);
-                console.log('Username:', currentUsername);
-                console.log('Profile complete:', userProfileComplete);
-                
-                initializeFirebaseListener();
-                
-                // Show profile completion prompt if needed
-                if (!userProfileComplete) {
-                    console.log('Profile incomplete, showing prompt');
-                    setTimeout(() => {
-                        showProfileCompletionPrompt();
-                    }, 1000);
-                } else {
-                    console.log('Profile complete, hiding any prompts');
-                    hideProfilePrompt();
-                }
+            // SIMPLE check: if username exists and is not empty
+            userProfileComplete = !!(currentUsername && currentUsername.trim().length > 0);
+            
+            console.log('Profile Status:', {
+                username: currentUsername,
+                profileComplete: userProfileComplete
+            });
+            
+            // ONLY show prompt if profile is TRULY incomplete
+            if (!userProfileComplete) {
+                console.log('🟡 SHOWING PROMPT: Profile incomplete');
+                showProfileCompletionPrompt();
             } else {
-                attempts++;
-                if (attempts < maxAttempts) {
-                    console.log(`No user ID found, retrying... (${attempts}/${maxAttempts})`);
-                    setTimeout(tryLoadUser, 500);
-                } else {
-                    console.log('No user ID found after retries, proceeding as guest');
-                    showProfileCompletionPrompt();
-                    initializeFirebaseListener();
-                }
+                console.log('🟢 HIDING PROMPT: Profile complete');
+                hideProfilePrompt();
             }
-        };
+        } else {
+            console.log('🔴 No user ID found');
+            showProfileCompletionPrompt();
+        }
         
-        tryLoadUser();
+        initializeFirebaseListener();
     }
 
-    // Get profile data from multiple possible sources (mobile compatible)
+    // SIMPLE profile data getter
     function getProfileData() {
-        let profileData = {};
-        
-        // Try localStorage first
         try {
-            const storedProfile = localStorage.getItem('redcharger_user_profile');
-            if (storedProfile) {
-                profileData = JSON.parse(storedProfile);
-                console.log('Profile data from localStorage:', profileData);
-                return profileData;
+            const profile = localStorage.getItem('redcharger_user_profile');
+            if (profile) {
+                return JSON.parse(profile);
             }
         } catch (e) {
-            console.error('Error parsing profile from localStorage:', e);
+            console.error('Error parsing profile:', e);
         }
-        
-        // Try Firebase data if available
-        try {
-            const firebaseProfile = localStorage.getItem('firebase_profile_data');
-            if (firebaseProfile) {
-                profileData = JSON.parse(firebaseProfile);
-                console.log('Profile data from Firebase cache:', profileData);
-                return profileData;
-            }
-        } catch (e) {
-            console.error('Error parsing profile from Firebase cache:', e);
-        }
-        
-        // Try form fields as last resort (if user is currently on profile page)
-        if (typeof usernameInput !== 'undefined' && usernameInput && usernameInput.value) {
-            profileData.username = usernameInput.value;
-            console.log('Profile data from form fields:', profileData);
-        }
-        
-        return profileData;
+        return {};
     }
 
-    // Show profile completion prompt ONLY if profile is incomplete
+    // Show profile completion prompt - ONLY if needed
     function showProfileCompletionPrompt() {
-        // Double-check that profile is actually incomplete
-        const currentProfile = getProfileData();
-        const hasUsername = !!(currentProfile.username && currentProfile.username.trim().length > 0);
+        console.log('Checking if prompt should be shown...');
         
-        if (hasUsername) {
-            console.log('Profile actually has username, not showing prompt');
-            userProfileComplete = true;
-            hideProfilePrompt();
-            return;
+        // FINAL CHECK - make absolutely sure profile is incomplete
+        if (currentUserId) {
+            const finalCheck = getProfileData();
+            const hasUsername = !!(finalCheck.username && finalCheck.username.trim().length > 0);
+            
+            if (hasUsername) {
+                console.log('🟢 FINAL CHECK: Profile is actually complete, ABORTING prompt');
+                userProfileComplete = true;
+                hideProfilePrompt();
+                return; // STOP here - don't show prompt!
+            }
         }
         
-        console.log('Profile incomplete, showing prompt');
+        console.log('🟡 FINAL CHECK: Profile is truly incomplete, showing prompt');
         
+        // Remove any existing prompt
         const existingPrompt = document.querySelector('.profile-completion-prompt');
         if (existingPrompt) {
             existingPrompt.remove();
         }
         
+        // Create new prompt
         const promptHTML = `
             <div class="profile-completion-prompt max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-                <div class="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4 text-center animate-fadeInUp">
+                <div class="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4 text-center">
                     <div class="flex flex-col md:flex-row items-center justify-between">
                         <div class="flex items-center mb-3 md:mb-0">
                             <i class="fas fa-user-circle text-blue-400 text-2xl mr-3"></i>
                             <div class="text-left">
                                 <div class="text-blue-200 font-semibold">Complete Your Profile</div>
-                                <div class="text-blue-300 text-sm">Add a username to appear on the leaderboard and track your progress</div>
+                                <div class="text-blue-300 text-sm">Add a username to appear on the leaderboard</div>
                             </div>
                         </div>
                         <div class="flex space-x-2">
@@ -656,7 +623,6 @@
             </div>
         `;
         
-        // Insert prompt after the header
         const headerSection = document.querySelector('main section:first-child');
         if (headerSection) {
             headerSection.insertAdjacentHTML('afterend', promptHTML);
@@ -667,58 +633,9 @@
     function hideProfilePrompt() {
         const prompt = document.querySelector('.profile-completion-prompt');
         if (prompt) {
-            prompt.style.opacity = '0';
-            prompt.style.transform = 'translateY(-10px)';
-            setTimeout(() => {
-                prompt.remove();
-            }, 300);
+            prompt.remove();
         }
     }
-
-    // Check profile completion status - IMPROVED
-    function checkProfileCompletion() {
-        const currentProfile = getProfileData();
-        const hasUsername = !!(currentProfile.username && currentProfile.username.trim().length > 0);
-        
-        console.log('Checking profile completion:', { hasUsername, username: currentProfile.username });
-        
-        if (!hasUsername && !document.querySelector('.profile-completion-prompt')) {
-            console.log('Profile incomplete, showing prompt');
-            showProfileCompletionPrompt();
-        } else if (hasUsername) {
-            console.log('Profile complete, ensuring prompt is hidden');
-            hideProfilePrompt();
-        }
-        
-        userProfileComplete = hasUsername;
-        return hasUsername;
-    }
-
-    // Re-check profile when page becomes visible (for mobile)
-    document.addEventListener('visibilitychange', function() {
-        if (!document.hidden) {
-            console.log('Page visible, re-checking profile completion');
-            setTimeout(() => {
-                userProfileComplete = checkProfileCompletion();
-                if (userProfileComplete && allUsers.length > 0) {
-                    const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
-                    updateCurrentUserRank(sortedUsers);
-                }
-            }, 1000);
-        }
-    });
-
-    // Also check when page gains focus
-    window.addEventListener('focus', function() {
-        console.log('Page focused, re-checking profile completion');
-        setTimeout(() => {
-            userProfileComplete = checkProfileCompletion();
-            if (userProfileComplete && allUsers.length > 0) {
-                const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
-                updateCurrentUserRank(sortedUsers);
-            }
-        }, 500);
-    });
 
     // Initialize Firebase Real-time Listener
     function initializeFirebaseListener() {
@@ -731,7 +648,6 @@
             if (data) {
                 // Convert Firebase object to array
                 Object.keys(data).forEach(key => {
-                    // Only include users with complete profiles
                     if (data[key].profileComplete) {
                         allUsers.push({
                             id: key,
@@ -760,19 +676,16 @@
             return;
         }
         
-        // Sort users based on current tab
         const sortedUsers = sortUsersByCriteria(users, currentTab);
-        
-        // Show top 10
         const top10Users = sortedUsers.slice(0, 10);
         renderLeaderboardList(top10Users);
         
-        // Update current user rank (only if profile is complete)
+        console.log('Displaying user rank, profile complete:', userProfileComplete);
+        
+        // CRITICAL: Only show incomplete message if profile is TRULY incomplete
         if (userProfileComplete) {
-            console.log('Profile complete, showing user rank');
             updateCurrentUserRank(sortedUsers);
         } else {
-            console.log('Profile incomplete, showing completion message');
             showProfileIncompleteMessage();
         }
         
@@ -783,16 +696,11 @@
     function sortUsersByCriteria(users, criteria) {
         return users.sort((a, b) => {
             switch(criteria) {
-                case 'overall':
-                    return (b.totalPoints || 0) - (a.totalPoints || 0);
-                case 'words':
-                    return (b.wordsMastered || 0) - (a.wordsMastered || 0);
-                case 'sentences':
-                    return (b.sentencesMastered || 0) - (a.sentencesMastered || 0);
-                case 'streak':
-                    return (b.streakDays || 0) - (a.streakDays || 0);
-                default:
-                    return (b.totalPoints || 0) - (a.totalPoints || 0);
+                case 'overall': return (b.totalPoints || 0) - (a.totalPoints || 0);
+                case 'words': return (b.wordsMastered || 0) - (a.wordsMastered || 0);
+                case 'sentences': return (b.sentencesMastered || 0) - (a.sentencesMastered || 0);
+                case 'streak': return (b.streakDays || 0) - (a.streakDays || 0);
+                default: return (b.totalPoints || 0) - (a.totalPoints || 0);
             }
         });
     }
@@ -824,7 +732,6 @@
         const sentences = user.sentencesMastered || 0;
         const streak = user.streakDays || 0;
         
-        // Create avatar or placeholder
         const avatarHTML = user.avatar ? 
             `<img src="${user.avatar}" alt="${user.username}" class="user-avatar border-${rank <= 3 ? getMedalColor(rank) : 'primary-blue'}">` :
             `<div class="avatar-placeholder border-${rank <= 3 ? getMedalColor(rank) : 'primary-blue'}">
@@ -908,12 +815,11 @@
         }
     }
 
-    // Update current user's rank display (only if profile is complete)
+    // Update current user's rank display
     function updateCurrentUserRank(users) {
         let currentUserIndex = -1;
         let currentUser = null;
         
-        // Find current user in sorted list
         if (currentUserId && userProfileComplete) {
             currentUserIndex = users.findIndex(user => user.id === currentUserId);
             if (currentUserIndex !== -1) {
@@ -927,7 +833,6 @@
             const userProfile = getProfileData();
             const userAvatar = userProfile.avatar || localStorage.getItem('redcharger_avatar');
             
-            // Create avatar or placeholder for current user
             const avatarHTML = userAvatar ? 
                 `<img src="${userAvatar}" alt="${currentUser.username}" class="user-avatar border-secondary-cyan mx-auto mb-3">` :
                 `<div class="avatar-placeholder border-secondary-cyan mx-auto mb-3">
@@ -998,14 +903,12 @@
 
     // Load user achievements
     function loadAchievements() {
-        // Only load achievements if user is logged in and profile is complete
         if (!currentUserId || !userProfileComplete) {
             noAchievements.classList.remove('hidden');
             achievementsList.classList.add('hidden');
             return;
         }
         
-        // Mock achievements for demonstration
         const mockAchievements = [
             { name: 'First Steps', description: 'Complete your first quiz', icon: 'fas fa-footsteps', unlocked: true },
             { name: 'Word Collector', description: 'Master 50 words', icon: 'fas fa-font', unlocked: userProfileComplete },
@@ -1144,7 +1047,6 @@
     function switchTab(tab) {
         currentTab = tab;
         
-        // Update active tab styling
         [tabOverall, tabWords, tabSentences, tabStreak].forEach(t => {
             t.classList.remove('bg-secondary-cyan', 'text-main-bg');
             t.classList.add('text-text-muted', 'hover:text-text-light', 'hover:bg-card-bg/50');
@@ -1173,34 +1075,16 @@
                 break;
         }
         
-        // Re-sort and display based on new tab
         if (allUsers.length > 0) {
             const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
             const top10Users = sortedUsers.slice(0, 10);
             renderLeaderboardList(top10Users);
             
-            // Update current user rank only if profile is complete
             if (userProfileComplete) {
                 updateCurrentUserRank(sortedUsers);
             }
         }
     }
-
-    // Auto-refresh leaderboard every 30 seconds for real-time updates
-    setInterval(() => {
-        // Re-check profile completion status
-        userProfileComplete = checkProfileCompletion();
-        
-        if (allUsers.length > 0) {
-            const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
-            const top10Users = sortedUsers.slice(0, 10);
-            renderLeaderboardList(top10Users);
-            
-            if (userProfileComplete) {
-                updateCurrentUserRank(sortedUsers);
-            }
-        }
-    }, 30000);
 
     // Make hideProfilePrompt globally available
     window.hideProfilePrompt = hideProfilePrompt;
