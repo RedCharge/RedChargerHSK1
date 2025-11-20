@@ -514,91 +514,77 @@
     let currentUsername = null;
     let allUsers = [];
     let currentUserGlobalRank = null;
-    let userProfileComplete = false;
 
     // Initialize the application
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 LEADERBOARD STARTING...');
         initializeMobileMenu();
         initializeTabs();
-        loadCurrentUser();
+        checkUserProfileImmediately();
     });
 
-    // Get current user from localStorage - ULTRA SIMPLE VERSION
-    function loadCurrentUser() {
-        console.log('=== LEADERBOARD LOADING ===');
+    // NUCLEAR OPTION: Check profile immediately and definitively
+    function checkUserProfileImmediately() {
+        console.log('=== MOBILE PROFILE CHECK ===');
+        
+        // Force clear any existing prompts first
+        const existingPrompt = document.querySelector('.profile-completion-prompt');
+        if (existingPrompt) {
+            console.log('🗑️ Removing existing prompt');
+            existingPrompt.remove();
+        }
         
         // Get user ID
         currentUserId = localStorage.getItem('redcharger_user_id');
-        console.log('User ID:', currentUserId);
+        console.log('👤 User ID:', currentUserId);
         
-        if (currentUserId) {
-            // DIRECT check - no complex logic
-            const profileData = getProfileData();
-            currentUsername = profileData.username;
-            
-            // SIMPLE check: if username exists and is not empty
-            userProfileComplete = !!(currentUsername && currentUsername.trim().length > 0);
-            
-            console.log('Profile Status:', {
-                username: currentUsername,
-                profileComplete: userProfileComplete
-            });
-            
-            // ONLY show prompt if profile is TRULY incomplete
-            if (!userProfileComplete) {
-                console.log('🟡 SHOWING PROMPT: Profile incomplete');
-                showProfileCompletionPrompt();
-            } else {
-                console.log('🟢 HIDING PROMPT: Profile complete');
-                hideProfilePrompt();
-            }
-        } else {
-            console.log('🔴 No user ID found');
+        if (!currentUserId) {
+            console.log('❌ No user ID - showing prompt');
             showProfileCompletionPrompt();
+            initializeFirebaseListener();
+            return;
         }
         
-        initializeFirebaseListener();
-    }
-
-    // SIMPLE profile data getter
-    function getProfileData() {
+        // Get profile data DIRECTLY
+        let profileData = {};
         try {
-            const profile = localStorage.getItem('redcharger_user_profile');
-            if (profile) {
-                return JSON.parse(profile);
+            const profileJson = localStorage.getItem('redcharger_user_profile');
+            if (profileJson) {
+                profileData = JSON.parse(profileJson);
             }
         } catch (e) {
             console.error('Error parsing profile:', e);
         }
-        return {};
+        
+        currentUsername = profileData.username;
+        console.log('📝 Profile data:', profileData);
+        console.log('📛 Username found:', currentUsername);
+        
+        // CRITICAL: If user has ANY username, they are considered complete
+        const hasUsername = !!(currentUsername && currentUsername.trim().length > 0);
+        console.log('✅ Profile complete:', hasUsername);
+        
+        if (hasUsername) {
+            console.log('🎉 PROFILE IS COMPLETE - NO PROMPT WILL BE SHOWN');
+            // DO NOTHING - no prompt should be shown
+            initializeFirebaseListener();
+        } else {
+            console.log('📝 PROFILE INCOMPLETE - showing prompt');
+            showProfileCompletionPrompt();
+            initializeFirebaseListener();
+        }
     }
 
-    // Show profile completion prompt - ONLY if needed
+    // Show profile completion prompt - ONLY for incomplete profiles
     function showProfileCompletionPrompt() {
-        console.log('Checking if prompt should be shown...');
+        console.log('🟡 Creating profile completion prompt...');
         
-        // FINAL CHECK - make absolutely sure profile is incomplete
-        if (currentUserId) {
-            const finalCheck = getProfileData();
-            const hasUsername = !!(finalCheck.username && finalCheck.username.trim().length > 0);
-            
-            if (hasUsername) {
-                console.log('🟢 FINAL CHECK: Profile is actually complete, ABORTING prompt');
-                userProfileComplete = true;
-                hideProfilePrompt();
-                return; // STOP here - don't show prompt!
-            }
-        }
-        
-        console.log('🟡 FINAL CHECK: Profile is truly incomplete, showing prompt');
-        
-        // Remove any existing prompt
+        // Remove any existing prompt first
         const existingPrompt = document.querySelector('.profile-completion-prompt');
         if (existingPrompt) {
             existingPrompt.remove();
         }
         
-        // Create new prompt
         const promptHTML = `
             <div class="profile-completion-prompt max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
                 <div class="bg-blue-500/20 border border-blue-500/30 rounded-lg p-4 text-center">
@@ -626,11 +612,13 @@
         const headerSection = document.querySelector('main section:first-child');
         if (headerSection) {
             headerSection.insertAdjacentHTML('afterend', promptHTML);
+            console.log('📢 Profile prompt displayed');
         }
     }
 
     // Hide profile prompt
     function hideProfilePrompt() {
+        console.log('👋 Hiding profile prompt');
         const prompt = document.querySelector('.profile-completion-prompt');
         if (prompt) {
             prompt.remove();
@@ -639,6 +627,7 @@
 
     // Initialize Firebase Real-time Listener
     function initializeFirebaseListener() {
+        console.log('🔥 Initializing Firebase...');
         const leaderboardRef = database.ref('leaderboard');
         
         leaderboardRef.on('value', (snapshot) => {
@@ -646,6 +635,8 @@
             allUsers = [];
             
             if (data) {
+                console.log('📊 Firebase data loaded:', Object.keys(data).length, 'users');
+                
                 // Convert Firebase object to array
                 Object.keys(data).forEach(key => {
                     if (data[key].profileComplete) {
@@ -656,14 +647,16 @@
                     }
                 });
                 
+                console.log('👥 Complete profiles:', allUsers.length);
                 displayLeaderboard(allUsers);
                 hideLoadingState();
             } else {
+                console.log('📭 No Firebase data');
                 showNoData();
                 hideLoadingState();
             }
         }, (error) => {
-            console.error('Firebase error:', error);
+            console.error('❌ Firebase error:', error);
             showFirebaseError();
             hideLoadingState();
         });
@@ -680,19 +673,102 @@
         const top10Users = sortedUsers.slice(0, 10);
         renderLeaderboardList(top10Users);
         
-        console.log('Displaying user rank, profile complete:', userProfileComplete);
-        
-        // CRITICAL: Only show incomplete message if profile is TRULY incomplete
-        if (userProfileComplete) {
-            updateCurrentUserRank(sortedUsers);
-        } else {
-            showProfileIncompleteMessage();
-        }
+        // Check current user rank
+        updateCurrentUserRank(sortedUsers);
         
         loadAchievements();
     }
 
-    // Sort users based on current tab criteria
+    // Update current user's rank display
+    function updateCurrentUserRank(users) {
+        let currentUserIndex = -1;
+        let currentUser = null;
+        
+        if (currentUserId) {
+            currentUserIndex = users.findIndex(user => user.id === currentUserId);
+            if (currentUserIndex !== -1) {
+                currentUser = users[currentUserIndex];
+                currentUserGlobalRank = currentUserIndex + 1;
+            }
+        }
+        
+        if (currentUser) {
+            console.log('🎯 Current user rank:', currentUserGlobalRank);
+            const rank = currentUserGlobalRank;
+            const userProfile = JSON.parse(localStorage.getItem('redcharger_user_profile') || '{}');
+            const userAvatar = userProfile.avatar || localStorage.getItem('redcharger_avatar');
+            
+            const avatarHTML = userAvatar ? 
+                `<img src="${userAvatar}" alt="${currentUser.username}" class="user-avatar border-secondary-cyan mx-auto mb-3">` :
+                `<div class="avatar-placeholder border-secondary-cyan mx-auto mb-3">
+                    <i class="fas fa-user"></i>
+                </div>`;
+            
+            currentUserStats.innerHTML = `
+                ${avatarHTML}
+                <div class="text-center mb-4">
+                    <div class="text-3xl font-bold text-secondary-cyan mb-1">#${rank}</div>
+                    <div class="text-lg text-text-light mb-1">${currentUser.username || 'You'}</div>
+                    <div class="text-text-muted">${(currentUser.totalPoints || 0).toLocaleString()} Total Points</div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div class="text-center p-2 bg-card-bg/50 rounded">
+                        <div class="font-bold text-primary-blue text-lg">${(currentUser.wordsMastered || 0).toLocaleString()}</div>
+                        <div class="text-text-muted text-xs">Words</div>
+                    </div>
+                    <div class="text-center p-2 bg-card-bg/50 rounded">
+                        <div class="font-bold text-secondary-cyan text-lg">${(currentUser.sentencesMastered || 0).toLocaleString()}</div>
+                        <div class="text-text-muted text-xs">Sentences</div>
+                    </div>
+                    <div class="text-center p-2 bg-card-bg/50 rounded">
+                        <div class="font-bold text-yellow-400 text-lg">${currentUser.streakDays || 0}</div>
+                        <div class="text-text-muted text-xs">Day Streak</div>
+                    </div>
+                    <div class="text-center p-2 bg-card-bg/50 rounded">
+                        <div class="font-bold text-green-400 text-lg">${currentUser.totalQuizzes || 0}</div>
+                        <div class="text-text-muted text-xs">Quizzes</div>
+                    </div>
+                </div>
+                
+                ${rank > 10 ? `
+                    <div class="mt-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-center">
+                        <i class="fas fa-trophy text-yellow-400 mr-2"></i>
+                        <span class="text-yellow-200 text-sm">You're #${rank}. Keep going to reach the top 10!</span>
+                    </div>
+                ` : ''}
+            `;
+            
+            noUserData.classList.add('hidden');
+            currentUserStats.classList.remove('hidden');
+        } else {
+            console.log('📝 User not found in leaderboard or no profile');
+            showProfileIncompleteMessage();
+        }
+    }
+
+    // Show profile incomplete message
+    function showProfileIncompleteMessage() {
+        console.log('📝 Showing profile incomplete message');
+        currentUserStats.innerHTML = `
+            <div class="text-center py-6">
+                <div class="text-blue-400 text-4xl mb-3">
+                    <i class="fas fa-user-circle"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-text-light mb-2">Complete Your Profile</h3>
+                <p class="text-text-muted text-sm mb-4">
+                    Add a username to see your ranking on the leaderboard and track your progress with other learners.
+                </p>
+                <a href="/profile" class="inline-block py-2 px-6 rounded-lg bg-gradient-to-r from-primary-blue to-secondary-cyan text-white font-medium hover:shadow-lg transition duration-300">
+                    <i class="fas fa-user-edit mr-2"></i>Complete Profile
+                </a>
+            </div>
+        `;
+        noUserData.classList.add('hidden');
+        currentUserStats.classList.remove('hidden');
+    }
+
+    // [Rest of the functions remain the same - sorting, rendering, etc.]
     function sortUsersByCriteria(users, criteria) {
         return users.sort((a, b) => {
             switch(criteria) {
@@ -705,7 +781,6 @@
         });
     }
 
-    // Render leaderboard list (Top 10)
     function renderLeaderboardList(users) {
         leaderboardList.innerHTML = '';
         
@@ -720,7 +795,6 @@
         noData.classList.add('hidden');
     }
 
-    // Create individual leaderboard item with profile picture
     function createLeaderboardItem(user, rank, isCurrentUser) {
         const item = document.createElement('div');
         item.className = `leaderboard-item p-4 rounded-lg ${
@@ -776,7 +850,6 @@
         return item;
     }
 
-    // Helper functions
     function getMedalClass(rank) {
         switch(rank) {
             case 1: return 'gold';
@@ -815,95 +888,8 @@
         }
     }
 
-    // Update current user's rank display
-    function updateCurrentUserRank(users) {
-        let currentUserIndex = -1;
-        let currentUser = null;
-        
-        if (currentUserId && userProfileComplete) {
-            currentUserIndex = users.findIndex(user => user.id === currentUserId);
-            if (currentUserIndex !== -1) {
-                currentUser = users[currentUserIndex];
-                currentUserGlobalRank = currentUserIndex + 1;
-            }
-        }
-        
-        if (currentUser) {
-            const rank = currentUserGlobalRank;
-            const userProfile = getProfileData();
-            const userAvatar = userProfile.avatar || localStorage.getItem('redcharger_avatar');
-            
-            const avatarHTML = userAvatar ? 
-                `<img src="${userAvatar}" alt="${currentUser.username}" class="user-avatar border-secondary-cyan mx-auto mb-3">` :
-                `<div class="avatar-placeholder border-secondary-cyan mx-auto mb-3">
-                    <i class="fas fa-user"></i>
-                </div>`;
-            
-            currentUserStats.innerHTML = `
-                ${avatarHTML}
-                <div class="text-center mb-4">
-                    <div class="text-3xl font-bold text-secondary-cyan mb-1">#${rank}</div>
-                    <div class="text-lg text-text-light mb-1">${currentUser.username || 'You'}</div>
-                    <div class="text-text-muted">${(currentUser.totalPoints || 0).toLocaleString()} Total Points</div>
-                </div>
-                
-                <div class="grid grid-cols-2 gap-3 text-sm">
-                    <div class="text-center p-2 bg-card-bg/50 rounded">
-                        <div class="font-bold text-primary-blue text-lg">${(currentUser.wordsMastered || 0).toLocaleString()}</div>
-                        <div class="text-text-muted text-xs">Words</div>
-                    </div>
-                    <div class="text-center p-2 bg-card-bg/50 rounded">
-                        <div class="font-bold text-secondary-cyan text-lg">${(currentUser.sentencesMastered || 0).toLocaleString()}</div>
-                        <div class="text-text-muted text-xs">Sentences</div>
-                    </div>
-                    <div class="text-center p-2 bg-card-bg/50 rounded">
-                        <div class="font-bold text-yellow-400 text-lg">${currentUser.streakDays || 0}</div>
-                        <div class="text-text-muted text-xs">Day Streak</div>
-                    </div>
-                    <div class="text-center p-2 bg-card-bg/50 rounded">
-                        <div class="font-bold text-green-400 text-lg">${currentUser.totalQuizzes || 0}</div>
-                        <div class="text-text-muted text-xs">Quizzes</div>
-                    </div>
-                </div>
-                
-                ${rank > 10 ? `
-                    <div class="mt-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg text-center">
-                        <i class="fas fa-trophy text-yellow-400 mr-2"></i>
-                        <span class="text-yellow-200 text-sm">You're #${rank}. Keep going to reach the top 10!</span>
-                    </div>
-                ` : ''}
-            `;
-            
-            noUserData.classList.add('hidden');
-            currentUserStats.classList.remove('hidden');
-        } else {
-            showProfileIncompleteMessage();
-        }
-    }
-
-    // Show profile incomplete message
-    function showProfileIncompleteMessage() {
-        currentUserStats.innerHTML = `
-            <div class="text-center py-6">
-                <div class="text-blue-400 text-4xl mb-3">
-                    <i class="fas fa-user-circle"></i>
-                </div>
-                <h3 class="text-lg font-semibold text-text-light mb-2">Complete Your Profile</h3>
-                <p class="text-text-muted text-sm mb-4">
-                    Add a username to see your ranking on the leaderboard and track your progress with other learners.
-                </p>
-                <a href="/profile" class="inline-block py-2 px-6 rounded-lg bg-gradient-to-r from-primary-blue to-secondary-cyan text-white font-medium hover:shadow-lg transition duration-300">
-                    <i class="fas fa-user-edit mr-2"></i>Complete Profile
-                </a>
-            </div>
-        `;
-        noUserData.classList.add('hidden');
-        currentUserStats.classList.remove('hidden');
-    }
-
-    // Load user achievements
     function loadAchievements() {
-        if (!currentUserId || !userProfileComplete) {
+        if (!currentUserId) {
             noAchievements.classList.remove('hidden');
             achievementsList.classList.add('hidden');
             return;
@@ -911,7 +897,7 @@
         
         const mockAchievements = [
             { name: 'First Steps', description: 'Complete your first quiz', icon: 'fas fa-footsteps', unlocked: true },
-            { name: 'Word Collector', description: 'Master 50 words', icon: 'fas fa-font', unlocked: userProfileComplete },
+            { name: 'Word Collector', description: 'Master 50 words', icon: 'fas fa-font', unlocked: true },
             { name: 'Sentence Master', description: 'Master 25 sentences', icon: 'fas fa-comment-alt', unlocked: false }
         ];
         
@@ -950,7 +936,6 @@
         achievementsList.classList.remove('hidden');
     }
 
-    // UI State Management
     function showNoData() {
         noData.classList.remove('hidden');
         leaderboardList.innerHTML = '';
@@ -971,7 +956,6 @@
         loadingState.style.display = 'none';
     }
 
-    // Initialize Mobile Menu
     function initializeMobileMenu() {
         function toggleMobileMenu() {
             isMenuOpen = !isMenuOpen;
@@ -1036,7 +1020,6 @@
         });
     }
 
-    // Initialize Tabs
     function initializeTabs() {
         tabOverall.addEventListener('click', () => switchTab('overall'));
         tabWords.addEventListener('click', () => switchTab('words'));
@@ -1079,15 +1062,14 @@
             const sortedUsers = sortUsersByCriteria(allUsers, currentTab);
             const top10Users = sortedUsers.slice(0, 10);
             renderLeaderboardList(top10Users);
-            
-            if (userProfileComplete) {
-                updateCurrentUserRank(sortedUsers);
-            }
+            updateCurrentUserRank(sortedUsers);
         }
     }
 
     // Make hideProfilePrompt globally available
     window.hideProfilePrompt = hideProfilePrompt;
+
+    console.log('✅ Leaderboard JavaScript loaded');
 </script>
 </body>
 </html>
