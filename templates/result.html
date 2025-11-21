@@ -1395,16 +1395,27 @@ function showNoDataState() {
 }
 
 // Update overall statistics with adaptive learning data
+// Enhanced overall statistics with total quizzes fix
 function updateOverallStats(quizHistory, performanceData, adaptiveData) {
     console.log('Updating overall stats...');
     
     if (!overallStats) return;
     
+    // FIX: Enhanced total quizzes calculation
     const totalQuizzes = quizHistory.length;
+    console.log(`📊 Total quizzes calculated: ${totalQuizzes} from quiz history`);
+    
+    // Debug: Log what's actually in quizHistory
+    console.log('📋 Quiz history contents:', quizHistory);
+    
     if (document.getElementById('total-quizzes')) {
         document.getElementById('total-quizzes').textContent = totalQuizzes;
+        console.log(`✅ Total quizzes updated in UI: ${totalQuizzes}`);
+    } else {
+        console.log('❌ Total quizzes element not found');
     }
     
+    // Rest of your existing code remains the same
     const wordsQuizzes = quizHistory.filter(q => q && q.quiz_type === 'words').length;
     const sentencesQuizzes = quizHistory.filter(q => q && q.quiz_type === 'sentences').length;
     
