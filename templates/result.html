@@ -644,10 +644,8 @@ function handleQuizCompletion(quizData) {
         // Add new quiz to history
         quizHistory.unshift(completeQuizData);
         
-        // Keep only last 100 quizzes
-        if (quizHistory.length > 100) {
-            quizHistory = quizHistory.slice(0, 100);
-        }
+        // No limit - keep all quizzes forever
+// (Limit removed to allow unlimited quiz tracking)
 
         // Save to ALL possible keys
         possibleHistoryKeys.forEach(key => {
