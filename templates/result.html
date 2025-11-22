@@ -574,11 +574,8 @@ const exportDataBtn = document.getElementById('export-data');
 const mobileExportBtn = document.getElementById('mobile-export');
 const mobileExportDropdownBtn = document.getElementById('mobile-export-dropdown');
 
-// ============================
-// DUPLICATE PREVENTION FIX
-// ============================
-let isProcessingQuiz = false;
-let processedQuizIds = new Set();
+// FIX: Add simple duplicate prevention
+let lastProcessedQuizId = null;
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -597,10 +594,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================
-// QUIZ DATA SYNC FIX - WITH DUPLICATE PREVENTION
+// QUIZ DATA SYNC FIX - MINIMAL DUPLICATE PREVENTION
 // ============================
 
-// Enhanced quiz completion handler with duplicate prevention
+// Enhanced quiz completion handler
 function handleQuizCompletion(quizData) {
     console.log('🔄 Handling quiz completion:', quizData);
     
@@ -609,24 +606,14 @@ function handleQuizCompletion(quizData) {
         return false;
     }
 
-    // Prevent multiple simultaneous processing
-    if (isProcessingQuiz) {
-        console.log('⚠️ Already processing a quiz, skipping...');
+    // FIX: Check if this quiz was just processed
+    const quizId = quizData.id || `quiz-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    if (lastProcessedQuizId === quizId) {
+        console.log('⚠️ Quiz already processed, skipping:', quizId);
         return false;
     }
 
     try {
-        isProcessingQuiz = true;
-
-        // Generate unique quiz ID
-        const quizId = quizData.id || `quiz-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
-        // Check if this quiz was already processed
-        if (processedQuizIds.has(quizId)) {
-            console.log('⚠️ Quiz already processed, skipping:', quizId);
-            return false;
-        }
-
         // Ensure quiz data has all required fields
         const completeQuizData = {
             quiz_type: quizData.quiz_type || 'words',
@@ -634,16 +621,16 @@ function handleQuizCompletion(quizData) {
             total_questions: quizData.total_questions || quizData.total || 10,
             percentage: quizData.percentage || Math.round(((quizData.correct_answers || quizData.correct || 0) / (quizData.total_questions || quizData.total || 10)) * 100),
             timestamp: quizData.timestamp || new Date().toISOString(),
-            id: quizId, // Use the consistent ID
+            id: quizId, // Use consistent ID
             quiz_items: quizData.quiz_items || [],
             correct_items: quizData.correct_items || [],
             incorrect_items: quizData.incorrect_items || []
         };
 
         console.log('✅ Processed quiz data:', completeQuizData);
-        
-        // Mark as processed immediately
-        processedQuizIds.add(quizId);
+
+        // FIX: Mark as processed immediately
+        lastProcessedQuizId = quizId;
 
         // 1. Save to session storage for immediate display
         sessionStorage.setItem('quizResults', JSON.stringify(completeQuizData));
@@ -667,20 +654,24 @@ function handleQuizCompletion(quizData) {
             }
         }
 
-        // Remove any existing quiz with same ID to prevent duplicates
-        quizHistory = quizHistory.filter(quiz => quiz.id !== quizId);
+        // FIX: Check for duplicate before adding
+        const isDuplicate = quizHistory.some(quiz => 
+            quiz.id === quizId || 
+            (Math.abs(new Date(quiz.timestamp) - new Date(completeQuizData.timestamp)) < 60000)
+        );
 
-        // Add new quiz to history
-        quizHistory.unshift(completeQuizData);
-        
-        // No limit - keep all quizzes forever
-        // (Limit removed to allow unlimited quiz tracking)
-
-        // Save to ALL possible keys
-        possibleHistoryKeys.forEach(key => {
-            localStorage.setItem(key, JSON.stringify(quizHistory));
-        });
-        console.log(`✅ Quiz history updated: ${quizHistory.length} total quizzes`);
+        if (!isDuplicate) {
+            // Add new quiz to history
+            quizHistory.unshift(completeQuizData);
+            
+            // Save to ALL possible keys
+            possibleHistoryKeys.forEach(key => {
+                localStorage.setItem(key, JSON.stringify(quizHistory));
+            });
+            console.log(`✅ Quiz history updated: ${quizHistory.length} total quizzes`);
+        } else {
+            console.log('⚠️ Duplicate quiz found, not adding to history');
+        }
 
         // 3. Update performance data
         let performanceData = { words: {}, sentences: {} };
@@ -764,14 +755,10 @@ function handleQuizCompletion(quizData) {
     } catch (error) {
         console.error('❌ Error processing quiz completion:', error);
         return false;
-    } finally {
-        isProcessingQuiz = false;
     }
 }
 
-// ============================
-// UPDATED: Check for new quiz data with duplicate prevention
-// ============================
+// FIX: Enhanced check for new quiz data with duplicate prevention
 function checkForNewQuizData() {
     const currentQuizJson = sessionStorage.getItem('quizResults');
     if (!currentQuizJson) return;
@@ -779,22 +766,19 @@ function checkForNewQuizData() {
     try {
         const currentQuiz = JSON.parse(currentQuizJson);
         if (currentQuiz && currentQuiz.quiz_type) {
-            // Enhanced duplicate check
+            // Check if this quiz was already processed
             const quizId = currentQuiz.id || `quiz-${Date.now()}`;
-            if (processedQuizIds.has(quizId)) {
-                console.log('⚠️ Quiz already processed in check, skipping:', quizId);
+            if (lastProcessedQuizId === quizId) {
+                console.log('⚠️ Quiz already processed in check, skipping');
                 // Clear session storage to prevent future processing
                 sessionStorage.removeItem('quizResults');
                 return;
             }
             
             console.log('🔄 Found new quiz data in sessionStorage, processing...');
-            const success = handleQuizCompletion(currentQuiz);
-            
-            if (success) {
-                // Clear session storage after successful processing
-                sessionStorage.removeItem('quizResults');
-            }
+            handleQuizCompletion(currentQuiz);
+            // Clear session storage after processing
+            sessionStorage.removeItem('quizResults');
         }
     } catch (error) {
         console.error('❌ Error processing quiz from sessionStorage:', error);
@@ -803,19 +787,20 @@ function checkForNewQuizData() {
     }
 }
 
-// ============================
-// UPDATED: Load results data with duplicate prevention
-// ============================
+// FIX: Enhanced load results data
 function loadResultsData() {
     console.log('Loading results data...');
     
-    // Check for new quiz data first (with duplicate prevention)
-    checkForNewQuizData();
+    // Clear any existing session storage first to prevent duplicates
+    const existingQuiz = sessionStorage.getItem('quizResults');
+    if (existingQuiz) {
+        console.log('🔄 Found existing quiz in session, processing...');
+        checkForNewQuizData();
+    }
     
     // Debug: Check what's actually in storage
     console.log('sessionStorage quizResults:', sessionStorage.getItem('quizResults'));
     console.log('localStorage hsk1QuizHistory:', localStorage.getItem('hsk1QuizHistory'));
-    console.log('localStorage hsk1PerformanceData:', localStorage.getItem('hsk1PerformanceData'));
     
     // Try multiple possible storage keys for backward compatibility
     const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
@@ -882,9 +867,7 @@ function loadResultsData() {
     }
 }
 
-// ============================
-// UPDATED: Update quiz history with enhanced duplicate removal
-// ============================
+// FIX: Enhanced update quiz history with better duplicate removal
 function updateQuizHistory(quizHistory, currentQuiz) {
     const historyContainer = document.getElementById('quiz-history');
     const noHistory = document.getElementById('no-history');
@@ -896,21 +879,21 @@ function updateQuizHistory(quizHistory, currentQuiz) {
     if (currentQuiz && isValidQuiz(currentQuiz)) {
         const normalizedCurrentQuiz = normalizeQuizData(currentQuiz);
         
-        // Enhanced duplicate check using ID
+        // Enhanced duplicate check
         const isDuplicate = quizHistory.some(quiz => 
             quiz.id === normalizedCurrentQuiz.id || 
-            isSameQuiz(quiz, normalizedCurrentQuiz)
+            (Math.abs(new Date(quiz.timestamp) - new Date(normalizedCurrentQuiz.timestamp)) < 30000) // 30 second window
         );
         
         if (!isDuplicate) {
             allQuizzes = [normalizedCurrentQuiz, ...quizHistory];
+        } else {
+            console.log('⚠️ Current quiz is duplicate, not displaying separately');
         }
     }
     
-    const normalizedQuizzes = allQuizzes.map(quiz => normalizeQuizData(quiz));
-    
-    // Enhanced duplicate removal using ID
-    const uniqueQuizzes = removeDuplicateQuizzes(normalizedQuizzes);
+    // Remove duplicates based on ID and timestamp
+    const uniqueQuizzes = removeDuplicateQuizzes(allQuizzes);
     
     uniqueQuizzes.sort((a, b) => {
         const dateA = getQuizDate(a);
@@ -950,87 +933,33 @@ function updateQuizHistory(quizHistory, currentQuiz) {
             `;
         }).join('');
         
-        console.log('✅ Quiz history displayed with', recentQuizzes.length, 'unique quizzes');
+        console.log('✅ Displaying', recentQuizzes.length, 'unique quizzes in history');
     } else {
         noHistory.classList.remove('hidden');
         historyContainer.innerHTML = '';
     }
 }
 
-// ============================
-// ENHANCED: Helper functions for duplicate prevention
-// ============================
-
-// Helper function to normalize quiz data
-function normalizeQuizData(quiz) {
-    return {
-        quiz_type: quiz.quiz_type || 'words',
-        correct_answers: quiz.correct_answers || quiz.correct || 0,
-        total_questions: quiz.total_questions || quiz.total || 10,
-        percentage: quiz.percentage || Math.round(((quiz.correct_answers || quiz.correct || 0) / (quiz.total_questions || quiz.total || 10)) * 100),
-        timestamp: quiz.timestamp || quiz.date || new Date().toISOString(),
-        id: quiz.id || `quiz-${Date.now()}`
-    };
-}
-
-// Helper function to check if two quizzes are the same
-function isSameQuiz(quiz1, quiz2) {
-    const date1 = getQuizDate(quiz1);
-    const date2 = getQuizDate(quiz2);
-    
-    return (
-        quiz1.quiz_type === quiz2.quiz_type &&
-        quiz1.correct_answers === quiz2.correct_answers &&
-        quiz1.total_questions === quiz2.total_questions &&
-        Math.abs(date1 - date2) < 60000
-    );
-}
-
-// Helper function to get quiz date
-function getQuizDate(quiz) {
-    try {
-        return new Date(quiz.timestamp || quiz.date || new Date());
-    } catch (e) {
-        return new Date();
-    }
-}
-
-// Helper function to check if date is valid
-function isValidDate(date) {
-    return date instanceof Date && !isNaN(date);
-}
-
-// Helper function to check if quiz is valid
-function isValidQuiz(quiz) {
-    return quiz && (quiz.quiz_type === 'words' || quiz.quiz_type === 'sentences');
-}
-
-// ENHANCED: Helper function to remove duplicate quizzes using ID
+// FIX: Enhanced duplicate removal
 function removeDuplicateQuizzes(quizzes) {
-    const seenIds = new Set();
-    const seenContent = new Set();
+    const seen = new Map();
     
     return quizzes.filter(quiz => {
-        // Check by ID first (most reliable)
-        if (quiz.id && seenIds.has(quiz.id)) {
+        const id = quiz.id;
+        const timestamp = new Date(quiz.timestamp).getTime();
+        
+        // Create a unique key using ID and timestamp (within 30 seconds)
+        const key = id || `time-${Math.floor(timestamp / 30000)}`; // Group by 30-second windows
+        
+        if (seen.has(key)) {
+            console.log('🔄 Removing duplicate quiz:', key);
             return false;
         }
         
-        // Check by content as fallback
-        const contentKey = `${quiz.quiz_type}-${quiz.correct_answers}-${quiz.total_questions}-${getQuizDate(quiz).getTime()}`;
-        if (seenContent.has(contentKey)) {
-            return false;
-        }
-        
-        if (quiz.id) seenIds.add(quiz.id);
-        seenContent.add(contentKey);
+        seen.set(key, true);
         return true;
     });
 }
-
-// ============================
-// REST OF YOUR ORIGINAL CODE REMAINS UNCHANGED
-// ============================
 
 // Update adaptive learning data
 function updateAdaptiveLearningData(quizData) {
@@ -2164,6 +2093,50 @@ function showRefreshIndicator() {
     }, 2000);
 }
 
+// Helper function to normalize quiz data
+function normalizeQuizData(quiz) {
+    return {
+        quiz_type: quiz.quiz_type || 'words',
+        correct_answers: quiz.correct_answers || quiz.correct || 0,
+        total_questions: quiz.total_questions || quiz.total || 10,
+        percentage: quiz.percentage || Math.round(((quiz.correct_answers || quiz.correct || 0) / (quiz.total_questions || quiz.total || 10)) * 100),
+        timestamp: quiz.timestamp || quiz.date || new Date().toISOString(),
+        id: quiz.id || `quiz-${Date.now()}`
+    };
+}
+
+// Helper function to check if two quizzes are the same
+function isSameQuiz(quiz1, quiz2) {
+    const date1 = getQuizDate(quiz1);
+    const date2 = getQuizDate(quiz2);
+    
+    return (
+        quiz1.quiz_type === quiz2.quiz_type &&
+        quiz1.correct_answers === quiz2.correct_answers &&
+        quiz1.total_questions === quiz2.total_questions &&
+        Math.abs(date1 - date2) < 60000
+    );
+}
+
+// Helper function to get quiz date
+function getQuizDate(quiz) {
+    try {
+        return new Date(quiz.timestamp || quiz.date || new Date());
+    } catch (e) {
+        return new Date();
+    }
+}
+
+// Helper function to check if date is valid
+function isValidDate(date) {
+    return date instanceof Date && !isNaN(date);
+}
+
+// Helper function to check if quiz is valid
+function isValidQuiz(quiz) {
+    return quiz && (quiz.quiz_type === 'words' || quiz.quiz_type === 'sentences');
+}
+
 // Update difficulty analysis with adaptive learning data
 function updateDifficultyAnalysis(performanceData, adaptiveData) {
     const wordsMastery = calculateMasteryLevelsWithAdaptive(performanceData.words || {}, adaptiveData.wordMastery, adaptiveData.masteredWords);
@@ -2319,7 +2292,7 @@ function exportUserData() {
     }, 100);
 }
 
-console.log('✅ Results page JavaScript loaded successfully - Enhanced duplicate prevention active!');
+console.log('✅ Results page JavaScript loaded successfully - COMPLETE CODE WITH DUPLICATE FIX!');
 </script>
 </body>
 </html>
