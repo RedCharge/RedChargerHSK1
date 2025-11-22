@@ -555,7 +555,7 @@
         console.log("Firebase loaded successfully!");
     </script>
 
-    <!-- Results Logic -->
+   <!-- Results Logic -->
 <script>
 // DOM elements
 const loadingState = document.getElementById('loading-state');
@@ -574,6 +574,12 @@ const exportDataBtn = document.getElementById('export-data');
 const mobileExportBtn = document.getElementById('mobile-export');
 const mobileExportDropdownBtn = document.getElementById('mobile-export-dropdown');
 
+// ============================
+// DUPLICATE PREVENTION FIX
+// ============================
+let isProcessingQuiz = false;
+let processedQuizIds = new Set();
+
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Results page initialized');
@@ -591,10 +597,10 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ============================
-// QUIZ DATA SYNC FIX
+// QUIZ DATA SYNC FIX - WITH DUPLICATE PREVENTION
 // ============================
 
-// Enhanced quiz completion handler
+// Enhanced quiz completion handler with duplicate prevention
 function handleQuizCompletion(quizData) {
     console.log('🔄 Handling quiz completion:', quizData);
     
@@ -603,7 +609,24 @@ function handleQuizCompletion(quizData) {
         return false;
     }
 
+    // Prevent multiple simultaneous processing
+    if (isProcessingQuiz) {
+        console.log('⚠️ Already processing a quiz, skipping...');
+        return false;
+    }
+
     try {
+        isProcessingQuiz = true;
+
+        // Generate unique quiz ID
+        const quizId = quizData.id || `quiz-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Check if this quiz was already processed
+        if (processedQuizIds.has(quizId)) {
+            console.log('⚠️ Quiz already processed, skipping:', quizId);
+            return false;
+        }
+
         // Ensure quiz data has all required fields
         const completeQuizData = {
             quiz_type: quizData.quiz_type || 'words',
@@ -611,13 +634,16 @@ function handleQuizCompletion(quizData) {
             total_questions: quizData.total_questions || quizData.total || 10,
             percentage: quizData.percentage || Math.round(((quizData.correct_answers || quizData.correct || 0) / (quizData.total_questions || quizData.total || 10)) * 100),
             timestamp: quizData.timestamp || new Date().toISOString(),
-            id: quizData.id || `quiz-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: quizId, // Use the consistent ID
             quiz_items: quizData.quiz_items || [],
             correct_items: quizData.correct_items || [],
             incorrect_items: quizData.incorrect_items || []
         };
 
         console.log('✅ Processed quiz data:', completeQuizData);
+        
+        // Mark as processed immediately
+        processedQuizIds.add(quizId);
 
         // 1. Save to session storage for immediate display
         sessionStorage.setItem('quizResults', JSON.stringify(completeQuizData));
@@ -641,11 +667,14 @@ function handleQuizCompletion(quizData) {
             }
         }
 
+        // Remove any existing quiz with same ID to prevent duplicates
+        quizHistory = quizHistory.filter(quiz => quiz.id !== quizId);
+
         // Add new quiz to history
         quizHistory.unshift(completeQuizData);
         
         // No limit - keep all quizzes forever
-// (Limit removed to allow unlimited quiz tracking)
+        // (Limit removed to allow unlimited quiz tracking)
 
         // Save to ALL possible keys
         possibleHistoryKeys.forEach(key => {
@@ -735,8 +764,273 @@ function handleQuizCompletion(quizData) {
     } catch (error) {
         console.error('❌ Error processing quiz completion:', error);
         return false;
+    } finally {
+        isProcessingQuiz = false;
     }
 }
+
+// ============================
+// UPDATED: Check for new quiz data with duplicate prevention
+// ============================
+function checkForNewQuizData() {
+    const currentQuizJson = sessionStorage.getItem('quizResults');
+    if (!currentQuizJson) return;
+    
+    try {
+        const currentQuiz = JSON.parse(currentQuizJson);
+        if (currentQuiz && currentQuiz.quiz_type) {
+            // Enhanced duplicate check
+            const quizId = currentQuiz.id || `quiz-${Date.now()}`;
+            if (processedQuizIds.has(quizId)) {
+                console.log('⚠️ Quiz already processed in check, skipping:', quizId);
+                // Clear session storage to prevent future processing
+                sessionStorage.removeItem('quizResults');
+                return;
+            }
+            
+            console.log('🔄 Found new quiz data in sessionStorage, processing...');
+            const success = handleQuizCompletion(currentQuiz);
+            
+            if (success) {
+                // Clear session storage after successful processing
+                sessionStorage.removeItem('quizResults');
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error processing quiz from sessionStorage:', error);
+        // Clear corrupted session storage
+        sessionStorage.removeItem('quizResults');
+    }
+}
+
+// ============================
+// UPDATED: Load results data with duplicate prevention
+// ============================
+function loadResultsData() {
+    console.log('Loading results data...');
+    
+    // Check for new quiz data first (with duplicate prevention)
+    checkForNewQuizData();
+    
+    // Debug: Check what's actually in storage
+    console.log('sessionStorage quizResults:', sessionStorage.getItem('quizResults'));
+    console.log('localStorage hsk1QuizHistory:', localStorage.getItem('hsk1QuizHistory'));
+    console.log('localStorage hsk1PerformanceData:', localStorage.getItem('hsk1PerformanceData'));
+    
+    // Try multiple possible storage keys for backward compatibility
+    const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
+    
+    let quizHistory = [];
+    let performanceData = {};
+    
+    // Try multiple possible keys for quiz history
+    const possibleHistoryKeys = ['hsk1QuizHistory', 'userQuizHistory', 'quizHistory', 'redcharger_quiz_history'];
+    for (const key of possibleHistoryKeys) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            try {
+                quizHistory = JSON.parse(stored);
+                console.log(`Found quiz history in key: ${key}`, quizHistory.length, 'items');
+                break;
+            } catch (e) {
+                console.error(`Error parsing ${key}:`, e);
+            }
+        }
+    }
+    
+    // Try multiple possible keys for performance data
+    const possiblePerformanceKeys = ['hsk1PerformanceData', 'userPerformance', 'performanceData', 'redcharger_performance_data'];
+    for (const key of possiblePerformanceKeys) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            try {
+                performanceData = JSON.parse(stored);
+                console.log(`Found performance data in key: ${key}`, Object.keys(performanceData).length, 'items');
+                break;
+            } catch (e) {
+                console.error(`Error parsing ${key}:`, e);
+            }
+        }
+    }
+    
+    // Load adaptive learning data
+    const adaptiveData = loadAdaptiveLearningData();
+    
+    // If no data found anywhere, use mock data for demonstration
+    if (quizHistory.length === 0 && Object.keys(performanceData).length === 0 && !currentQuiz) {
+        console.log('No data found, generating mock data for demonstration');
+        const mockData = generateMockData();
+        quizHistory = mockData.quizHistory;
+        performanceData = mockData.performanceData;
+        
+        // Save mock data for future use
+        localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
+        localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
+    }
+    
+    const hasData = currentQuiz || quizHistory.length > 0 || Object.keys(performanceData).length > 0;
+    
+    if (hasData) {
+        displayResults(currentQuiz, quizHistory, performanceData, adaptiveData);
+        
+        // Auto-save to leaderboard if we have valid data
+        setTimeout(() => {
+            autoSaveToLeaderboard(quizHistory, performanceData, adaptiveData);
+        }, 1000);
+    } else {
+        showNoDataState();
+    }
+}
+
+// ============================
+// UPDATED: Update quiz history with enhanced duplicate removal
+// ============================
+function updateQuizHistory(quizHistory, currentQuiz) {
+    const historyContainer = document.getElementById('quiz-history');
+    const noHistory = document.getElementById('no-history');
+    
+    if (!historyContainer || !noHistory) return;
+    
+    let allQuizzes = [...quizHistory];
+    
+    if (currentQuiz && isValidQuiz(currentQuiz)) {
+        const normalizedCurrentQuiz = normalizeQuizData(currentQuiz);
+        
+        // Enhanced duplicate check using ID
+        const isDuplicate = quizHistory.some(quiz => 
+            quiz.id === normalizedCurrentQuiz.id || 
+            isSameQuiz(quiz, normalizedCurrentQuiz)
+        );
+        
+        if (!isDuplicate) {
+            allQuizzes = [normalizedCurrentQuiz, ...quizHistory];
+        }
+    }
+    
+    const normalizedQuizzes = allQuizzes.map(quiz => normalizeQuizData(quiz));
+    
+    // Enhanced duplicate removal using ID
+    const uniqueQuizzes = removeDuplicateQuizzes(normalizedQuizzes);
+    
+    uniqueQuizzes.sort((a, b) => {
+        const dateA = getQuizDate(a);
+        const dateB = getQuizDate(b);
+        return dateB - dateA;
+    });
+    
+    if (uniqueQuizzes.length > 0) {
+        noHistory.classList.add('hidden');
+        
+        const recentQuizzes = uniqueQuizzes.slice(0, 6);
+        
+        historyContainer.innerHTML = recentQuizzes.map(quiz => {
+            const quizDate = getQuizDate(quiz);
+            const dateStr = isValidDate(quizDate) ? quizDate.toLocaleDateString() : 'Recent';
+            const type = quiz.quiz_type || 'words';
+            const correct = quiz.correct_answers || quiz.correct || 0;
+            const total = quiz.total_questions || quiz.total || 10;
+            const percentage = quiz.percentage || Math.round((correct / total) * 100);
+            
+            return `
+                <div class="flex justify-between items-center p-4 bg-card-bg/50 rounded-lg border border-text-muted/20 ${type === 'words' ? 'quiz-type-words' : 'quiz-type-sentences'}">
+                    <div>
+                        <div class="font-medium">${dateStr}</div>
+                        <div class="text-sm text-text-muted">
+                            ${type === 'words' ? 'Vocabulary Words' : 'Sentence Comprehension'} • 
+                            ${correct}/${total} correct
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xl font-bold ${percentage >= 70 ? 'text-green-400' : percentage >= 50 ? 'text-yellow-400' : 'text-red-400'}">
+                            ${percentage}%
+                        </div>
+                        <div class="text-sm text-text-muted">Accuracy</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        console.log('✅ Quiz history displayed with', recentQuizzes.length, 'unique quizzes');
+    } else {
+        noHistory.classList.remove('hidden');
+        historyContainer.innerHTML = '';
+    }
+}
+
+// ============================
+// ENHANCED: Helper functions for duplicate prevention
+// ============================
+
+// Helper function to normalize quiz data
+function normalizeQuizData(quiz) {
+    return {
+        quiz_type: quiz.quiz_type || 'words',
+        correct_answers: quiz.correct_answers || quiz.correct || 0,
+        total_questions: quiz.total_questions || quiz.total || 10,
+        percentage: quiz.percentage || Math.round(((quiz.correct_answers || quiz.correct || 0) / (quiz.total_questions || quiz.total || 10)) * 100),
+        timestamp: quiz.timestamp || quiz.date || new Date().toISOString(),
+        id: quiz.id || `quiz-${Date.now()}`
+    };
+}
+
+// Helper function to check if two quizzes are the same
+function isSameQuiz(quiz1, quiz2) {
+    const date1 = getQuizDate(quiz1);
+    const date2 = getQuizDate(quiz2);
+    
+    return (
+        quiz1.quiz_type === quiz2.quiz_type &&
+        quiz1.correct_answers === quiz2.correct_answers &&
+        quiz1.total_questions === quiz2.total_questions &&
+        Math.abs(date1 - date2) < 60000
+    );
+}
+
+// Helper function to get quiz date
+function getQuizDate(quiz) {
+    try {
+        return new Date(quiz.timestamp || quiz.date || new Date());
+    } catch (e) {
+        return new Date();
+    }
+}
+
+// Helper function to check if date is valid
+function isValidDate(date) {
+    return date instanceof Date && !isNaN(date);
+}
+
+// Helper function to check if quiz is valid
+function isValidQuiz(quiz) {
+    return quiz && (quiz.quiz_type === 'words' || quiz.quiz_type === 'sentences');
+}
+
+// ENHANCED: Helper function to remove duplicate quizzes using ID
+function removeDuplicateQuizzes(quizzes) {
+    const seenIds = new Set();
+    const seenContent = new Set();
+    
+    return quizzes.filter(quiz => {
+        // Check by ID first (most reliable)
+        if (quiz.id && seenIds.has(quiz.id)) {
+            return false;
+        }
+        
+        // Check by content as fallback
+        const contentKey = `${quiz.quiz_type}-${quiz.correct_answers}-${quiz.total_questions}-${getQuizDate(quiz).getTime()}`;
+        if (seenContent.has(contentKey)) {
+            return false;
+        }
+        
+        if (quiz.id) seenIds.add(quiz.id);
+        seenContent.add(contentKey);
+        return true;
+    });
+}
+
+// ============================
+// REST OF YOUR ORIGINAL CODE REMAINS UNCHANGED
+// ============================
 
 // Update adaptive learning data
 function updateAdaptiveLearningData(quizData) {
@@ -817,17 +1111,6 @@ function updateAdaptiveLearningData(quizData) {
     } catch (error) {
         console.error('❌ Error updating adaptive learning data:', error);
         return false;
-    }
-}
-
-// Check for new quiz data periodically
-function checkForNewQuizData() {
-    const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
-    if (currentQuiz && currentQuiz.quiz_type) {
-        console.log('🔄 Found new quiz data in sessionStorage, processing...');
-        handleQuizCompletion(currentQuiz);
-        // Clear session storage after processing
-        sessionStorage.removeItem('quizResults');
     }
 }
 
@@ -1194,83 +1477,6 @@ function generateMockData() {
         quizHistory,
         performanceData
     };
-}
-
-// Enhanced data loading with better error handling and legacy support
-function loadResultsData() {
-    console.log('Loading results data...');
-    
-    // Check for new quiz data first
-    checkForNewQuizData();
-    
-    // Debug: Check what's actually in storage
-    console.log('sessionStorage quizResults:', sessionStorage.getItem('quizResults'));
-    console.log('localStorage hsk1QuizHistory:', localStorage.getItem('hsk1QuizHistory'));
-    console.log('localStorage hsk1PerformanceData:', localStorage.getItem('hsk1PerformanceData'));
-    
-    // Try multiple possible storage keys for backward compatibility
-    const currentQuiz = JSON.parse(sessionStorage.getItem('quizResults') || 'null');
-    
-    let quizHistory = [];
-    let performanceData = {};
-    
-    // Try multiple possible keys for quiz history
-    const possibleHistoryKeys = ['hsk1QuizHistory', 'userQuizHistory', 'quizHistory', 'redcharger_quiz_history'];
-    for (const key of possibleHistoryKeys) {
-        const stored = localStorage.getItem(key);
-        if (stored) {
-            try {
-                quizHistory = JSON.parse(stored);
-                console.log(`Found quiz history in key: ${key}`, quizHistory.length, 'items');
-                break;
-            } catch (e) {
-                console.error(`Error parsing ${key}:`, e);
-            }
-        }
-    }
-    
-    // Try multiple possible keys for performance data
-    const possiblePerformanceKeys = ['hsk1PerformanceData', 'userPerformance', 'performanceData', 'redcharger_performance_data'];
-    for (const key of possiblePerformanceKeys) {
-        const stored = localStorage.getItem(key);
-        if (stored) {
-            try {
-                performanceData = JSON.parse(stored);
-                console.log(`Found performance data in key: ${key}`, Object.keys(performanceData).length, 'items');
-                break;
-            } catch (e) {
-                console.error(`Error parsing ${key}:`, e);
-            }
-        }
-    }
-    
-    // Load adaptive learning data
-    const adaptiveData = loadAdaptiveLearningData();
-    
-    // If no data found anywhere, use mock data for demonstration
-    if (quizHistory.length === 0 && Object.keys(performanceData).length === 0 && !currentQuiz) {
-        console.log('No data found, generating mock data for demonstration');
-        const mockData = generateMockData();
-        quizHistory = mockData.quizHistory;
-        performanceData = mockData.performanceData;
-        
-        // Save mock data for future use
-        localStorage.setItem('hsk1QuizHistory', JSON.stringify(quizHistory));
-        localStorage.setItem('hsk1PerformanceData', JSON.stringify(performanceData));
-    }
-    
-    const hasData = currentQuiz || quizHistory.length > 0 || Object.keys(performanceData).length > 0;
-    
-    if (hasData) {
-        displayResults(currentQuiz, quizHistory, performanceData, adaptiveData);
-        
-        // Auto-save to leaderboard if we have valid data
-        setTimeout(() => {
-            autoSaveToLeaderboard(quizHistory, performanceData, adaptiveData);
-        }, 1000);
-    } else {
-        showNoDataState();
-    }
 }
 
 // Auto-save user data to leaderboard
@@ -1958,127 +2164,6 @@ function showRefreshIndicator() {
     }, 2000);
 }
 
-// Update quiz history
-function updateQuizHistory(quizHistory, currentQuiz) {
-    const historyContainer = document.getElementById('quiz-history');
-    const noHistory = document.getElementById('no-history');
-    
-    if (!historyContainer || !noHistory) return;
-    
-    let allQuizzes = [...quizHistory];
-    
-    if (currentQuiz && isValidQuiz(currentQuiz)) {
-        const normalizedCurrentQuiz = normalizeQuizData(currentQuiz);
-        const isDuplicate = quizHistory.some(quiz => isSameQuiz(quiz, normalizedCurrentQuiz));
-        
-        if (!isDuplicate) {
-            allQuizzes = [normalizedCurrentQuiz, ...quizHistory];
-        }
-    }
-    
-    const normalizedQuizzes = allQuizzes.map(quiz => normalizeQuizData(quiz));
-    const uniqueQuizzes = removeDuplicateQuizzes(normalizedQuizzes);
-    
-    uniqueQuizzes.sort((a, b) => {
-        const dateA = getQuizDate(a);
-        const dateB = getQuizDate(b);
-        return dateB - dateA;
-    });
-    
-    if (uniqueQuizzes.length > 0) {
-        noHistory.classList.add('hidden');
-        
-        const recentQuizzes = uniqueQuizzes.slice(0, 6);
-        
-        historyContainer.innerHTML = recentQuizzes.map(quiz => {
-            const quizDate = getQuizDate(quiz);
-            const dateStr = isValidDate(quizDate) ? quizDate.toLocaleDateString() : 'Recent';
-            const type = quiz.quiz_type || 'words';
-            const correct = quiz.correct_answers || quiz.correct || 0;
-            const total = quiz.total_questions || quiz.total || 10;
-            const percentage = quiz.percentage || Math.round((correct / total) * 100);
-            
-            return `
-                <div class="flex justify-between items-center p-4 bg-card-bg/50 rounded-lg border border-text-muted/20 ${type === 'words' ? 'quiz-type-words' : 'quiz-type-sentences'}">
-                    <div>
-                        <div class="font-medium">${dateStr}</div>
-                        <div class="text-sm text-text-muted">
-                            ${type === 'words' ? 'Vocabulary Words' : 'Sentence Comprehension'} • 
-                            ${correct}/${total} correct
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <div class="text-xl font-bold ${percentage >= 70 ? 'text-green-400' : percentage >= 50 ? 'text-yellow-400' : 'text-red-400'}">
-                            ${percentage}%
-                        </div>
-                        <div class="text-sm text-text-muted">Accuracy</div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-    } else {
-        noHistory.classList.remove('hidden');
-        historyContainer.innerHTML = '';
-    }
-}
-
-// Helper function to normalize quiz data
-function normalizeQuizData(quiz) {
-    return {
-        quiz_type: quiz.quiz_type || 'words',
-        correct_answers: quiz.correct_answers || quiz.correct || 0,
-        total_questions: quiz.total_questions || quiz.total || 10,
-        percentage: quiz.percentage || Math.round(((quiz.correct_answers || quiz.correct || 0) / (quiz.total_questions || quiz.total || 10)) * 100),
-        timestamp: quiz.timestamp || quiz.date || new Date().toISOString(),
-        id: quiz.id || `quiz-${Date.now()}`
-    };
-}
-
-// Helper function to check if two quizzes are the same
-function isSameQuiz(quiz1, quiz2) {
-    const date1 = getQuizDate(quiz1);
-    const date2 = getQuizDate(quiz2);
-    
-    return (
-        quiz1.quiz_type === quiz2.quiz_type &&
-        quiz1.correct_answers === quiz2.correct_answers &&
-        quiz1.total_questions === quiz2.total_questions &&
-        Math.abs(date1 - date2) < 60000
-    );
-}
-
-// Helper function to get quiz date
-function getQuizDate(quiz) {
-    try {
-        return new Date(quiz.timestamp || quiz.date || new Date());
-    } catch (e) {
-        return new Date();
-    }
-}
-
-// Helper function to check if date is valid
-function isValidDate(date) {
-    return date instanceof Date && !isNaN(date);
-}
-
-// Helper function to check if quiz is valid
-function isValidQuiz(quiz) {
-    return quiz && (quiz.quiz_type === 'words' || quiz.quiz_type === 'sentences');
-}
-
-// Helper function to remove duplicate quizzes
-function removeDuplicateQuizzes(quizzes) {
-    const seen = new Set();
-    return quizzes.filter(quiz => {
-        const key = `${quiz.quiz_type}-${quiz.correct_answers}-${quiz.total_questions}-${getQuizDate(quiz).getTime()}`;
-        if (seen.has(key)) {
-            return false;
-        }
-        seen.add(key);
-        return true;
-    });
-}
-
 // Update difficulty analysis with adaptive learning data
 function updateDifficultyAnalysis(performanceData, adaptiveData) {
     const wordsMastery = calculateMasteryLevelsWithAdaptive(performanceData.words || {}, adaptiveData.wordMastery, adaptiveData.masteredWords);
@@ -2234,7 +2319,7 @@ function exportUserData() {
     }, 100);
 }
 
-console.log('✅ Results page JavaScript loaded successfully - Statistics fixing system active!');
+console.log('✅ Results page JavaScript loaded successfully - Enhanced duplicate prevention active!');
 </script>
 </body>
 </html>
