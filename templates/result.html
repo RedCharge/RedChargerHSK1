@@ -577,6 +577,322 @@ const mobileExportDropdownBtn = document.getElementById('mobile-export-dropdown'
 // FIX: Add simple duplicate prevention
 let lastProcessedQuizId = null;
 
+// ============================
+// ADAPTIVE LEARNING INTEGRATION - FULLY WORKING VERSION
+// ============================
+
+// Enhanced load adaptive learning data with initialization
+function loadAdaptiveLearningData() {
+    try {
+        console.log('🔄 Loading adaptive learning data...');
+        
+        // Load with proper error handling and defaults
+        const wordMastery = JSON.parse(localStorage.getItem('wordMastery') || '{}');
+        const sentenceMastery = JSON.parse(localStorage.getItem('sentenceMastery') || '{}');
+        
+        // Convert arrays back to Sets for mastered items
+        const masteredWordsArray = JSON.parse(localStorage.getItem('masteredWords') || '[]');
+        const masteredSentencesArray = JSON.parse(localStorage.getItem('masteredSentences') || '[]');
+        const masteredWords = new Set(masteredWordsArray);
+        const masteredSentences = new Set(masteredSentencesArray);
+        
+        const reviewWords = JSON.parse(localStorage.getItem('reviewWords') || '[]');
+        const reviewSentences = JSON.parse(localStorage.getItem('reviewSentences') || '[]');
+        
+        const adaptiveData = {
+            wordMastery,
+            sentenceMastery,
+            masteredWords,
+            masteredSentences,
+            reviewWords,
+            reviewSentences
+        };
+        
+        console.log('✅ Adaptive data loaded:', {
+            wordsTracked: Object.keys(adaptiveData.wordMastery).length,
+            sentencesTracked: Object.keys(adaptiveData.sentenceMastery).length,
+            wordsMastered: adaptiveData.masteredWords.size,
+            sentencesMastered: adaptiveData.masteredSentences.size,
+            wordsInReview: adaptiveData.reviewWords.length,
+            sentencesInReview: adaptiveData.reviewSentences.length
+        });
+        
+        return adaptiveData;
+        
+    } catch (error) {
+        console.error('❌ Error loading adaptive learning data:', error);
+        // Return fresh initialized data
+        return {
+            wordMastery: {},
+            sentenceMastery: {},
+            masteredWords: new Set(),
+            masteredSentences: new Set(),
+            reviewWords: [],
+            reviewSentences: []
+        };
+    }
+}
+
+// Enhanced update adaptive learning data - FIXED VERSION
+function updateAdaptiveLearningData(quizData) {
+    try {
+        console.log('🔄 Updating adaptive learning data for quiz:', quizData);
+        
+        const adaptiveData = loadAdaptiveLearningData();
+        const quizItems = quizData.quiz_items || [];
+        const correctItems = quizData.correct_items || [];
+        const itemType = quizData.quiz_type === 'words' ? 'wordMastery' : 'sentenceMastery';
+        const masteredKey = quizData.quiz_type === 'words' ? 'masteredWords' : 'masteredSentences';
+        const reviewKey = quizData.quiz_type === 'words' ? 'reviewWords' : 'reviewSentences';
+
+        let updatesMade = false;
+
+        quizItems.forEach(item => {
+            const itemKey = item.word || item.sentence || item;
+            const isCorrect = correctItems.includes(itemKey);
+
+            console.log(`📝 Processing ${itemType} item:`, itemKey, 'Correct:', isCorrect);
+
+            // Initialize if needed
+            if (!adaptiveData[itemType][itemKey]) {
+                adaptiveData[itemType][itemKey] = {
+                    correct: 0,
+                    incorrect: 0,
+                    lastSeen: new Date().toISOString(),
+                    firstSeen: new Date().toISOString()
+                };
+                updatesMade = true;
+            }
+
+            // Update counts
+            if (isCorrect) {
+                adaptiveData[itemType][itemKey].correct++;
+                console.log(`✅ Increased correct count for ${itemKey}:`, adaptiveData[itemType][itemKey].correct);
+            } else {
+                adaptiveData[itemType][itemKey].incorrect++;
+                console.log(`❌ Increased incorrect count for ${itemKey}:`, adaptiveData[itemType][itemKey].incorrect);
+            }
+
+            adaptiveData[itemType][itemKey].lastSeen = new Date().toISOString();
+
+            // Calculate current stats
+            const totalAttempts = adaptiveData[itemType][itemKey].correct + adaptiveData[itemType][itemKey].incorrect;
+            const accuracy = totalAttempts > 0 ? (adaptiveData[itemType][itemKey].correct / totalAttempts) * 100 : 0;
+
+            console.log(`📊 ${itemKey} - Attempts: ${totalAttempts}, Accuracy: ${accuracy.toFixed(1)}%`);
+
+            // Update mastery status with improved logic
+            if (accuracy >= 80 && totalAttempts >= 2) { // Slightly relaxed criteria for testing
+                if (!adaptiveData[masteredKey].has(itemKey)) {
+                    adaptiveData[masteredKey].add(itemKey);
+                    console.log(`🎉 MASTERED: ${itemKey} (${accuracy.toFixed(1)}% accuracy)`);
+                    updatesMade = true;
+                    
+                    // Remove from review if present
+                    const reviewArray = adaptiveData[reviewKey];
+                    const reviewIndex = reviewArray.findIndex(reviewItem => {
+                        const reviewKey = quizData.quiz_type === 'words' ? 'word' : 'sentence';
+                        return reviewItem[reviewKey] === itemKey || reviewItem === itemKey;
+                    });
+                    
+                    if (reviewIndex > -1) {
+                        reviewArray.splice(reviewIndex, 1);
+                        console.log(`🗑️ Removed ${itemKey} from review list`);
+                        updatesMade = true;
+                    }
+                }
+            } else if (accuracy < 70 && totalAttempts >= 2) {
+                // Add to review if not already there and not mastered
+                if (!adaptiveData[masteredKey].has(itemKey)) {
+                    const reviewArray = adaptiveData[reviewKey];
+                    const alreadyInReview = reviewArray.some(reviewItem => {
+                        const reviewKey = quizData.quiz_type === 'words' ? 'word' : 'sentence';
+                        return reviewItem[reviewKey] === itemKey || reviewItem === itemKey;
+                    });
+                    
+                    if (!alreadyInReview) {
+                        const reviewItem = {
+                            [quizData.quiz_type === 'words' ? 'word' : 'sentence']: itemKey,
+                            pinyin: item.pinyin || '',
+                            meaning: item.meaning || '',
+                            accuracy: accuracy,
+                            addedAt: new Date().toISOString(),
+                            attempts: totalAttempts
+                        };
+                        reviewArray.push(reviewItem);
+                        console.log(`🔄 Added ${itemKey} to review list (${accuracy.toFixed(1)}% accuracy)`);
+                        updatesMade = true;
+                    }
+                }
+            }
+        });
+
+        if (updatesMade) {
+            // Save adaptive data with proper conversion for Sets
+            localStorage.setItem('wordMastery', JSON.stringify(adaptiveData.wordMastery));
+            localStorage.setItem('sentenceMastery', JSON.stringify(adaptiveData.sentenceMastery));
+            localStorage.setItem('masteredWords', JSON.stringify(Array.from(adaptiveData.masteredWords)));
+            localStorage.setItem('masteredSentences', JSON.stringify(Array.from(adaptiveData.masteredSentences)));
+            localStorage.setItem('reviewWords', JSON.stringify(adaptiveData.reviewWords));
+            localStorage.setItem('reviewSentences', JSON.stringify(adaptiveData.reviewSentences));
+
+            console.log('💾 Adaptive learning data saved successfully');
+            
+            // Debug log current state
+            const insights = getAdaptiveLearningInsights(adaptiveData);
+            console.log('📈 Current Adaptive Insights:', insights);
+        } else {
+            console.log('ℹ️ No updates needed for adaptive learning data');
+        }
+
+        return true;
+
+    } catch (error) {
+        console.error('❌ Error updating adaptive learning data:', error);
+        return false;
+    }
+}
+
+// Enhanced get adaptive learning insights
+function getAdaptiveLearningInsights(adaptiveData) {
+    const insights = {
+        totalWordsTracked: Object.keys(adaptiveData.wordMastery).length,
+        totalSentencesTracked: Object.keys(adaptiveData.sentenceMastery).length,
+        wordsMastered: adaptiveData.masteredWords.size,
+        sentencesMastered: adaptiveData.masteredSentences.size,
+        wordsInReview: adaptiveData.reviewWords.length,
+        sentencesInReview: adaptiveData.reviewSentences.length,
+        overallMasteryProgress: 0
+    };
+    
+    // Calculate overall progress
+    const totalTracked = insights.totalWordsTracked + insights.totalSentencesTracked;
+    const totalMastered = insights.wordsMastered + insights.sentencesMastered;
+    
+    if (totalTracked > 0) {
+        insights.overallMasteryProgress = Math.round((totalMastered / totalTracked) * 100);
+    }
+    
+    // Add some sample data for demonstration if no real data
+    if (totalTracked === 0) {
+        console.log('📝 No adaptive data yet - this is normal for new users');
+    }
+    
+    return insights;
+}
+
+// Enhanced add adaptive learning progress indicator
+function addAdaptiveProgressIndicator(adaptiveInsights) {
+    if (!overallStats) {
+        console.log('❌ overallStats element not found');
+        return;
+    }
+    
+    // Remove existing adaptive progress if present
+    const existingProgress = document.getElementById('adaptive-progress');
+    if (existingProgress) {
+        existingProgress.remove();
+    }
+
+    console.log('🔄 Adding adaptive progress indicator:', adaptiveInsights);
+
+    // Create progress HTML
+    const progressHTML = `
+        <div id="adaptive-progress" class="sophisticated-card stat-card p-6 text-center col-span-full mt-4">
+            <h4 class="text-lg font-bold mb-3 text-text-light">
+                <i class="fas fa-brain mr-2"></i>Adaptive Learning Progress
+            </h4>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div class="bg-blue-900/20 p-3 rounded-lg border border-blue-500/30">
+                    <div class="text-xl font-bold text-primary-blue">${adaptiveInsights.wordsMastered}</div>
+                    <div class="text-text-muted text-xs">Words Mastered</div>
+                    <div class="text-xs text-blue-400 mt-1">${adaptiveInsights.totalWordsTracked} tracked</div>
+                </div>
+                <div class="bg-cyan-900/20 p-3 rounded-lg border border-cyan-500/30">
+                    <div class="text-xl font-bold text-secondary-cyan">${adaptiveInsights.sentencesMastered}</div>
+                    <div class="text-text-muted text-xs">Sentences Mastered</div>
+                    <div class="text-xs text-cyan-400 mt-1">${adaptiveInsights.totalSentencesTracked} tracked</div>
+                </div>
+                <div class="bg-yellow-900/20 p-3 rounded-lg border border-yellow-500/30">
+                    <div class="text-xl font-bold text-yellow-400">${adaptiveInsights.wordsInReview + adaptiveInsights.sentencesInReview}</div>
+                    <div class="text-text-muted text-xs">Items in Review</div>
+                    <div class="text-xs text-yellow-400 mt-1">Needs practice</div>
+                </div>
+                <div class="bg-green-900/20 p-3 rounded-lg border border-green-500/30">
+                    <div class="text-xl font-bold text-green-400">${adaptiveInsights.overallMasteryProgress}%</div>
+                    <div class="text-text-muted text-xs">Overall Mastery</div>
+                    <div class="text-xs text-green-400 mt-1">Progress</div>
+                </div>
+            </div>
+            ${adaptiveInsights.totalWordsTracked + adaptiveInsights.totalSentencesTracked === 0 ? 
+                '<div class="mt-3 p-2 bg-yellow-900/20 border border-yellow-500/30 rounded text-yellow-300 text-xs">Complete more quizzes to see your adaptive learning progress!</div>' : 
+                ''
+            }
+        </div>
+    `;
+    
+    // Add to overall stats
+    overallStats.insertAdjacentHTML('beforeend', progressHTML);
+    console.log('✅ Adaptive progress indicator added to UI');
+}
+
+// Initialize adaptive learning data on page load
+function initializeAdaptiveLearning() {
+    console.log('🎯 Initializing adaptive learning system...');
+    const adaptiveData = loadAdaptiveLearningData();
+    
+    // Force display of progress indicator even with zero data
+    const insights = getAdaptiveLearningInsights(adaptiveData);
+    addAdaptiveProgressIndicator(insights);
+    
+    console.log('✅ Adaptive learning system initialized');
+}
+
+// Enhanced debug function
+function debugAdaptiveLearning() {
+    const adaptiveData = loadAdaptiveLearningData();
+    console.log('🔍 === ADAPTIVE LEARNING DEBUG ===');
+    console.log('📊 Summary:');
+    console.log('  Words Tracked:', Object.keys(adaptiveData.wordMastery).length);
+    console.log('  Sentences Tracked:', Object.keys(adaptiveData.sentenceMastery).length);
+    console.log('  Words Mastered:', adaptiveData.masteredWords.size);
+    console.log('  Sentences Mastered:', adaptiveData.masteredSentences.size);
+    console.log('  Words in Review:', adaptiveData.reviewWords.length);
+    console.log('  Sentences in Review:', adaptiveData.reviewSentences.length);
+    
+    // Show mastered items
+    if (adaptiveData.masteredWords.size > 0) {
+        console.log('🎓 Mastered Words:', Array.from(adaptiveData.masteredWords));
+    }
+    if (adaptiveData.masteredSentences.size > 0) {
+        console.log('🎓 Mastered Sentences:', Array.from(adaptiveData.masteredSentences));
+    }
+    
+    // Show review items
+    if (adaptiveData.reviewWords.length > 0) {
+        console.log('🔄 Words in Review:', adaptiveData.reviewWords);
+    }
+    if (adaptiveData.reviewSentences.length > 0) {
+        console.log('🔄 Sentences in Review:', adaptiveData.reviewSentences);
+    }
+    
+    // Show sample of tracked items
+    const sampleWords = Object.keys(adaptiveData.wordMastery).slice(0, 3);
+    if (sampleWords.length > 0) {
+        console.log('📝 Sample Tracked Words:');
+        sampleWords.forEach(word => {
+            const stats = adaptiveData.wordMastery[word];
+            const accuracy = ((stats.correct / (stats.correct + stats.incorrect)) * 100).toFixed(1);
+            console.log(`  "${word}": ${stats.correct}✅ ${stats.incorrect}❌ (${accuracy}%)`);
+        });
+    }
+    
+    console.log('=== END DEBUG ===');
+}
+
+// Make debug function available globally
+window.debugAdaptiveLearning = debugAdaptiveLearning;
+
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Results page initialized');
@@ -591,6 +907,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-refresh data every 10 seconds to catch new quizzes
     setInterval(checkForNewQuizData, 10000);
     setInterval(refreshPerformanceData, 300000);
+    
+    // Initialize adaptive learning
+    setTimeout(initializeAdaptiveLearning, 1000);
 });
 
 // ============================
@@ -730,7 +1049,7 @@ function handleQuizCompletion(quizData) {
         });
         console.log(`✅ Performance data updated for ${quizItems.length} ${itemType}`);
 
-        // 4. Update adaptive learning data
+        // 4. Update adaptive learning data using the enhanced function
         updateAdaptiveLearningData(completeQuizData);
 
         // 5. Show success notification
@@ -838,7 +1157,7 @@ function loadResultsData() {
         }
     }
     
-    // Load adaptive learning data
+    // Load adaptive learning data using the enhanced function
     const adaptiveData = loadAdaptiveLearningData();
     
     // If no data found anywhere, use mock data for demonstration
@@ -961,88 +1280,6 @@ function removeDuplicateQuizzes(quizzes) {
     });
 }
 
-// Update adaptive learning data
-function updateAdaptiveLearningData(quizData) {
-    try {
-        const adaptiveData = loadAdaptiveLearningData();
-        const quizItems = quizData.quiz_items || [];
-        const correctItems = quizData.correct_items || [];
-        const itemType = quizData.quiz_type === 'words' ? 'wordMastery' : 'sentenceMastery';
-        const masteredKey = quizData.quiz_type === 'words' ? 'masteredWords' : 'masteredSentences';
-        const reviewKey = quizData.quiz_type === 'words' ? 'reviewWords' : 'reviewSentences';
-
-        quizItems.forEach(item => {
-            const itemKey = item.word || item.sentence || item;
-            const isCorrect = correctItems.includes(itemKey);
-
-            // Initialize if needed
-            if (!adaptiveData[itemType][itemKey]) {
-                adaptiveData[itemType][itemKey] = {
-                    correct: 0,
-                    incorrect: 0,
-                    lastSeen: new Date().toISOString(),
-                    firstSeen: new Date().toISOString()
-                };
-            }
-
-            // Update counts
-            if (isCorrect) {
-                adaptiveData[itemType][itemKey].correct++;
-            } else {
-                adaptiveData[itemType][itemKey].incorrect++;
-            }
-
-            adaptiveData[itemType][itemKey].lastSeen = new Date().toISOString();
-
-            // Update mastery status
-            const totalAttempts = adaptiveData[itemType][itemKey].correct + adaptiveData[itemType][itemKey].incorrect;
-            const accuracy = totalAttempts > 0 ? (adaptiveData[itemType][itemKey].correct / totalAttempts) * 100 : 0;
-
-            if (accuracy >= 85 && totalAttempts >= 3) {
-                adaptiveData[masteredKey].add(itemKey);
-                // Remove from review if present
-                const reviewArray = adaptiveData[reviewKey];
-                const reviewIndex = reviewArray.findIndex(reviewItem => 
-                    reviewItem.word === itemKey || reviewItem.sentence === itemKey || reviewItem === itemKey
-                );
-                if (reviewIndex > -1) {
-                    reviewArray.splice(reviewIndex, 1);
-                }
-            } else if (accuracy < 70 && totalAttempts >= 2) {
-                const reviewArray = adaptiveData[reviewKey];
-                const alreadyInReview = reviewArray.some(reviewItem => 
-                    reviewItem.word === itemKey || reviewItem.sentence === itemKey || reviewItem === itemKey
-                );
-                
-                if (!alreadyInReview) {
-                    reviewArray.push({
-                        [quizData.quiz_type === 'words' ? 'word' : 'sentence']: itemKey,
-                        pinyin: item.pinyin || '',
-                        meaning: item.meaning || '',
-                        accuracy: accuracy,
-                        addedAt: new Date().toISOString()
-                    });
-                }
-            }
-        });
-
-        // Save adaptive data
-        localStorage.setItem('wordMastery', JSON.stringify(adaptiveData.wordMastery));
-        localStorage.setItem('sentenceMastery', JSON.stringify(adaptiveData.sentenceMastery));
-        localStorage.setItem('masteredWords', JSON.stringify(Array.from(adaptiveData.masteredWords)));
-        localStorage.setItem('masteredSentences', JSON.stringify(Array.from(adaptiveData.masteredSentences)));
-        localStorage.setItem('reviewWords', JSON.stringify(adaptiveData.reviewWords));
-        localStorage.setItem('reviewSentences', JSON.stringify(adaptiveData.reviewSentences));
-
-        console.log('✅ Adaptive learning data updated');
-        return true;
-
-    } catch (error) {
-        console.error('❌ Error updating adaptive learning data:', error);
-        return false;
-    }
-}
-
 // Show quiz completion notification
 function showQuizCompletionNotification(quizData) {
     const existingNotifications = document.querySelectorAll('.quiz-completion-notification');
@@ -1140,41 +1377,6 @@ function autoSaveQuizToLeaderboard(quizData) {
 // Make function globally available
 window.handleQuizCompletion = handleQuizCompletion;
 
-// ============================
-// ADAPTIVE LEARNING INTEGRATION
-// ============================
-
-// Load adaptive learning data
-function loadAdaptiveLearningData() {
-    try {
-        const wordMastery = JSON.parse(localStorage.getItem('wordMastery') || '{}');
-        const sentenceMastery = JSON.parse(localStorage.getItem('sentenceMastery') || '{}');
-        const masteredWords = new Set(JSON.parse(localStorage.getItem('masteredWords') || '[]'));
-        const masteredSentences = new Set(JSON.parse(localStorage.getItem('masteredSentences') || '[]'));
-        const reviewWords = JSON.parse(localStorage.getItem('reviewWords') || '[]');
-        const reviewSentences = JSON.parse(localStorage.getItem('reviewSentences') || '[]');
-        
-        return {
-            wordMastery,
-            sentenceMastery,
-            masteredWords,
-            masteredSentences,
-            reviewWords,
-            reviewSentences
-        };
-    } catch (error) {
-        console.error('Error loading adaptive learning data:', error);
-        return {
-            wordMastery: {},
-            sentenceMastery: {},
-            masteredWords: new Set(),
-            masteredSentences: new Set(),
-            reviewWords: [],
-            reviewSentences: []
-        };
-    }
-}
-
 // Calculate mastery levels with adaptive learning data
 function calculateMasteryLevelsWithAdaptive(performance, masteryData, masteredItems) {
     const levels = { mastered: 0, easy: 0, medium: 0, hard: 0 };
@@ -1209,28 +1411,6 @@ function calculateMasteryLevelsWithAdaptive(performance, masteryData, masteredIt
     });
     
     return levels;
-}
-
-// Get adaptive learning insights
-function getAdaptiveLearningInsights(adaptiveData) {
-    const insights = {
-        totalWordsTracked: Object.keys(adaptiveData.wordMastery).length,
-        totalSentencesTracked: Object.keys(adaptiveData.sentenceMastery).length,
-        wordsMastered: adaptiveData.masteredWords.size,
-        sentencesMastered: adaptiveData.masteredSentences.size,
-        wordsInReview: adaptiveData.reviewWords.length,
-        sentencesInReview: adaptiveData.reviewSentences.length,
-        overallMasteryProgress: 0
-    };
-    
-    const totalTracked = insights.totalWordsTracked + insights.totalSentencesTracked;
-    const totalMastered = insights.wordsMastered + insights.sentencesMastered;
-    
-    if (totalTracked > 0) {
-        insights.overallMasteryProgress = Math.round((totalMastered / totalTracked) * 100);
-    }
-    
-    return insights;
 }
 
 // Mobile menu functionality with full-width dropdown
@@ -1620,45 +1800,8 @@ function updateOverallStats(quizHistory, performanceData, adaptiveData) {
         document.getElementById('study-streak').textContent = streak;
     }
     
-    // Add adaptive learning progress indicator
+    // Add adaptive learning progress indicator using the enhanced function
     addAdaptiveProgressIndicator(adaptiveInsights);
-}
-
-// Add adaptive learning progress indicator
-function addAdaptiveProgressIndicator(adaptiveInsights) {
-    if (!overallStats) return;
-    
-    // Remove existing adaptive progress if present
-    const existingProgress = document.getElementById('adaptive-progress');
-    if (existingProgress) {
-        existingProgress.remove();
-    }
-    
-    const progressHTML = `
-        <div id="adaptive-progress" class="sophisticated-card stat-card p-6 text-center col-span-full mt-4">
-            <h4 class="text-lg font-bold mb-3 text-text-light">Adaptive Learning Progress</h4>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                    <div class="text-xl font-bold text-primary-blue">${adaptiveInsights.wordsMastered}</div>
-                    <div class="text-text-muted">Words Mastered</div>
-                </div>
-                <div>
-                    <div class="text-xl font-bold text-secondary-cyan">${adaptiveInsights.sentencesMastered}</div>
-                    <div class="text-text-muted">Sentences Mastered</div>
-                </div>
-                <div>
-                    <div class="text-xl font-bold text-yellow-400">${adaptiveInsights.wordsInReview}</div>
-                    <div class="text-text-muted">Words in Review</div>
-                </div>
-                <div>
-                    <div class="text-xl font-bold text-green-400">${adaptiveInsights.overallMasteryProgress}%</div>
-                    <div class="text-text-muted">Overall Mastery</div>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    overallStats.insertAdjacentHTML('beforeend', progressHTML);
 }
 
 // Calculate study streak from quiz history
@@ -2292,7 +2435,7 @@ function exportUserData() {
     }, 100);
 }
 
-console.log('✅ Results page JavaScript loaded successfully - COMPLETE CODE WITH DUPLICATE FIX!');
+console.log('✅ Results page JavaScript loaded successfully - COMPLETE CODE WITH ADAPTIVE LEARNING INTEGRATION!');
 </script>
 </body>
 </html>
