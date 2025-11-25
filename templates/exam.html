@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HSK 1 Exam Library - RedCharger</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PDF.js for PDF rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary-blue': '#5c7cfa',
+                        'secondary-cyan': '#33f0e8',
+                        'light-cyan': '#a5f3f0',
+                        'main-bg': '#1e293b',
+                        'card-bg': '#2a3a50',
+                        'text-light': '#e2e8f0',
+                        'text-muted': '#94a3b8',
+                    },
+                    animation: {
+                        'fadeInUp': 'fadeInUp 0.6s ease-out forwards',
+                        'fadeInDown': 'fadeInDown 0.3s ease-out forwards',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1e293b;
+            min-height: 100vh;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+
+        .nav-card {
+            background-color: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .exam-card {
+            background: linear-gradient(135deg, #a5f3f0, #80e6e0);
+            border-radius: 1rem;
+            box-shadow: 0 12px 40px rgba(165, 243, 240, 0.25);
+            transition: all 0.4s ease;
+            border: 1px solid rgba(165, 243, 240, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .exam-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.7s ease;
+        }
+
+        .exam-card:hover::before {
+            left: 100%;
+        }
+
+        .exam-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 20px 50px rgba(165, 243, 240, 0.4);
+        }
+
+        .viewer-card {
+            background-color: #2a3a50;
+            border-radius: 1rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .pdf-container {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            background: white;
+            min-height: 400px;
+            overflow: auto;
+            position: relative;
+        }
+
+        .pdf-canvas {
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 100%;
+        }
+
+        .blur-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            border-radius: 0.75rem;
+        }
+
+        .blur-overlay button {
+            background: linear-gradient(135deg, #33f0e8, #a5f3f0);
+            color: #1e293b;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(51, 240, 232, 0.4);
+        }
+
+        .blur-overlay button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(51, 240, 232, 0.6);
+        }
+
+        @keyframes fadeInUp {
+            '0%': { transform: 'translateY(20px)', opacity: '0' },
+            '100%': { transform: 'translateY(0)', opacity: '1' },
+        }
+
+        @keyframes fadeInDown {
+            '0%': { transform: 'translateY(-10px)', opacity: '0' },
+            '100%': { transform: 'translateY(0)', opacity: '1' },
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #a5f3f0, #33f0e8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #33f0e8, transparent);
+            margin: 2rem 0;
+        }
+
+        /* Mobile dropdown menu styles */
+        .mobile-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background-color: rgba(42, 58, 80, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 50;
+            opacity: 0;
+            transform: translateY(-10px);
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-dropdown-menu.open {
+            opacity: 1;
+            transform: translateY(0);
+            visibility: visible;
+        }
+
+        .mobile-dropdown-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 45;
+            background-color: transparent;
+            display: none;
+        }
+
+        /* Mobile responsive PDF controls */
+        @media (max-width: 640px) {
+            .pdf-controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .pdf-controls .page-info {
+                order: -1;
+                margin-bottom: 10px;
+            }
+            
+            .pdf-container {
+                min-height: 300px;
+            }
+            
+            .pdf-canvas {
+                max-width: 95%;
+            }
+        }
+    </style>
+</head>
+<body class="selection:bg-primary-blue selection:text-white">
+
+    <!-- Navigation Bar with Mobile Menu -->
+    <nav class="fixed top-0 left-0 right-0 z-50 p-4 lg:p-6 nav-card">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="text-2xl font-black tracking-widest gradient-text">
+                RedCharger
+            </div>
+            
+            <!-- Desktop Menu -->
+            <div class="space-x-8 hidden md:flex font-medium">
+                <a href="/" class="text-text-muted hover:text-secondary-cyan transition duration-300">Home</a>
+                <a href="/words/quiz" class="text-text-muted hover:text-secondary-cyan transition duration-300">Words Quiz</a>
+                <a href="/exam" class="text-secondary-cyan transition duration-300">HSK Exams</a>
+                <a href="/learn" class="text-text-muted hover:text-secondary-cyan transition duration-300">Learn</a>
+                <a href="/chat" class="text-text-muted hover:text-secondary-cyan transition duration-300">Community Chat</a>
+            </div>
+
+            <!-- Mobile Menu Container -->
+            <div class="md:hidden flex items-center space-x-3">
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-button" class="text-text-muted hover:text-secondary-cyan transition duration-300 relative z-50">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Dropdown Menu -->
+        <div id="mobile-dropdown-menu" class="mobile-dropdown-menu md:hidden w-full left-0">
+            <div class="p-4 space-y-3">
+                <a href="/" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-home mr-3 w-5 text-center"></i>
+                    <span>Home</span>
+                </a>
+                <a href="/words/quiz" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-book mr-3 w-5 text-center"></i>
+                    <span>Words Quiz</span>
+                </a>
+                <a href="/exam" class="flex items-center text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-graduation-cap mr-3 w-5 text-center"></i>
+                    <span>HSK Exams</span>
+                </a>
+                <a href="/learn" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-graduation-cap mr-3 w-5 text-center"></i>
+                    <span>Learn</span>
+                </a>
+                <a href="/chat" class="flex items-center text-text-light hover:text-secondary-cyan transition duration-300 p-3 rounded-lg hover:bg-card-bg/50">
+                    <i class="fas fa-users mr-3 w-5 text-center"></i>
+                    <span>Community Chat</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Dropdown Backdrop -->
+    <div id="mobile-dropdown-backdrop" class="mobile-dropdown-backdrop md:hidden"></div>
+
+    <main class="pt-24 pb-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Header -->
+            <section class="mb-12 text-center">
+                <h1 class="text-4xl md:text-5xl font-extrabold mb-4 text-text-light">
+                    HSK 1 <span class="gradient-text">Exam Library</span>
+                </h1>
+                <p class="text-xl text-text-muted max-w-3xl mx-auto">
+                    Access official HSK 1 exam papers with audio files. Practice with real exam materials.
+                </p>
+            </section>
+
+            <!-- Exam Cards Grid -->
+            <section class="mb-12">
+                <div class="flex items-center justify-between mb-8">
+                    <h2 class="text-3xl font-bold text-text-light flex items-center">
+                        <i class="fas fa-folder-open text-secondary-cyan mr-3"></i>
+                        Available Exams
+                    </h2>
+                    <div class="text-text-muted hidden md:block">
+                        <span id="exam-count" class="font-semibold">4</span> exams available
+                    </div>
+                </div>
+                
+                <div id="exam-cards-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <!-- Exam cards will be dynamically loaded here -->
+                </div>
+            </section>
+
+            <!-- Exam Viewer (Initially Hidden) -->
+            <section id="exam-viewer" class="hidden">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <div>
+                        <h2 class="text-3xl font-bold text-text-light" id="viewer-title">Exam Viewer</h2>
+                        <p class="text-text-muted mt-1" id="viewer-subtitle">Complete exam with audio and answer key</p>
+                    </div>
+                    <button id="close-viewer" class="py-2 px-4 rounded-lg bg-gray-600 text-white font-medium hover:bg-gray-700 transition duration-300 w-full sm:w-auto">
+                        <i class="fas fa-arrow-left mr-2"></i> Back to Library
+                    </button>
+                </div>
+                
+                <div class="space-y-6">
+                    <!-- Audio Player -->
+                    <div class="viewer-card p-6">
+                        <h3 class="text-xl font-bold mb-4 text-text-light flex items-center">
+                            <i class="fas fa-volume-up text-secondary-cyan mr-3"></i>
+                            Listening Audio
+                        </h3>
+                        <div class="bg-main-bg rounded-lg p-4">
+                            <audio id="exam-audio-player" controls class="w-full">
+                                Your browser does not support the audio element.
+                            </audio>
+                            <div class="flex items-center justify-between mt-3 text-sm text-text-muted">
+                                <div class="flex items-center">
+                                    <i class="fas fa-info-circle mr-2"></i>
+                                    <span class="hidden sm:inline">Play this audio for the listening section</span>
+                                    <span class="sm:hidden">Listening audio</span>
+                                </div>
+                                <div id="audio-duration">Duration: --:--</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Exam PDF Section -->
+                    <div class="viewer-card p-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 pdf-controls">
+                            <h3 class="text-xl font-bold text-text-light flex items-center">
+                                <i class="fas fa-file-pdf text-red-400 mr-3"></i>
+                                Exam Paper
+                            </h3>
+                            <div class="flex space-x-2 w-full sm:w-auto">
+                                <button id="prev-page" class="flex-1 sm:flex-none py-2 px-3 rounded-lg bg-main-bg text-text-light hover:bg-main-bg/80 transition duration-300">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <span id="page-info" class="flex items-center justify-center py-2 px-3 text-text-muted text-sm min-w-20 page-info">Page: 1/1</span>
+                                <button id="next-page" class="flex-1 sm:flex-none py-2 px-3 rounded-lg bg-main-bg text-text-light hover:bg-main-bg/80 transition duration-300">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="exam-pdf-container" class="pdf-container">
+                            <div class="flex items-center justify-center h-64">
+                                <div class="text-center text-gray-600">
+                                    <i class="fas fa-file-pdf text-6xl mb-4"></i>
+                                    <p class="text-lg font-medium">Exam PDF Viewer</p>
+                                    <p class="text-sm mt-2">Loading exam paper...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <!-- Answer PDF Section -->
+                    <div class="viewer-card p-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 pdf-controls">
+                            <h3 class="text-xl font-bold text-text-light flex items-center">
+                                <i class="fas fa-check-circle text-green-400 mr-3"></i>
+                                Answer Key
+                            </h3>
+                            <div class="flex space-x-2 w-full sm:w-auto">
+                                <button id="answer-prev-page" class="flex-1 sm:flex-none py-2 px-3 rounded-lg bg-main-bg text-text-light hover:bg-main-bg/80 transition duration-300">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <span id="answer-page-info" class="flex items-center justify-center py-2 px-3 text-text-muted text-sm min-w-20 page-info">Page: 1/1</span>
+                                <button id="answer-next-page" class="flex-1 sm:flex-none py-2 px-3 rounded-lg bg-main-bg text-text-light hover:bg-main-bg/80 transition duration-300">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="answer-pdf-container" class="pdf-container">
+                            <!-- Blur overlay will be added here when answers are hidden -->
+                            <div class="flex items-center justify-center h-64">
+                                <div class="text-center text-gray-600">
+                                    <i class="fas fa-check-circle text-6xl mb-4"></i>
+                                    <p class="text-lg font-medium">Answer Key PDF Viewer</p>
+                                    <p class="text-sm mt-2">Loading answer key...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-8 border-t border-main-bg/20 text-center text-text-muted bg-card-bg">
+        <div class="max-w-7xl mx-auto px-4">
+            <p class="text-sm">&copy; 2025 RedCharger. Official HSK exam materials provided for practice purposes.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        // Set up PDF.js worker
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        // Exam data structure with proper web paths
+        let exams = [
+            {
+                id: 'h11334',
+                code: 'H11334',
+                title: 'HSK 1 Official Test',
+                audioUrl: '/static/audio/Test_HSK1_H11334.mp3',
+                pdfUrl: '/static/pdf/H11334.pdf',
+                answerPdfUrl: '/static/pdf/H11334-answer-sheet.pdf',
+                uploadedAt: '2025-11-20'
+            },
+            {
+                id: 'h11329',
+                code: 'H11329',
+                title: 'HSK 1 Practice Test',
+                audioUrl: '/static/audio/Test_HSK1_H11329.mp3',
+                pdfUrl: '/static/pdf/H11329.pdf',
+                answerPdfUrl: '/static/pdf/H11329-answer-sheet.pdf',
+                uploadedAt: '2025-11-20'
+            },
+            {
+                id: 'h11334',
+                code: 'H11334',
+                title: 'HSK 1 Official Test',
+                audioUrl: '/static/audio/Test_HSK1_H11330.mp3',
+                pdfUrl: '/static/pdf/H11330.pdf',
+                answerPdfUrl: '/static/pdf/H11330-answer-sheet.pdf',
+                uploadedAt: '2025-11-20'
+            }
+        ];
+
+        // PDF state management
+        let currentExamPdf = null;
+        let currentAnswerPdf = null;
+        let currentExamPageNum = 1;
+        let currentAnswerPageNum = 1;
+        let currentExamPdfDoc = null;
+        let currentAnswerPdfDoc = null;
+        let answerPdfVisible = false;
+
+        // Mobile Menu State
+        let isMenuOpen = false;
+
+        // DOM elements
+        const examCardsContainer = document.getElementById('exam-cards-container');
+        const examCount = document.getElementById('exam-count');
+        const examViewer = document.getElementById('exam-viewer');
+        const viewerTitle = document.getElementById('viewer-title');
+        const viewerSubtitle = document.getElementById('viewer-subtitle');
+        const closeViewer = document.getElementById('close-viewer');
+        const examAudioPlayer = document.getElementById('exam-audio-player');
+        const audioDuration = document.getElementById('audio-duration');
+        const examPdfContainer = document.getElementById('exam-pdf-container');
+        const answerPdfContainer = document.getElementById('answer-pdf-container');
+        const pageInfo = document.getElementById('page-info');
+        const answerPageInfo = document.getElementById('answer-page-info');
+        const prevPage = document.getElementById('prev-page');
+        const nextPage = document.getElementById('next-page');
+        const answerPrevPage = document.getElementById('answer-prev-page');
+        const answerNextPage = document.getElementById('answer-next-page');
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileDropdownMenu = document.getElementById('mobile-dropdown-menu');
+        const mobileDropdownBackdrop = document.getElementById('mobile-dropdown-backdrop');
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            loadExamCards();
+            setupEventListeners();
+            initializeMobileMenu();
+            loadExamsFromStorage();
+        });
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Close viewer
+            closeViewer.addEventListener('click', closeExamViewer);
+            
+            // Audio duration display
+            examAudioPlayer.addEventListener('loadedmetadata', function() {
+                const duration = examAudioPlayer.duration;
+                const minutes = Math.floor(duration / 60);
+                const seconds = Math.floor(duration % 60);
+                audioDuration.textContent = `Duration: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            });
+
+            // PDF navigation
+            prevPage.addEventListener('click', () => navigatePdf('exam', -1));
+            nextPage.addEventListener('click', () => navigatePdf('exam', 1));
+            answerPrevPage.addEventListener('click', () => navigatePdf('answer', -1));
+            answerNextPage.addEventListener('click', () => navigatePdf('answer', 1));
+        }
+
+        // Initialize Mobile Menu
+        function initializeMobileMenu() {
+            // Toggle mobile menu
+            function toggleMobileMenu() {
+                isMenuOpen = !isMenuOpen;
+                
+                if (isMenuOpen) {
+                    mobileDropdownMenu.classList.add('open');
+                    mobileDropdownBackdrop.style.display = 'block';
+                    document.body.style.overflow = 'hidden';
+                    mobileMenuButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+                    mobileMenuButton.classList.remove('text-text-muted');
+                    mobileMenuButton.classList.add('text-secondary-cyan');
+                } else {
+                    mobileDropdownMenu.classList.remove('open');
+                    mobileDropdownBackdrop.style.display = 'none';
+                    document.body.style.overflow = '';
+                    mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                    mobileMenuButton.classList.remove('text-secondary-cyan');
+                    mobileMenuButton.classList.add('text-text-muted');
+                }
+            }
+
+            // Close mobile menu
+            function closeMobileMenu() {
+                isMenuOpen = false;
+                mobileDropdownMenu.classList.remove('open');
+                mobileDropdownBackdrop.style.display = 'none';
+                document.body.style.overflow = '';
+                mobileMenuButton.innerHTML = '<i class="fas fa-bars text-xl"></i>';
+                mobileMenuButton.classList.remove('text-secondary-cyan');
+                mobileMenuButton.classList.add('text-text-muted');
+            }
+
+            // Event Listeners
+            mobileMenuButton.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleMobileMenu();
+            });
+
+            mobileDropdownBackdrop.addEventListener('click', closeMobileMenu);
+
+            const menuLinks = mobileDropdownMenu.querySelectorAll('a');
+            menuLinks.forEach(link => {
+                link.addEventListener('click', closeMobileMenu);
+            });
+
+            document.addEventListener('click', function(e) {
+                if (isMenuOpen && 
+                    !mobileDropdownMenu.contains(e.target) && 
+                    !mobileMenuButton.contains(e.target)) {
+                    closeMobileMenu();
+                }
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (isMenuOpen && e.key === 'Escape') {
+                    closeMobileMenu();
+                }
+            });
+
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 768 && isMenuOpen) {
+                    closeMobileMenu();
+                }
+            });
+        }
+
+        // Load exam cards
+        function loadExamCards() {
+            examCardsContainer.innerHTML = '';
+            examCount.textContent = exams.length;
+            
+            exams.forEach(exam => {
+                const card = createExamCard(exam);
+                examCardsContainer.appendChild(card);
+            });
+        }
+
+        // Create stylish exam card with lighter cyan
+        function createExamCard(exam) {
+            const card = document.createElement('div');
+            card.className = 'exam-card p-6 text-center cursor-pointer group relative';
+            card.innerHTML = `
+                <div class="relative z-10">
+                    <div class="mb-4 transform group-hover:scale-110 transition duration-300">
+                        <i class="fas fa-graduation-cap text-4xl text-main-bg mb-3"></i>
+                        <div class="w-12 h-12 bg-main-bg/20 rounded-full mx-auto mb-2 flex items-center justify-center">
+                            <span class="text-main-bg font-bold text-sm">HSK 1</span>
+                        </div>
+                    </div>
+                    <div class="text-main-bg font-semibold">
+                        <p class="text-lg font-bold mb-1">${exam.code}</p>
+                        <p class="text-xs opacity-80 font-normal">${exam.title}</p>
+                    </div>
+                    <div class="absolute -bottom-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition duration-300">
+                        <i class="fas fa-arrow-down text-main-bg text-sm"></i>
+                    </div>
+                </div>
+            `;
+            
+            card.addEventListener('click', () => openExamViewer(exam));
+            return card;
+        }
+
+        // Open exam viewer
+        function openExamViewer(exam) {
+            viewerTitle.textContent = `${exam.code} - ${exam.title}`;
+            viewerSubtitle.textContent = 'Complete exam with audio and answer key';
+            
+            // Set audio source
+            examAudioPlayer.src = exam.audioUrl;
+            
+            // Load PDFs using PDF.js
+            loadPdf(exam.pdfUrl, 'exam');
+            loadPdf(exam.answerPdfUrl, 'answer');
+            
+            // Show viewer, hide cards
+            examViewer.classList.remove('hidden');
+            document.querySelector('section:nth-of-type(2)').classList.add('hidden');
+            
+            // Reset answer visibility
+            answerPdfVisible = false;
+        }
+
+        // Close exam viewer
+        function closeExamViewer() {
+            examViewer.classList.add('hidden');
+            document.querySelector('section:nth-of-type(2)').classList.remove('hidden');
+            
+            // Reset audio and PDFs
+            examAudioPlayer.pause();
+            examAudioPlayer.src = '';
+            audioDuration.textContent = 'Duration: --:--';
+            
+            // Reset PDF state
+            currentExamPageNum = 1;
+            currentAnswerPageNum = 1;
+            currentExamPdfDoc = null;
+            currentAnswerPdfDoc = null;
+            answerPdfVisible = false;
+            
+            // Clear PDF containers
+            examPdfContainer.innerHTML = getPDFPlaceholder('Exam PDF Viewer');
+            answerPdfContainer.innerHTML = getPDFPlaceholder('Answer Key PDF Viewer');
+        }
+
+        // Load PDF using PDF.js
+        function loadPdf(pdfUrl, type) {
+            const container = type === 'exam' ? examPdfContainer : answerPdfContainer;
+            const pageInfoElement = type === 'exam' ? pageInfo : answerPageInfo;
+            
+            // Show loading state
+            container.innerHTML = `
+                <div class="flex items-center justify-center h-64 bg-white rounded-lg">
+                    <div class="text-center p-8">
+                        <div class="loading-spinner border-4 border-gray-300 border-t-secondary-cyan rounded-full w-16 h-16 animate-spin mx-auto mb-4"></div>
+                        <p class="text-gray-700 text-lg font-semibold mb-2">Loading ${type === 'exam' ? 'Exam Paper' : 'Answer Key'}</p>
+                        <p class="text-gray-500 text-sm">Using PDF.js renderer...</p>
+                    </div>
+                </div>
+            `;
+
+            // Get the full URL for the PDF
+            const fullPdfUrl = getFullPdfUrl(pdfUrl);
+            
+            console.log(`Loading PDF: ${fullPdfUrl}`);
+            
+            // Load the PDF
+            pdfjsLib.getDocument(fullPdfUrl).promise.then(pdfDoc => {
+                console.log(`PDF loaded: ${pdfDoc.numPages} pages`);
+                
+                if (type === 'exam') {
+                    currentExamPdfDoc = pdfDoc;
+                    currentExamPageNum = 1;
+                } else {
+                    currentAnswerPdfDoc = pdfDoc;
+                    currentAnswerPageNum = 1;
+                }
+                
+                // Render the first page
+                renderPage(type, 1);
+                
+                // Add blur overlay to answer PDF if not visible
+                if (type === 'answer' && !answerPdfVisible) {
+                    addBlurOverlay(container);
+                }
+                
+            }).catch(error => {
+                console.error(`Error loading PDF: ${error}`);
+                showPdfError(container, type, pdfUrl);
+            });
+        }
+
+        // Render a specific page of a PDF
+        function renderPage(type, pageNum) {
+            const pdfDoc = type === 'exam' ? currentExamPdfDoc : currentAnswerPdfDoc;
+            const container = type === 'exam' ? examPdfContainer : answerPdfContainer;
+            const pageInfoElement = type === 'exam' ? pageInfo : answerPageInfo;
+            
+            if (!pdfDoc) return;
+            
+            // Update page number
+            if (type === 'exam') {
+                currentExamPageNum = pageNum;
+            } else {
+                currentAnswerPageNum = pageNum;
+            }
+            
+            // Update page info
+            pageInfoElement.textContent = `Page: ${pageNum}/${pdfDoc.numPages}`;
+            
+            // Get the page
+            pdfDoc.getPage(pageNum).then(page => {
+                // Calculate scale for mobile responsiveness
+                const scale = window.innerWidth < 640 ? 1.0 : 1.5;
+                const viewport = page.getViewport({ scale });
+                
+                // Prepare canvas
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                canvas.className = 'pdf-canvas';
+                
+                // Render the page
+                const renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+                
+                page.render(renderContext).promise.then(() => {
+                    container.innerHTML = '';
+                    container.appendChild(canvas);
+                    
+                    // Add page info overlay
+                    const infoOverlay = document.createElement('div');
+                    infoOverlay.className = 'absolute top-4 left-4 bg-black bg-opacity-70 text-white px-3 py-1 rounded text-sm';
+                    infoOverlay.textContent = `${type === 'exam' ? 'Exam Paper' : 'Answer Key'} - Page ${pageNum}`;
+                    infoOverlay.style.zIndex = '10';
+                    
+                    container.style.position = 'relative';
+                    container.appendChild(infoOverlay);
+                    
+                    // Add blur overlay to answer PDF if not visible
+                    if (type === 'answer' && !answerPdfVisible) {
+                        addBlurOverlay(container);
+                    }
+                    
+                    console.log(`✓ ${type} PDF page ${pageNum} rendered successfully`);
+                });
+            });
+        }
+
+        // Add blur overlay to answer PDF
+        function addBlurOverlay(container) {
+            const blurOverlay = document.createElement('div');
+            blurOverlay.className = 'blur-overlay';
+            blurOverlay.innerHTML = `
+                <i class="fas fa-lock text-4xl text-white mb-4"></i>
+                <p class="text-white text-lg font-semibold mb-4">Answers are hidden</p>
+                <button id="view-answers-btn">View Answers</button>
+            `;
+            
+            container.appendChild(blurOverlay);
+            
+            // Add event listener to the button
+            document.getElementById('view-answers-btn').addEventListener('click', function() {
+                answerPdfVisible = true;
+                blurOverlay.remove();
+            });
+        }
+
+        // Navigate between PDF pages
+        function navigatePdf(type, direction) {
+            const pdfDoc = type === 'exam' ? currentExamPdfDoc : currentAnswerPdfDoc;
+            let currentPageNum = type === 'exam' ? currentExamPageNum : currentAnswerPageNum;
+            
+            if (!pdfDoc) return;
+            
+            const newPageNum = currentPageNum + direction;
+            
+            // Check if the new page number is valid
+            if (newPageNum >= 1 && newPageNum <= pdfDoc.numPages) {
+                renderPage(type, newPageNum);
+            }
+        }
+
+        // Helper function to get full PDF URL
+        function getFullPdfUrl(relativeUrl) {
+            // If it's already a full URL, return it
+            if (relativeUrl.startsWith('http')) {
+                return relativeUrl;
+            }
+            
+            // If it's a local file uploaded via the form, return as-is
+            if (relativeUrl.startsWith('blob:')) {
+                return relativeUrl;
+            }
+            
+            // For local files, create an absolute URL
+            const baseUrl = window.location.origin;
+            return baseUrl + relativeUrl;
+        }
+
+        // Show PDF error message
+        function showPdfError(container, type, pdfUrl) {
+            container.innerHTML = `
+                <div class="flex items-center justify-center h-64 bg-white rounded-lg">
+                    <div class="text-center p-8 max-w-md">
+                        <i class="fas fa-exclamation-triangle text-5xl text-red-400 mb-4"></i>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">Unable to Load PDF</h3>
+                        <p class="text-gray-600 mb-4">The ${type === 'exam' ? 'exam paper' : 'answer key'} could not be loaded.</p>
+                        
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                            <p class="text-sm text-yellow-800">
+                                <strong>Note:</strong> PDF files must be accessible via a valid URL.
+                            </p>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <button onclick="loadPdf('${pdfUrl}', '${type}')" 
+                                    class="w-full py-3 px-4 bg-secondary-cyan text-main-bg rounded-lg font-semibold hover:bg-cyan-400 transition duration-300">
+                                <i class="fas fa-redo mr-2"></i> Try Again
+                            </button>
+                            <button onclick="testPdfInNewTab('${pdfUrl}')" 
+                                    class="w-full py-3 px-4 bg-primary-blue text-white rounded-lg font-semibold hover:bg-blue-700 transition duration-300">
+                                <i class="fas fa-external-link-alt mr-2"></i> Test PDF URL
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Helper function for PDF placeholder
+        function getPDFPlaceholder(title) {
+            return `
+                <div class="flex items-center justify-center h-64 bg-white rounded-lg">
+                    <div class="text-center text-gray-600 p-8">
+                        <i class="fas fa-file-pdf text-6xl mb-4"></i>
+                        <p class="text-lg font-medium">${title}</p>
+                        <p class="text-sm mt-2">Select an exam to view the PDF</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Load exams from localStorage
+        function loadExamsFromStorage() {
+            try {
+                const stored = localStorage.getItem('hsk1_exams');
+                if (stored) {
+                    const storedExams = JSON.parse(stored);
+                    storedExams.forEach(storedExam => {
+                        if (!exams.find(exam => exam.id === storedExam.id)) {
+                            exams.push(storedExam);
+                        }
+                    });
+                    loadExamCards();
+                    console.log('Exams loaded from localStorage');
+                }
+            } catch (error) {
+                console.error('Failed to load exams from localStorage:', error);
+            }
+        }
+
+        // Test PDF in new tab
+        function testPdfInNewTab(pdfUrl) {
+            const fullUrl = getFullPdfUrl(pdfUrl);
+            console.log('Testing PDF URL:', fullUrl);
+            
+            const testWindow = window.open(fullUrl, '_blank');
+            if (!testWindow) {
+                alert('Popup blocked! Please allow popups for this site to test the PDF.');
+            }
+        }
+
+        // Add loading spinner style
+        const style = document.createElement('style');
+        style.textContent = `
+            .loading-spinner {
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #33f0e8;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
