@@ -1001,14 +1001,7 @@ function initializeAdaptiveLearning() {
     addDebugButton();
 }
 
-// Add debug button to the page
-function addDebugButton() {
-    const debugButton = document.createElement('button');
-    debugButton.className = 'fixed bottom-4 left-4 bg-purple-600 text-white px-4 py-2 rounded-lg text-sm shadow-lg z-50';
-    debugButton.innerHTML = '<i class="fas fa-bug mr-2"></i>Fix Mastery';
-    debugButton.onclick = forceUpdateMastery;
-    document.body.appendChild(debugButton);
-}
+
 
     // Enhanced debug function
     function debugAdaptiveLearning() {
