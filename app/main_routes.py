@@ -29,11 +29,6 @@ def exam():
     """Render the exam page"""
     return render_template('exam.html')
 
-@main_bp.route('/leaderboard')
-@login_required
-def leaderboard_page():
-    """Serve the leaderboard page"""
-    return render_template('leaderboard.html')
 
 
 @main_bp.route('/api/quiz-results', methods=['POST'])
