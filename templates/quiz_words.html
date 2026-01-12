@@ -1008,7 +1008,42 @@ function finishQuiz() {
     };
     sessionStorage.setItem('quizResults', JSON.stringify(quizResult));
     
+    // SAVE TO DATABASE
+    saveQuizResultsToDatabase('words', score, quizData.length, correctAnswers, incorrectAnswers, percentage, timeTaken, userAnswers);
+    
     console.log('Quiz completed with enhanced adaptive learning stats:', adaptiveStats);
+}
+
+// Save quiz results to database for cross-device access
+async function saveQuizResultsToDatabase(quizType, score, totalQuestions, correctAnswers, incorrectAnswers, percentage, timeTaken, userAnswers) {
+    try {
+        const response = await fetch('/api/save-quiz-result', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                quiz_type: quizType,
+                score: score,
+                total_questions: totalQuestions,
+                correct_answers: correctAnswers,
+                incorrect_answers: incorrectAnswers,
+                percentage: percentage,
+                time_taken: timeTaken,
+                user_answers: userAnswers
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log('✅ Quiz result saved to database:', data);
+        } else {
+            console.warn('⚠️ Failed to save to database:', data.error);
+        }
+    } catch (error) {
+        console.warn('⚠️ Error saving to database (localStorage will be used as fallback):', error);
+    }
 }
 
 // Enhanced loadQuizData function with adaptive learning

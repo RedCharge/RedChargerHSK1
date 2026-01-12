@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, request, jsonify, session
-from datetime import datetime
+from flask import Blueprint, render_template, request, jsonify, session, redirect, url_for
+from datetime import datetime, timedelta  # Added timedelta import
+from flask_login import login_required, current_user  # Added this import
 import json
 import uuid
 
@@ -10,32 +11,38 @@ from .models import db, QuizResult, User
 main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
+@main_bp.route('/home')
+@login_required
 def index():
     """Render the main landing page"""
     return render_template('index.html')
 
 @main_bp.route('/result')
+@login_required
 def result():
     """Render the result page"""
     return render_template('result.html')
 
 @main_bp.route('/exam')
+@login_required
 def exam():
     """Render the exam page"""
     return render_template('exam.html')
 
 @main_bp.route('/leaderboard')
+@login_required
 def leaderboard_page():
     """Serve the leaderboard page"""
     return render_template('leaderboard.html')
 
 
 @main_bp.route('/api/quiz-results', methods=['POST'])
+@login_required
 def save_quiz_result():
     """API endpoint to save quiz results to database"""
     try:
         data = request.get_json()
-        user_id = session.get('user_id')
+        user_id = current_user.id  # Changed from session to current_user
         
         print(f"💾 Saving quiz result for user_id: {user_id}")
         
@@ -157,10 +164,18 @@ def calculate_user_score(user):
     return total_score
 
 @main_bp.route('/api/quiz-results/<int:result_id>')
+@login_required
 def get_quiz_result(result_id):
     """API endpoint to get specific quiz result"""
     try:
         result = QuizResult.query.get_or_404(result_id)
+        
+        # Check if the result belongs to the current user
+        if result.user_id != current_user.id:
+            return jsonify({
+                'success': False,
+                'message': 'Unauthorized access to quiz result'
+            }), 403
         
         return jsonify({
             'success': True,
@@ -186,48 +201,33 @@ def get_quiz_result(result_id):
         }), 500
 
 @main_bp.route('/api/stats')
+@login_required
 def get_quiz_stats():
     """API endpoint to get overall quiz statistics"""
     try:
-        user_id = session.get('user_id')
+        user_id = current_user.id  # Changed from session to current_user
         
-        if user_id:
-            # Get user-specific stats
-            user_quizzes = QuizResult.query.filter_by(user_id=user_id).all()
-            total_quizzes = len(user_quizzes)
-            words_quizzes = len([q for q in user_quizzes if q.quiz_type == 'words'])
-            sentence_quizzes = len([q for q in user_quizzes if q.quiz_type == 'sentences'])
-            
-            # Calculate user averages
-            words_avg = db.session.query(db.func.avg(QuizResult.percentage))\
-                .filter_by(quiz_type='words', user_id=user_id).scalar() or 0
-            sentence_avg = db.session.query(db.func.avg(QuizResult.percentage))\
-                .filter_by(quiz_type='sentences', user_id=user_id).scalar() or 0
-            
-            # Get user best scores
-            words_best = db.session.query(db.func.max(QuizResult.percentage))\
-                .filter_by(quiz_type='words', user_id=user_id).scalar() or 0
-            sentence_best = db.session.query(db.func.max(QuizResult.percentage))\
-                .filter_by(quiz_type='sentences', user_id=user_id).scalar() or 0
-            
-        else:
-            # Global stats (if no user logged in)
-            total_quizzes = QuizResult.query.count()
-            words_quizzes = QuizResult.query.filter_by(quiz_type='words').count()
-            sentence_quizzes = QuizResult.query.filter_by(quiz_type='sentences').count()
-            
-            words_avg = db.session.query(db.func.avg(QuizResult.percentage)).filter_by(quiz_type='words').scalar() or 0
-            sentence_avg = db.session.query(db.func.avg(QuizResult.percentage)).filter_by(quiz_type='sentences').scalar() or 0
-            
-            words_best = db.session.query(db.func.max(QuizResult.percentage)).filter_by(quiz_type='words').scalar() or 0
-            sentence_best = db.session.query(db.func.max(QuizResult.percentage)).filter_by(quiz_type='sentences').scalar() or 0
+        # Get user-specific stats
+        user_quizzes = QuizResult.query.filter_by(user_id=user_id).all()
+        total_quizzes = len(user_quizzes)
+        words_quizzes = len([q for q in user_quizzes if q.quiz_type == 'words'])
+        sentence_quizzes = len([q for q in user_quizzes if q.quiz_type == 'sentences'])
+        
+        # Calculate user averages
+        words_avg = db.session.query(db.func.avg(QuizResult.percentage))\
+            .filter_by(quiz_type='words', user_id=user_id).scalar() or 0
+        sentence_avg = db.session.query(db.func.avg(QuizResult.percentage))\
+            .filter_by(quiz_type='sentences', user_id=user_id).scalar() or 0
+        
+        # Get user best scores
+        words_best = db.session.query(db.func.max(QuizResult.percentage))\
+            .filter_by(quiz_type='words', user_id=user_id).scalar() or 0
+        sentence_best = db.session.query(db.func.max(QuizResult.percentage))\
+            .filter_by(quiz_type='sentences', user_id=user_id).scalar() or 0
         
         # Get recent activity for current user
-        recent_quizzes = QuizResult.query
-        if user_id:
-            recent_quizzes = recent_quizzes.filter_by(user_id=user_id)
-        
-        recent_quizzes = recent_quizzes.order_by(QuizResult.timestamp.desc()).limit(5).all()
+        recent_quizzes = QuizResult.query.filter_by(user_id=user_id)\
+            .order_by(QuizResult.timestamp.desc()).limit(5).all()
         
         recent_activity = [{
             'id': quiz.id,
@@ -236,6 +236,9 @@ def get_quiz_stats():
             'percentage': quiz.percentage,
             'timestamp': quiz.timestamp.isoformat()
         } for quiz in recent_quizzes]
+        
+        # Get current user's rank on leaderboard
+        user_rank = get_user_rank(user_id)
         
         return jsonify({
             'success': True,
@@ -248,7 +251,11 @@ def get_quiz_stats():
                 'words_best_score': round(float(words_best), 1),
                 'sentence_best_score': round(float(sentence_best), 1),
                 'recent_activity': recent_activity,
-                'user_specific': bool(user_id)
+                'user_specific': True,
+                'user_rank': user_rank,
+                'username': current_user.username,
+                'user_score': current_user.total_score if hasattr(current_user, 'total_score') else 0,
+                'user_level': current_user.level if hasattr(current_user, 'level') else 1
             }
         })
         
@@ -258,17 +265,28 @@ def get_quiz_stats():
             'message': f'Error retrieving stats: {str(e)}'
         }), 500
 
+def get_user_rank(user_id):
+    """Calculate user's rank based on total_score"""
+    try:
+        # Get all users ordered by total_score descending
+        users = User.query.order_by(User.total_score.desc()).all()
+        
+        # Find the user's position
+        for i, user in enumerate(users, start=1):
+            if user.id == user_id:
+                return i
+        
+        return None
+    except Exception as e:
+        print(f"Error calculating user rank: {e}")
+        return None
+
 @main_bp.route('/api/debug/user-progress')
+@login_required
 def debug_user_progress():
     """Debug endpoint to check user progress"""
     try:
-        user_id = session.get('user_id')
-        if not user_id:
-            return jsonify({
-                'success': False,
-                'message': 'User not logged in'
-            }), 401
-        
+        user_id = current_user.id  # Changed from session to current_user
         user = User.query.get(user_id)
         if not user:
             return jsonify({
@@ -283,12 +301,15 @@ def debug_user_progress():
             'user': {
                 'id': user.id,
                 'username': user.username,
+                'email': user.email,
                 'words_mastered': user.words_mastered,
                 'sentences_mastered': user.sentences_mastered,
                 'current_streak': user.current_streak,
                 'accuracy_rate': user.accuracy_rate,
                 'total_score': user.total_score,
-                'level': user.level
+                'level': user.level,
+                'is_premium': user.is_premium if hasattr(user, 'is_premium') else False,
+                'account_type': user.account_type if hasattr(user, 'account_type') else 'regular'
             },
             'quiz_count': len(user_quizzes),
             'quizzes': [{
@@ -305,4 +326,56 @@ def debug_user_progress():
         return jsonify({
             'success': False,
             'message': f'Error retrieving user progress: {str(e)}'
+        }), 500
+
+# Optional: Add a global leaderboard API
+@main_bp.route('/api/leaderboard')
+@login_required
+def get_leaderboard():
+    """Get global leaderboard data"""
+    try:
+        # Get top 50 users by total_score
+        top_users = User.query.order_by(User.total_score.desc()).limit(50).all()
+        
+        leaderboard_data = []
+        for i, user in enumerate(top_users, start=1):
+            leaderboard_data.append({
+                'rank': i,
+                'username': user.username,
+                'score': user.total_score,
+                'level': user.level if hasattr(user, 'level') else 1,
+                'words_mastered': user.words_mastered,
+                'sentences_mastered': user.sentences_mastered,
+                'streak': user.current_streak,
+                'is_current_user': user.id == current_user.id
+            })
+        
+        # Find current user's rank if not in top 50
+        current_user_rank = get_user_rank(current_user.id)
+        current_user_data = None
+        
+        if current_user_rank and current_user_rank > 50:
+            user = User.query.get(current_user.id)
+            current_user_data = {
+                'rank': current_user_rank,
+                'username': user.username,
+                'score': user.total_score,
+                'level': user.level if hasattr(user, 'level') else 1,
+                'words_mastered': user.words_mastered,
+                'sentences_mastered': user.sentences_mastered,
+                'streak': user.current_streak,
+                'is_current_user': True
+            }
+        
+        return jsonify({
+            'success': True,
+            'leaderboard': leaderboard_data,
+            'current_user_rank': current_user_rank,
+            'current_user_data': current_user_data
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'Error retrieving leaderboard: {str(e)}'
         }), 500

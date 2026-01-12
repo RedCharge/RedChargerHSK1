@@ -1,14 +1,17 @@
 from flask import Blueprint, render_template, jsonify
+from flask_login import login_required, current_user 
 
 # Create blueprint
 learn_bp = Blueprint('learn', __name__)
 
 @learn_bp.route('/learn')
+@login_required
 def learn_page():
     """Serve the learn.html page"""
     return render_template('learn.html')
 
 @learn_bp.route('/words/api/all-words')
+@login_required  # ADD THIS DECORATOR
 def get_all_words():
     """API endpoint to get all HSK1 words for learning"""
     try:
@@ -46,6 +49,7 @@ def get_all_words():
         }), 500
 
 @learn_bp.route('/sentences/api/all-sentences')
+@login_required  # ADD THIS DECORATOR
 def get_all_sentences():
     """API endpoint to get all HSK1 sentences for learning"""
     try:

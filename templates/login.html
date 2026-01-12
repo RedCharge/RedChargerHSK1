@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/static/js/manifest.json">
+    <meta name="theme-color" content="#5c7cfa">
+    
+    <!-- Mobile Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Language App">
+    
+    <!-- Icons -->
+    <link rel="icon" href="/static/icons/icon-192x192.png">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192x192.png">
+
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    
+    <!-- Configure Tailwind -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary-blue': '#5c7cfa',
+                        'secondary-cyan': '#33f0e8',
+                        'main-bg': '#1e293b',
+                        'card-bg': '#2a3a50',
+                        'text-light': '#e2e8f0',
+                        'text-muted': '#94a3b8',
+                        'error-red': '#ef4444',
+                        'success-green': '#10b981',
+                    },
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { transform: 'translateY(30px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-20px)' },
+                        },
+                        pulseGlow: {
+                            '0%, 100%': { opacity: '0.6' },
+                            '50%': { opacity: '1' },
+                        },
+                        shimmer: {
+                            '0%': { backgroundPosition: '-1000px 0' },
+                            '100%': { backgroundPosition: '1000px 0' },
+                        },
+                    },
+                    animation: {
+                        fadeInUp: 'fadeInUp 0.8s ease-out forwards',
+                        float: 'float 6s ease-in-out infinite',
+                        pulseGlow: 'pulseGlow 3s ease-in-out infinite',
+                        shimmer: 'shimmer 2s infinite linear',
+                    }
+                }
+            }
+        }
+    </script>
+
+<!-- Add this in the <head> section of login.html for debugging -->
+<script>
+    // Enable console logging for debugging
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log('🔧 Login page - Development mode');
+        
+        // Log all fetch requests for debugging
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            console.log('📤 Fetch request to:', args[0], args[1]?.method || 'GET');
+            return originalFetch.apply(this, args).then(response => {
+                console.log('📥 Fetch response:', response.url, response.status);
+                // Clone response to log body without consuming it
+                response.clone().json().then(data => {
+                    console.log('📥 Response data:', data);
+                }).catch(() => {
+                    // Response might not be JSON
+                });
+                return response;
+            }).catch(error => {
+                console.error('📥 Fetch error:', error);
+                throw error;
+            });
+        };
+    }
+</script>
+
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            color: #e2e8f0;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Background with gradient */
+        .background-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -2;
+            background: 
+                linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%),
+                url('/static/images/chinesebg.png');
+            background-blend-mode: overlay;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed
+        }
+
+        /* Animated background elements */
+        .bg-particle {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--color), transparent);
+            filter: blur(40px);
+            opacity: 0.3;
+            animation: float 15s infinite ease-in-out;
+        }
+
+        .particle-1 {
+            --color: #5c7cfa;
+            width: 300px;
+            height: 300px;
+            top: 10%;
+            left: 5%;
+            animation-delay: 0s;
+        }
+
+        .particle-2 {
+            --color: #33f0e8;
+            width: 400px;
+            height: 400px;
+            bottom: 10%;
+            right: 5%;
+            animation-delay: 2s;
+        }
+
+        .particle-3 {
+            --color: #f0abfc;
+            width: 200px;
+            height: 200px;
+            top: 50%;
+            left: 80%;
+            animation-delay: 4s;
+        }
+
+        /* Glass morphism card */
+        .glass-card {
+            background: rgba(42, 58, 80, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 
+                0 20px 40px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .form-input {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .form-input:focus {
+            border-color: #5c7cfa;
+            box-shadow: 
+                0 0 0 3px rgba(92, 124, 250, 0.2),
+                0 10px 20px rgba(92, 124, 250, 0.1);
+            background: rgba(30, 41, 59, 0.9);
+            transform: translateY(-2px);
+        }
+
+        .login-btn {
+            background: linear-gradient(135deg, #5c7cfa 0%, #3d5ad8 100%);
+            background-size: 200% 100%;
+            border: none;
+            box-shadow: 
+                0 10px 30px rgba(92, 124, 250, 0.4),
+                0 0 20px rgba(92, 124, 250, 0.2);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 
+                0 15px 40px rgba(92, 124, 250, 0.6),
+                0 0 30px rgba(92, 124, 250, 0.3);
+            background-position: 100% 0;
+        }
+
+        .login-btn:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Success/Error messages */
+        .success-message {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(34, 197, 94, 0.15));
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .error-message {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.15));
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        /* Progress bar for password strength */
+        .password-strength {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .strength-fill {
+            height: 100%;
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+        
+        /* App icon styles */
+        .app-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 16px;
+            box-shadow: 
+                0 8px 25px rgba(0, 0, 0, 0.3),
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 0 15px rgba(92, 124, 250, 0.3);
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="background-container">
+        <div class="bg-particle particle-1"></div>
+        <div class="bg-particle particle-2"></div>
+        <div class="bg-particle particle-3"></div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="w-full max-w-md">
+            <!-- App Icon Only -->
+            <div class="text-center mb-8 animate-fadeInUp" style="opacity: 0; animation-delay: 0.2s;">
+                <img 
+                    src="/static/icons/icon-512x512.png" 
+                    alt="App Icon"
+                    class="app-icon mx-auto"
+                    onerror="this.onerror=null; this.src='https://via.placeholder.com/80/5c7cfa/ffffff?text=APP'"
+                >
+            </div>
+
+            <!-- Login Card -->
+            <div class="glass-card rounded-3xl p-8 animate-fadeInUp" style="opacity: 0; animation-delay: 0.4s;">
+                <h2 class="text-2xl font-bold text-center mb-2">Welcome Back!</h2>
+                <p class="text-text-muted text-center mb-8">Sign in to continue your learning journey</p>
+
+                <!-- Success Message (for email verification) -->
+                <div id="verifyMessage" class="success-message rounded-xl p-4 mb-6 hidden">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-blue-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                        </svg>
+                        <span id="verifyText" class="font-medium"></span>
+                    </div>
+                </div>
+
+                <!-- Success Message (for account creation) -->
+                <div id="successMessage" class="success-message rounded-xl p-4 mb-6 hidden">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-green-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        <span id="successText" class="font-medium"></span>
+                    </div>
+                </div>
+
+                <!-- Error Message -->
+                <div id="errorMessage" class="error-message rounded-xl p-4 mb-6 hidden">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-red-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                        <span id="errorText" class="font-medium">Invalid credentials. Please try again.</span>
+                    </div>
+                </div>
+
+                <form id="loginForm" class="space-y-6">
+                    <!-- Email Field -->
+                    <div>
+                        <label class="block text-sm font-semibold text-text-light mb-2">
+                            Email Address
+                            <span class="text-red-400">*</span>
+                        </label>
+                        <div class="relative group">
+                            <input 
+                                type="email" 
+                                id="email"
+                                name="email"
+                                required
+                                autocomplete="email"
+                                class="form-input w-full px-4 py-3.5 rounded-xl pl-12 text-lg focus:outline-none group-hover:border-primary-blue/50"
+                                placeholder="you@example.com"
+                            >
+                            <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-text-muted group-hover:text-primary-blue transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Password Field -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-sm font-semibold text-text-light">
+                                Password
+                                <span class="text-red-400">*</span>
+                            </label>
+                            <a href="/forgot-password" class="text-sm text-primary-blue hover:text-secondary-cyan transition-colors font-medium">
+                                Forgot password?
+                            </a>
+                        </div>
+                        <div class="relative group">
+                            <input 
+                                type="password" 
+                                id="password"
+                                name="password"
+                                required
+                                autocomplete="current-password"
+                                class="form-input w-full px-4 py-3.5 rounded-xl pl-12 pr-12 text-lg focus:outline-none group-hover:border-primary-blue/50"
+                                placeholder="••••••••"
+                            >
+                            <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-text-muted group-hover:text-primary-blue transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                </svg>
+                            </div>
+                            <button type="button" id="togglePassword" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-text-muted hover:text-text-light transition-colors">
+                                <svg id="eyeIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <!-- Password Strength Indicator -->
+                        <div class="password-strength">
+                            <div id="passwordStrength" class="strength-fill w-0"></div>
+                        </div>
+                    </div>
+
+                    <!-- Remember Me -->
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <input 
+                                type="checkbox" 
+                                id="remember"
+                                name="remember"
+                                class="w-5 h-5 rounded border-gray-600 bg-main-bg text-primary-blue focus:ring-primary-blue focus:ring-2"
+                            >
+                            <label for="remember" class="text-sm text-text-muted font-medium">Keep me signed in</label>
+                        </div>
+                        
+                        <div class="text-sm font-medium text-primary-blue">
+                            <span id="timeOfDay"></span>
+                        </div>
+                    </div>
+
+                    <!-- Login Button -->
+                    <button type="submit" class="login-btn w-full py-4 rounded-xl font-bold text-lg relative">
+                        <span id="buttonText">Sign In</span>
+                        <svg class="w-5 h-5 inline ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3 3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                        </svg>
+                    </button>
+                </form>
+
+                <!-- Sign Up Link -->
+                <div class="mt-8 text-center pt-6 border-t border-gray-800">
+                    <p class="text-text-muted">
+                        New here? 
+                        <a href="/signup" class="text-primary-blue hover:text-secondary-cyan font-semibold ml-1 transition-colors">
+                            Create an account
+                        </a>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Security Note -->
+            <div class="mt-8 text-center text-sm text-text-muted animate-fadeInUp" style="opacity: 0; animation-delay: 0.6s;">
+                <div class="flex items-center justify-center mb-2">
+                    <svg class="w-4 h-4 mr-2 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                    </svg>
+                    <span class="font-medium">Enterprise-grade Security</span>
+                </div>
+                <p>Your data is encrypted with AES-256 & protected by Cloudflare</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Configuration and App Logic -->
+           
+        <script>
+    // Firebase Configuration and App Logic
+    async function initializeFirebase() {
+        try {
+            // Try to fetch Firebase config from backend
+            const response = await fetch('/api/firebase-config');
+            if (response.ok) {
+                const firebaseConfig = await response.json();
+                const app = firebase.initializeApp(firebaseConfig);
+                console.log('✅ Firebase initialized with config from backend');
+                
+                // 🔥 FROM YOUR WORKING APP: Set session persistence BEFORE getting auth
+                const auth = firebase.auth(app);
+                await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+                console.log('✅ Firebase persistence set to SESSION');
+                
+                return auth;
+            } else {
+                throw new Error('Failed to fetch Firebase config');
+            }
+        } catch (error) {
+            console.error('Firebase initialization error:', error);
+            // Fallback - use placeholder config
+            try {
+                const placeholderConfig = {
+                    apiKey: "placeholder",
+                    authDomain: "placeholder.firebaseapp.com",
+                    projectId: "placeholder-project",
+                    storageBucket: "placeholder.appspot.com",
+                    messagingSenderId: "1234567890",
+                    appId: "1:1234567890:web:abcdef123456"
+                };
+                console.warn('⚠️ Using placeholder Firebase config');
+                const app = firebase.initializeApp(placeholderConfig);
+                const auth = firebase.auth(app);
+                await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+                return auth;
+            } catch (firebaseError) {
+                console.error('Failed to initialize Firebase:', firebaseError);
+                return null;
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        // 🔥 FROM YOUR WORKING APP: Clear auth state on page load for login page
+        if (window.location.pathname === '/login') {
+            clearFirebaseAuthState();
+        }
+        
+        // Initialize Firebase
+        let auth;
+        try {
+            auth = await initializeFirebase();
+            if (!auth) {
+                showError('Failed to initialize authentication. Please refresh the page.');
+                return;
+            }
+            console.log('✅ Firebase auth initialized');
+        } catch (error) {
+            console.error('Failed to initialize Firebase:', error);
+            showError('Failed to initialize authentication. Please refresh the page.');
+            return;
+        }
+        
+        // Check for messages from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const message = urlParams.get('message');
+        const email = urlParams.get('email');
+        
+        if (message === 'verify_email' && email) {
+            const verifyMessage = document.getElementById('verifyMessage');
+            const verifyText = document.getElementById('verifyText');
+            verifyText.textContent = `Please verify your email. We've sent a verification link to ${email}.`;
+            verifyMessage.classList.remove('hidden');
+            verifyMessage.style.animation = 'fadeInUp 0.6s ease-out';
+            
+            // Auto-fill email if provided
+            document.getElementById('email').value = decodeURIComponent(email);
+        } else if (message === 'account_created') {
+            const successMessage = document.getElementById('successMessage');
+            const successText = document.getElementById('successText');
+            successText.textContent = 'Premium account created successfully! Please sign in.';
+            successMessage.classList.remove('hidden');
+            successMessage.style.animation = 'fadeInUp 0.6s ease-out';
+        }
+
+        // Set time of day greeting
+        const timeOfDayElement = document.getElementById('timeOfDay');
+        const hour = new Date().getHours();
+        let greeting = '';
+        
+        if (hour < 12) greeting = '☀️ Good morning!';
+        else if (hour < 18) greeting = '🌤️ Good afternoon!';
+        else greeting = '🌙 Good evening!';
+        
+        timeOfDayElement.textContent = greeting;
+
+        // Password visibility toggle
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+        const eyeIcon = document.getElementById('eyeIcon');
+
+        togglePassword.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            // Update eye icon
+            if (type === 'text') {
+                eyeIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L6.59 6.59m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+                `;
+            } else {
+                eyeIcon.innerHTML = `
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                `;
+            }
+        });
+
+        // Password strength indicator
+        passwordInput.addEventListener('input', (e) => {
+            const password = e.target.value;
+            const strengthBar = document.getElementById('passwordStrength');
+            
+            // Simple password strength calculation
+            let strength = 0;
+            if (password.length >= 8) strength += 25;
+            if (/[A-Z]/.test(password)) strength += 25;
+            if (/[0-9]/.test(password)) strength += 25;
+            if (/[^A-Za-z0-9]/.test(password)) strength += 25;
+            
+            strengthBar.style.width = `${strength}%`;
+            
+            // Color based on strength
+            if (strength < 50) {
+                strengthBar.style.backgroundColor = '#ef4444';
+            } else if (strength < 75) {
+                strengthBar.style.backgroundColor = '#f59e0b';
+            } else {
+                strengthBar.style.backgroundColor = '#10b981';
+            }
+        });
+
+        // Email/Password Login WITH EMAIL VERIFICATION - FIXED WITH WORKING APP LOGIC
+        const loginForm = document.getElementById('loginForm');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const submitButton = loginForm.querySelector('button[type="submit"]');
+            const buttonText = document.getElementById('buttonText');
+            const originalText = buttonText.textContent;
+            
+            // Show loading state
+            buttonText.textContent = 'Signing in...';
+            submitButton.disabled = true;
+            submitButton.classList.add('opacity-75');
+
+            // Hide previous errors
+            errorMessage.classList.add('hidden');
+            document.getElementById('successMessage')?.classList.add('hidden');
+            document.getElementById('verifyMessage')?.classList.add('hidden');
+
+            // Get form data
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('remember').checked;
+
+            try {
+                console.log('🚀 Starting Firebase login...');
+                
+                // 🔥 FROM YOUR WORKING APP: Simple sign in, no persistence change
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const user = userCredential.user;
+                
+                console.log('✅ Firebase login successful:', user.uid, 'Email:', user.email);
+                
+                // 🔥 FROM YOUR WORKING APP: Check email verification
+                if (!user.emailVerified) {
+                    console.log('❌ Email not verified');
+                    
+                    // Show verification message
+                    buttonText.textContent = originalText;
+                    submitButton.disabled = false;
+                    submitButton.classList.remove('opacity-75');
+                    
+                    const verifyMessage = document.getElementById('verifyMessage');
+                    const verifyText = document.getElementById('verifyText');
+                    verifyText.textContent = `Please verify your email address (${user.email}) before logging in.`;
+                    verifyMessage.classList.remove('hidden');
+                    verifyMessage.style.animation = 'fadeInUp 0.6s ease-out';
+                    
+                    // Sign out until email is verified
+                    await auth.signOut();
+                    console.log('✅ Signed out (email not verified)');
+                    
+                    return; // Stop here, don't proceed to backend
+                }
+                
+                console.log('✅ Email verified, getting ID token...');
+                
+                // 🔥 FROM YOUR WORKING APP: Get ID Token (force refresh)
+                const idToken = await user.getIdToken(true);
+                console.log('✅ Got Firebase ID token');
+                
+                // Show success animation
+                buttonText.innerHTML = `
+                    <div class="flex items-center justify-center">
+                        <div class="spinner w-5 h-5 mr-2"></div>
+                        Authenticating...
+                    </div>
+                `;
+                
+                // 🔥 FROM YOUR WORKING APP: Send token to backend
+                console.log('📤 Sending to backend /api/login...');
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        id_token: idToken,
+                        name: user.displayName || user.email.split('@')[0]
+                    })
+                });
+
+                console.log('📥 Backend response status:', response.status);
+                const result = await response.json();
+                console.log('📥 Backend response:', result);
+
+                if (response.ok && result.success) {
+                    console.log('✅ Login successful with backend, redirecting...');
+                    
+                    // 🔥 FROM YOUR WORKING APP: Store minimal info
+                    localStorage.setItem('userEmail', user.email);
+                    localStorage.setItem('lastLogin', new Date().toISOString());
+                    
+                    // Redirect to main page
+                    setTimeout(() => {
+                        window.location.href = result.redirect || '/home';
+                    }, 500);
+                    
+                } else {
+                    // Handle backend error
+                    buttonText.textContent = originalText;
+                    submitButton.disabled = false;
+                    submitButton.classList.remove('opacity-75');
+                    
+                    // Sign out from Firebase if backend fails
+                    await auth.signOut();
+                    console.log('✅ Signed out from Firebase after backend failure');
+                    
+                    const errorMsg = result.error || 'Login failed. Please try again.';
+                    showError(errorMsg);
+                }
+                
+            } catch (error) {
+                // Handle Firebase errors
+                console.error('❌ Login error:', error);
+                buttonText.textContent = originalText;
+                submitButton.disabled = false;
+                submitButton.classList.remove('opacity-75');
+                
+                let errorMessageText = 'An error occurred. Please try again.';
+                
+                switch (error.code) {
+                    case 'auth/invalid-email':
+                        errorMessageText = 'Invalid email address format.';
+                        break;
+                    case 'auth/user-disabled':
+                        errorMessageText = 'This account has been disabled.';
+                        break;
+                    case 'auth/user-not-found':
+                        errorMessageText = 'No account found with this email.';
+                        break;
+                    case 'auth/wrong-password':
+                        errorMessageText = 'Incorrect password. Please try again.';
+                        break;
+                    case 'auth/too-many-requests':
+                        errorMessageText = 'Too many failed attempts. Please try again later.';
+                        break;
+                    case 'auth/network-request-failed':
+                        errorMessageText = 'Network error. Please check your connection.';
+                        break;
+                    case 'auth/user-not-verified':
+                        errorMessageText = 'Please verify your email address before logging in.';
+                        break;
+                    default:
+                        errorMessageText = error.message || 'Login failed. Please try again.';
+                }
+                
+                showError(errorMessageText);
+            }
+        });
+
+        // Auto-focus email field with animation
+        const emailField = document.getElementById('email');
+        emailField.focus();
+        emailField.style.transform = 'scale(1.02)';
+        setTimeout(() => {
+            emailField.style.transform = 'scale(1)';
+        }, 300);
+
+        // Initialize animations for elements
+        const animatedElements = document.querySelectorAll('[class*="animate-"]');
+        animatedElements.forEach((el, index) => {
+            el.style.animationDelay = `${index * 0.1}s`;
+        });
+        
+        // 🔥 FROM YOUR WORKING APP: Auth state listener - but DISABLED auto-login
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log('ℹ️ Firebase auth state changed - User logged in:', user.email);
+                // Don't auto-login! This prevents the auto-login loop
+                // User must manually click login button
+            } else {
+                console.log('ℹ️ Firebase auth state changed - No user');
+            }
+        });
+    });
+
+    // 🔥 FROM YOUR WORKING APP: Helper function to clear Firebase auth state
+    function clearFirebaseAuthState() {
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            try {
+                // Sign out from Firebase
+                firebase.auth().signOut().catch(() => {});
+                
+                // Clear Firebase auth from localStorage
+                Object.keys(localStorage).forEach(key => {
+                    if (key.includes('firebase:authUser')) {
+                        localStorage.removeItem(key);
+                        console.log('🧹 Removed Firebase auth key:', key);
+                    }
+                });
+                
+                // Clear sessionStorage
+                sessionStorage.clear();
+                
+                console.log('✅ Firebase auth state cleared');
+            } catch (error) {
+                console.log('Error clearing Firebase auth:', error);
+            }
+        }
+    }
+
+    // Helper functions
+    function showError(message) {
+        const errorText = document.getElementById('errorText');
+        errorText.textContent = message;
+        const errorMessage = document.getElementById('errorMessage');
+        errorMessage.classList.remove('hidden');
+        errorMessage.style.animation = 'fadeInUp 0.4s ease-out';
+        
+        // Scroll to error message
+        errorMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Shake animation for error
+        errorMessage.classList.add('animate-shake');
+        setTimeout(() => {
+            errorMessage.classList.remove('animate-shake');
+        }, 500);
+        
+        // Auto-hide error after 5 seconds
+        setTimeout(() => {
+            errorMessage.classList.add('hidden');
+        }, 5000);
+    }
+
+    // Add shake animation keyframes dynamically
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+        .animate-shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+</body>
+</html>

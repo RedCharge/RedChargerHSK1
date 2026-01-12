@@ -1,16 +1,19 @@
 from flask import Blueprint, render_template, jsonify, request, session
 from .models import db, User, QuizResult, UserAchievement
 from datetime import datetime, timedelta
+from flask_login import login_required, current_user
 
 # Create blueprint
 profile_bp = Blueprint('profile', __name__)
 
 @profile_bp.route('/profile')
+@login_required
 def profile_page():
     """Serve the profile.html page"""
     return render_template('profile.html')
 
 @profile_bp.route('/api/profile/save', methods=['POST'])
+@login_required
 def save_profile():
     """API endpoint to save profile data to database"""
     try:
@@ -60,6 +63,7 @@ def save_profile():
         }), 500
 
 @profile_bp.route('/api/profile/stats')
+@login_required
 def get_profile_stats():
     """API endpoint to get REAL user statistics from database"""
     try:
@@ -110,6 +114,7 @@ def get_profile_stats():
         }), 500
 
 @profile_bp.route('/api/profile/achievements')
+@login_required
 def get_achievements():
     """API endpoint to get REAL user achievements from database"""
     try:
@@ -234,6 +239,7 @@ def get_achievements():
         }), 500
 
 @profile_bp.route('/api/profile/learning-history')
+@login_required
 def get_learning_history():
     """API endpoint to get REAL user learning history from database"""
     try:
@@ -272,6 +278,7 @@ def get_learning_history():
         }), 500
 
 @profile_bp.route('/api/profile/export-data')
+@login_required
 def export_user_data():
     """API endpoint to export REAL user data"""
     try:
@@ -336,6 +343,7 @@ def export_user_data():
         }), 500
 
 @profile_bp.route('/api/profile/update-progress', methods=['POST'])
+@login_required
 def update_progress():
     """Update user progress after quiz completion"""
     try:
@@ -391,6 +399,7 @@ def update_progress():
 
 # Keep your existing upload-avatar and delete-account routes
 @profile_bp.route('/api/profile/upload-avatar', methods=['POST'])
+@login_required
 def upload_avatar():
     """API endpoint to handle avatar uploads"""
     try:
@@ -421,6 +430,7 @@ def upload_avatar():
         }), 500
 
 @profile_bp.route('/api/profile/delete-account', methods=['POST'])
+@login_required
 def delete_account():
     """API endpoint to delete user account"""
     try:

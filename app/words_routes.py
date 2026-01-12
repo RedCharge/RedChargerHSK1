@@ -85,7 +85,7 @@ HSK1_WORDS = [
   { "id": 75, "word": "电", "pinyin": "diàn", "english": "electricity", "options": ["light", "energy", "electricity", "power"], "correctAnswer": 2 },
   { "id": 76, "word": "电话", "pinyin": "diànhuà", "english": "phone", "options": ["call", "telephone", "mobile", "phone"], "correctAnswer": 3 },
   { "id": 77, "word": "电脑", "pinyin": "diànnǎo", "english": "computer", "options": ["laptop", "PC", "computer", "device"], "correctAnswer": 2 },
-  { "id": 78, "word": "电视", "pinyin": "diànshì", "english": "TV", "options": ["radio", "screen", "monitor", "TV"], "correctAnswer": 3 },
+  { "id": 78, "word": "电视", "pinyin": "diànshì", "english": "TV", "options": ["radio", "screen", "monitor ", "TV"], "correctAnswer": 3 },
   { "id": 79, "word": "电视机", "pinyin": "diànshì jī", "english": "TV set", "options": ["TV set", "television", "monitor", "screen"], "correctAnswer": 0 },
   { "id": 80, "word": "电影", "pinyin": "diànyǐng", "english": "movie", "options": ["show", "movie", "film", "video"], "correctAnswer": 1 },
   { "id": 81, "word": "电影院", "pinyin": "diànyǐngyuàn", "english": "cinema", "options": ["movie hall", "theatre", "cinema", "TV room"], "correctAnswer": 2 },
